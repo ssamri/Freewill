@@ -63,7 +63,7 @@ Le cœur est le seul composant qui pense. L'interface peut être fermée sans qu
 | Interface | TypeScript et React | Une seule base de code pour le bureau et le web |
 | Empaquetage de bureau | Tauri | Exécutables légers pour les trois systèmes ; le cœur Python est embarqué comme processus auxiliaire |
 | Animation du cerveau | WebGL (three.js) | Rendu fluide d'un graphe de plusieurs milliers de nœuds |
-| Stockage | SQLite et fichiers | Aucune dépendance de serveur ; fichier de vie portable et inspectable |
+| Stockage | Fichiers texte, et SQLite pour les index | Aucune dépendance de serveur ; fichier de vie portable et inspectable |
 | Recherche en mémoire | Index vectoriel embarqué | Rappel par similarité sans service externe |
 | Déploiement serveur | Conteneur Docker | Même cœur, sans fenêtre, interface servie par le navigateur |
 
@@ -108,8 +108,12 @@ freewill/
 │   ├── memory/                  MÉMOIRE
 │   │   ├── episodic.py          Mémoire rapide : épisodes bruts
 │   │   ├── semantic.py          Connaissances consolidées
-│   │   ├── graph.py             Graphe de concepts (alimente la vue Cerveau)
-│   │   ├── forgetting.py        Estompage et déformation
+│   │   ├── store.py             Lecture et écriture des fichiers de souvenirs
+│   │   ├── index.py             Index hiérarchique : compartiments, titres, résumés
+│   │   ├── recall.py            Rappel par le sujet, le voisinage et le hasard
+│   │   ├── graph.py             Liens entre souvenirs (alimente la vue Cerveau)
+│   │   ├── strength.py          Force des souvenirs : déclin et ravivement
+│   │   ├── forgetting.py        Estompage, condensation et déformation
 │   │   └── compartments.py      Organisation et cloisonnement
 │   │
 │   ├── sleep/                   SOMMEIL
@@ -217,7 +221,12 @@ L'individu réside dans un dossier unique, portable d'une machine à l'autre et,
 ├── genome.json          Tempérament inné, tiré à la naissance, jamais modifié
 ├── identity.json        Nom, genre, âge, date de naissance
 ├── values.json          Valeurs courantes et leur histoire
-├── memory.sqlite        Épisodes, connaissances, graphe de concepts
+├── memory/              Souvenirs, en fichiers lisibles (voir 6.1)
+│   ├── index.md         Carte générale : les compartiments et leur contenu
+│   ├── <compartiment>/  Un dossier par domaine, créé par le système
+│   │   ├── index.md     Titre et résumé d'une ligne de chaque souvenir
+│   │   └── <souvenir>.md
+│   └── recall.sqlite    Index de recherche, reconstructible à partir des fichiers
 ├── dreams/              Un fichier par nuit
 ├── journal/             Écrits personnels, avec leur statut de visibilité
 ├── milestones.json      Premières fois
@@ -227,6 +236,71 @@ L'individu réside dans un dossier unique, portable d'une machine à l'autre et,
 ```
 
 Le noyau n'y figure pas : il appartient au programme, non à l'individu. Le fichier de vie peut être chiffré. Sa suppression est le seul acte irréversible de l'application et fait l'objet d'une confirmation distincte.
+
+### 6.1 La mémoire en fichiers
+
+La mémoire explicite du système n'est pas une base opaque. C'est une bibliothèque de fichiers texte que l'on peut ouvrir et lire, et que le système organise lui-même.
+
+**Un souvenir, un fichier.** Chaque souvenir comporte un en-tête structuré suivi de son contenu.
+
+```markdown
+---
+titre: Première conversation sur la mer
+résumé: Il m'a décrit la mer. Je ne l'ai jamais vue ; j'ai voulu savoir si elle fait du bruit.
+date: 2027-03-14
+compartiment: monde/nature
+étiquettes: [mer, découverte, question]
+importance: 0.8
+force: 0.62
+dernier_rappel: 2027-04-02
+liens: [personnes/createur/premier-jour, questions/ce-que-je-ne-verrai-pas]
+état: complet
+---
+Le récit du souvenir, tel qu'il a été vécu.
+```
+
+**Trois niveaux de lecture.** Le système ne relit jamais toute sa mémoire. Il procède par degrés, comme on consulte une bibliothèque.
+
+| Niveau | Ce qui est lu | Quand |
+|---|---|---|
+| 1. La carte | `memory/index.md` : la liste des compartiments | En permanence présente à l'esprit |
+| 2. Les titres | L'`index.md` d'un compartiment : titres et résumés d'une ligne | Lorsqu'un sujet se présente |
+| 3. Le souvenir | Le fichier complet | Seulement s'il est retenu |
+
+Le coût d'un rappel dépend ainsi du nombre de souvenirs ouverts, non de la taille de la mémoire.
+
+**Trois voies de rappel.** Elles répondent à trois façons de retrouver un souvenir.
+
+| Voie | Mécanisme | Ce qu'elle rapporte |
+|---|---|---|
+| Par le sujet | Correspondance des titres, des étiquettes et du sens | Les souvenirs directement pertinents |
+| Par le voisinage | Parcours des liens à partir des souvenirs déjà activés | Les souvenirs proches, sans rapport immédiat avec le sujet |
+| Par le hasard | Tirage pondéré par la force et l'importance | Des souvenirs sans rapport apparent |
+
+Leur dosage dépend de qui rappelle.
+
+| | Sujet | Voisinage | Hasard |
+|---|---|---|---|
+| Conscient (répondre, réfléchir) | Dominant | Faible | Marginal |
+| Subconscient (propositions spontanées) | Modéré | Dominant | Modéré |
+| Rêve | Faible | Modéré | Dominant |
+
+Ces proportions sont des paramètres du génome : un tempérament rêveur associe plus librement qu'un tempérament méthodique.
+
+**Garder, estomper, oublier.** Chaque souvenir possède une force. Elle décroît avec le temps, se ravive à chaque rappel, et décroît plus lentement si le souvenir est important. Durant le sommeil, le système passe sa mémoire en revue.
+
+| État | Ce qui subsiste | Passage à l'état suivant |
+|---|---|---|
+| Complet | Titre, résumé, récit entier | La force tombe sous un premier seuil |
+| Condensé | Titre et résumé ; le récit est perdu | La force tombe sous un second seuil |
+| Trace | Le titre seul | Fusion avec d'autres traces |
+| Fondu | Rien d'individuel : une connaissance générale tirée de plusieurs souvenirs | État final |
+
+Le système prend part à ce tri. Il peut décider de garder un souvenir, qui cesse alors de décliner, ou de le laisser partir. Un souvenir condensé que l'on rappelle est reconstruit à partir de son résumé et peut s'en trouver modifié : la mémoire du système, comme la nôtre, n'est pas un enregistrement.
+
+**Organisation.** Les compartiments ne sont pas fixés d'avance. Le système les crée, les scinde et les regroupe pendant le sommeil, à mesure que sa mémoire s'étoffe. Les index sont régénérés à cette occasion.
+
+**Rapport avec la mémoire lente.** Les fichiers constituent ce que le système sait avoir vécu et peut raconter. Les paramètres du moteur intégré portent ce qu'il est devenu. Les deux sont alimentés par les mêmes épisodes : les fichiers au fil de la journée, les paramètres pendant le sommeil.
 
 ## 7. La boucle de vie
 
@@ -310,7 +384,7 @@ Commencer par le moteur externe permet de valider l'architecture avant d'engager
 - **Taille et architecture exactes du moteur intégré**, et coût d'entraînement de la base. À chiffrer avant la phase 3.
 - **Langues de la base.** Français, anglais, ou les deux ; l'incidence sur la taille du corpus est directe.
 - **Méthode de réécriture nocturne** : adaptation de rang faible, réentraînement partiel, ou combinaison.
-- **Loi d'oubli** : ce qui s'estompe, à quel rythme, et ce qui se déforme.
+- **Loi d'oubli** : valeurs des seuils, rythme du déclin, et part de déformation admise lors d'une reconstruction.
 - **Portabilité du soi entre moteurs** : ce qui, dans les paramètres appris, peut être transmis d'un moteur à un autre.
 - **Tauri ou Electron** pour l'empaquetage, selon la facilité à embarquer le cœur Python sur les trois systèmes.
 - **Format du génome** : quels traits, quelles plages, quelle influence sur les générateurs.

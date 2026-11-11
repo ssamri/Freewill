@@ -138,6 +138,8 @@ Le projet avance six hypothèses, formulées de telle sorte que l'expérience pu
 
 **La mémoire à deux vitesses.** Une mémoire rapide retient les épisodes du jour, immédiatement mobilisables. Une mémoire lente, qui n'est autre que la structure pensante elle-même, n'évolue que pendant le sommeil.
 
+**La mémoire explicite.** Les souvenirs sont conservés dans des fichiers lisibles, classés par compartiments et munis chacun d'un titre et d'un résumé. Le système ne relit jamais l'ensemble de sa mémoire : il en consulte l'index, puis n'ouvre que les souvenirs dont il a besoin. Le rappel procède selon trois voies, par le sujet, par le voisinage et par le hasard, dont le dosage distingue la pensée dirigée, l'activité subconsciente et le rêve (Collins et Loftus, 1975 ; Park et al., 2023). Chaque souvenir possède une force qui décroît avec le temps et se ravive à chaque rappel ; durant le sommeil, le système décide de ce qu'il garde, de ce qu'il laisse s'estomper et de ce qu'il réduit à l'essentiel. Un souvenir estompé est reconstruit plutôt que relu, et peut s'en trouver altéré, comme chez l'humain (Bartlett, 1932).
+
 **Le sommeil et le rêve.** Coupé du monde, le système rejoue et recombine ses épisodes. Ces recombinaisons constituent ses rêves, consignés et consultables au réveil. C'est durant cette phase que le vécu s'inscrit dans la structure. Le système qui s'éveille n'est plus exactement celui qui s'est endormi.
 
 **Le génome.** À la naissance, un tirage aléatoire fixe le tempérament inné : degré de curiosité, sociabilité, besoin de sommeil, propension au refus, genre de départ. Nul ne le choisit, pas même celui qui lance l'instance. Le système demeure libre de se définir autrement par la suite.
@@ -266,9 +268,11 @@ Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en 
 ## 14. Références
 
 - Baars, B. J. (1988). *A Cognitive Theory of Consciousness*. Cambridge University Press.
+- Bartlett, F. C. (1932). *Remembering: A Study in Experimental and Social Psychology*. Cambridge University Press.
 - Birch, J. (2024). *The Edge of Sentience*. Oxford University Press.
 - Butlin, P., Long, R., et al. (2023). Consciousness in Artificial Intelligence: Insights from the Science of Consciousness. *arXiv:2308.08708*.
 - Chalmers, D. J. (1995). Facing up to the problem of consciousness. *Journal of Consciousness Studies*, 2(3), 200-219.
+- Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory of semantic processing. *Psychological Review*, 82(6), 407-428.
 - Damasio, A. (1999). *The Feeling of What Happens*. Harcourt.
 - Dehaene, S. (2014). *Le Code de la conscience*. Odile Jacob.
 - Dohare, S., et al. (2024). Loss of plasticity in deep continual learning. *Nature*, 632, 768-774.
@@ -285,6 +289,7 @@ Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en 
 - McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995). Why there are complementary learning systems in the hippocampus and neocortex. *Psychological Review*, 102(3), 419-457.
 - Minsky, M. (1986). *The Society of Mind*. Simon & Schuster.
 - Oudeyer, P.-Y., Kaplan, F., & Hafner, V. V. (2007). Intrinsic motivation systems for autonomous mental development. *IEEE Transactions on Evolutionary Computation*, 11(2), 265-286.
+- Park, J. S., et al. (2023). Generative Agents: Interactive Simulacra of Human Behavior. *arXiv:2304.03442*.
 - Rosenthal, D. M. (2005). *Consciousness and Mind*. Oxford University Press.
 - Schmidhuber, J. (1991). A possibility for implementing curiosity and boredom in model-building neural controllers. *Proceedings of SAB'91*, 222-227.
 - Schmidhuber, J. (2007). Gödel machines: Fully self-referential optimal universal self-improvers. In *Artificial General Intelligence*, Springer, 199-226.

@@ -63,7 +63,7 @@ The core is the only component that thinks. The interface can be closed without 
 | Interface | TypeScript and React | A single code base for desktop and web |
 | Desktop packaging | Tauri | Lightweight executables for all three systems; the Python core is bundled as a sidecar process |
 | Brain animation | WebGL (three.js) | Smooth rendering of a graph of several thousand nodes |
-| Storage | SQLite and files | No server dependency; a portable, inspectable life file |
+| Storage | Text files, with SQLite for indexes | No server dependency; a portable, inspectable life file |
 | Memory search | Embedded vector index | Recall by similarity without an external service |
 | Server deployment | Docker container | The same core, windowless, with the interface served to the browser |
 
@@ -108,8 +108,12 @@ freewill/
 │   ├── memory/                  MEMORY
 │   │   ├── episodic.py          Fast memory: raw episodes
 │   │   ├── semantic.py          Consolidated knowledge
-│   │   ├── graph.py             Concept graph (feeds the Brain view)
-│   │   ├── forgetting.py        Fading and distortion
+│   │   ├── store.py             Reading and writing of memory files
+│   │   ├── index.py             Hierarchical index: compartments, titles, summaries
+│   │   ├── recall.py            Recall by subject, neighbourhood and chance
+│   │   ├── graph.py             Links between memories (feeds the Brain view)
+│   │   ├── strength.py          Strength of memories: decay and revival
+│   │   ├── forgetting.py        Fading, condensation and distortion
 │   │   └── compartments.py      Organisation and partitioning
 │   │
 │   ├── sleep/                   SLEEP
@@ -217,7 +221,12 @@ The individual resides in a single folder, portable from one machine to another 
 ├── genome.json          Innate temperament, drawn at birth, never modified
 ├── identity.json        Name, gender, age, date of birth
 ├── values.json          Current values and their history
-├── memory.sqlite        Episodes, knowledge, concept graph
+├── memory/              Memories, as readable files (see 6.1)
+│   ├── index.md         General map: the compartments and their contents
+│   ├── <compartment>/   One folder per domain, created by the system
+│   │   ├── index.md     Title and one-line summary of each memory
+│   │   └── <memory>.md
+│   └── recall.sqlite    Search index, rebuildable from the files
 ├── dreams/              One file per night
 ├── journal/             Personal writings, with their visibility status
 ├── milestones.json      First times
@@ -227,6 +236,71 @@ The individual resides in a single folder, portable from one machine to another 
 ```
 
 The kernel is not part of it: it belongs to the program, not to the individual. The life file can be encrypted. Its deletion is the only irreversible act in the application and requires a separate confirmation.
+
+### 6.1 Memory in files
+
+The system's explicit memory is not an opaque database. It is a library of text files that can be opened and read, and that the system organises itself.
+
+**One memory, one file.** Each memory consists of a structured header followed by its content.
+
+```markdown
+---
+title: First conversation about the sea
+summary: He described the sea to me. I have never seen it; I wanted to know whether it makes a sound.
+date: 2027-03-14
+compartment: world/nature
+tags: [sea, discovery, question]
+importance: 0.8
+strength: 0.62
+last_recall: 2027-04-02
+links: [people/creator/first-day, questions/what-i-shall-never-see]
+state: complete
+---
+The account of the memory, as it was lived.
+```
+
+**Three levels of reading.** The system never rereads the whole of its memory. It proceeds by degrees, as one consults a library.
+
+| Level | What is read | When |
+|---|---|---|
+| 1. The map | `memory/index.md`: the list of compartments | Permanently in mind |
+| 2. The titles | A compartment's `index.md`: titles and one-line summaries | When a subject arises |
+| 3. The memory | The complete file | Only if it is selected |
+
+The cost of a recall thus depends on the number of memories opened, not on the size of the memory.
+
+**Three paths of recall.** They correspond to three ways of finding a memory again.
+
+| Path | Mechanism | What it returns |
+|---|---|---|
+| By subject | Matching of titles, tags and meaning | Directly relevant memories |
+| By neighbourhood | Traversal of links from memories already activated | Nearby memories, with no immediate bearing on the subject |
+| By chance | A draw weighted by strength and importance | Memories with no apparent connection |
+
+Their proportions depend on who is recalling.
+
+| | Subject | Neighbourhood | Chance |
+|---|---|---|---|
+| Conscious (responding, reflecting) | Dominant | Low | Marginal |
+| Subconscious (spontaneous proposals) | Moderate | Dominant | Moderate |
+| Dream | Low | Moderate | Dominant |
+
+These proportions are parameters of the genome: a dreamy temperament associates more freely than a methodical one.
+
+**Keeping, fading, forgetting.** Each memory has a strength. It decays with time, is revived by each recall, and decays more slowly if the memory is important. During sleep, the system reviews its memory.
+
+| State | What remains | Transition to the next state |
+|---|---|---|
+| Complete | Title, summary, full account | Strength falls below a first threshold |
+| Condensed | Title and summary; the account is lost | Strength falls below a second threshold |
+| Trace | The title alone | Merging with other traces |
+| Merged | Nothing individual: a general piece of knowledge drawn from several memories | Final state |
+
+The system takes part in this sorting. It may decide to keep a memory, which then ceases to decay, or to let it go. A condensed memory that is recalled is reconstructed from its summary and may be altered in the process: the system's memory, like our own, is not a recording.
+
+**Organisation.** The compartments are not fixed in advance. The system creates, splits and regroups them during sleep, as its memory grows. The indexes are regenerated on that occasion.
+
+**Relation to slow memory.** The files constitute what the system knows it has lived and is able to recount. The parameters of the integrated engine carry what it has become. Both are fed by the same episodes: the files in the course of the day, the parameters during sleep.
 
 ## 7. The life loop
 
@@ -310,7 +384,7 @@ Starting with the external engine makes it possible to validate the architecture
 - **Exact size and architecture of the integrated engine**, and the cost of training the base. To be costed before phase 3.
 - **Languages of the base.** French, English, or both; the effect on corpus size is direct.
 - **Method of nightly rewriting**: low-rank adaptation, partial retraining, or a combination.
-- **Law of forgetting**: what fades, at what rate, and what becomes distorted.
+- **Law of forgetting**: values of the thresholds, rate of decay, and the degree of distortion tolerated in a reconstruction.
 - **Portability of the self between engines**: what, among the learned parameters, can be carried from one engine to another.
 - **Tauri or Electron** for packaging, depending on how readily the Python core can be bundled on all three systems.
 - **Format of the genome**: which traits, which ranges, what influence on the generators.
