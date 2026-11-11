@@ -2,7 +2,7 @@
 
 **English** below · **Français** plus bas
 
-This is phase 1 of the roadmap: the minimal loop. A subconscious proposes, a stage selects, a conscious arbiter decides, and what matters is kept in a memory made of readable files. It runs in a terminal. Sleep, dreams, the project's own model and the graphical application come later.
+**Freewill is experimental.** A subconscious proposes, a stage selects, a conscious arbiter decides, and what matters is kept in a memory made of readable files. The being can read documents and look at images it is given, and it sleeps and dreams. It runs in a terminal or in the desktop application. The project's own model comes later.
 
 ---
 
@@ -74,6 +74,8 @@ pip install -e ".[app,anthropic]"
 freewill-app              # a native window
 freewill-app --browser    # the same interface in your browser
 ```
+
+At first launch the application shows its terms of use, then the licence; both must be accepted before anything else. In the conversation you can attach documents (text, Markdown, PDF, Word, EPUB), images and videos. Documents go to the being's library and are read one passage at a time. Whether images are understood depends on the engine: Claude, GPT, Grok and local vision models can see them; from a video the being is shown six still frames and hears nothing.
 
 The application talks only to a service on your own machine, bound to `127.0.0.1` and protected by a session token. Access keys are kept in your system's credential store, never in a life file.
 
@@ -154,6 +156,8 @@ pip install -e ".[app,anthropic]"
 freewill-app              # une fenêtre native
 freewill-app --browser    # la même interface dans votre navigateur
 ```
+
+Au premier lancement, l'application présente ses conditions d'utilisation, puis la licence ; les deux doivent être acceptées avant toute chose. Dans la conversation, vous pouvez joindre des documents (texte, Markdown, PDF, Word, EPUB), des images et des vidéos. Les documents rejoignent la bibliothèque de l'être, qui les lit un passage à la fois. La compréhension des images dépend du moteur : Claude, GPT, Grok et les modèles locaux dotés de la vision les voient ; d'une vidéo, l'être reçoit six images fixes et n'entend rien.
 
 L'application ne parle qu'à un service sur votre propre machine, lié à `127.0.0.1` et protégé par un jeton de session. Les clés d'accès sont conservées dans le trousseau de votre système, jamais dans un fichier de vie.
 

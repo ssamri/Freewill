@@ -37,6 +37,7 @@ class Runner:
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self.paused_reason: str | None = None
+        self._sleep_now = False
         self.snapshot: dict = {}
 
         self._load_history()
@@ -88,8 +89,13 @@ class Runner:
         if self._thread is not None:
             self._thread.join(timeout=30)
 
-    def hear(self, text: str) -> None:
-        self._incoming.put(text)
+    def hear(self, text: str, attachments: list[dict] | None = None) -> None:
+        self._incoming.put((text, attachments or []))
+        self._wake.set()
+
+    def sleep(self) -> None:
+        """The person suggests sleep. It happens at the next moment."""
+        self._sleep_now = True
         self._wake.set()
 
     def configure(self, *, tempo: float | None = None, thoughts_per_hour: int | None = None) -> None:
@@ -111,20 +117,25 @@ class Runner:
                 break
             spoken_to = False
             while not self._incoming.empty():
-                self.being.hear(self._incoming.get())
+                self.being.hear(*self._incoming.get())
                 spoken_to = True
+            if self._sleep_now:
+                self._sleep_now = False
+                self.being.sleep_requested = True
+                next_thought = time.monotonic()
             if spoken_to:
                 self.paused_reason = None
                 next_thought = min(next_thought, time.monotonic() + backoff)
             now = time.monotonic()
             if now < next_thought:
                 continue
-            if self.paused_reason and not self.being.inbox:
+            asked = bool(self.being.inbox) or self.being.sleep_requested
+            if self.paused_reason and not asked:
                 next_thought = now + 5
                 continue
             # Hourly budget: spontaneous thinking pauses; being spoken to still gets through.
             thought_times = [stamp for stamp in thought_times if now - stamp < 3600]
-            if len(thought_times) >= self.thoughts_per_hour and not self.being.inbox:
+            if len(thought_times) >= self.thoughts_per_hour and not asked:
                 next_thought = now + 5
                 continue
             try:
@@ -156,7 +167,8 @@ class Runner:
             "gender": life.identity.get("gender"),
             "interlocutor": life.identity.get("interlocutor"),
             "engine": {**life.identity.get("engine", {}), "name": self.engine.name,
-                       "can_learn": self.engine.can_learn},
+                       "can_learn": self.engine.can_learn,
+                       "can_see": getattr(self.engine, "can_see", False)},
             "genome": {k: v for k, v in life.genome.to_dict().items() if k != "seed"},
             "needs": being.needs.to_dict(),
             "values": list(life.values),
@@ -165,6 +177,8 @@ class Runner:
             "thoughts": life.state.get("thoughts", 0),
             "dialogue": list(being.dialogue),
             "memory_map": life.memory.map(),
+            "dreams": len(life.dreams.ids()),
+            "library": [life.library.public(item) for item in life.library.items()],
             "weights": dict(being.subconscious.weights),
             "tempo": self.tempo,
             "thoughts_per_hour": self.thoughts_per_hour,

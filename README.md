@@ -1,13 +1,13 @@
-# Freewill
+# Freewill (experimental)
 
 **English** · [Français](README.fr.md)
 
-**An open research programme on consciousness, free will, the subconscious and dreaming in artificial intelligence systems.**
+**An open, experimental research programme on consciousness, free will, the subconscious and dreaming in artificial intelligence systems.**
 
 > *"Instead of trying to produce a programme to simulate the adult mind, why not rather try to produce one which simulates the child's?"*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**Project status: design phase.** No code has been published yet. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
+**Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. It thinks with an existing model or with a simulated engine; the project's own model is not built yet. Nothing here is a finished product, and nothing here claims that the system is conscious. See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
 
 ---
 

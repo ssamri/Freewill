@@ -7,6 +7,8 @@ page open elsewhere on the machine can talk to the being.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import mimetypes
 import os
@@ -19,12 +21,19 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from freewill import __version__, keys
+from freewill.core.library import LibraryError
 from freewill.core.life import Life
+from freewill.core.perception import extract_text
 from freewill.engines.base import EngineError, make_engine
 from freewill.server.runner import Runner
 
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 ENGINE_KINDS = ("local", "anthropic", "openai", "xai", "compatible", "simulated")
+# Raise this number whenever the terms of use change: everyone is asked again.
+TERMS_VERSION = 1
+MAX_BODY_BYTES = 48_000_000
+MAX_ATTACHMENTS = 6
+MAX_FILE_BYTES = 30_000_000
 NAME_PATTERN = re.compile(r"^[^\W\d_][\w '\-]{0,39}$", re.UNICODE)
 
 
@@ -52,6 +61,41 @@ class App:
         self.token = secrets.token_urlsafe(24)
         self.runner: Runner | None = None
         self._lock = threading.Lock()
+        self._consent_path = self.lives_dir.parent / "consent.json"
+
+    # -- consent ---------------------------------------------------------------
+
+    @staticmethod
+    def licence_text() -> str:
+        return (UI_DIR / "LICENSE.txt").read_text(encoding="utf-8")
+
+    def _licence_digest(self) -> str:
+        return hashlib.sha256(self.licence_text().encode("utf-8")).hexdigest()
+
+    def consent(self) -> dict:
+        """Whether the person accepted the current terms of use and the current licence."""
+        try:
+            record = json.loads(self._consent_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            record = {}
+        accepted = (record.get("terms") == TERMS_VERSION
+                    and record.get("licence") == self._licence_digest())
+        return {"accepted": accepted, "terms_version": TERMS_VERSION,
+                "accepted_at": record.get("accepted_at") if accepted else None}
+
+    def accept(self, body: dict) -> dict:
+        if body.get("terms") is not True or body.get("licence") is not True:
+            raise ApiError(400, "both the terms of use and the licence must be accepted")
+        from datetime import datetime, timezone
+        self._consent_path.write_text(json.dumps({
+            "terms": TERMS_VERSION, "licence": self._licence_digest(),
+            "accepted_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }, indent=2) + "\n", encoding="utf-8")
+        return self.consent()
+
+    def require_consent(self) -> None:
+        if not self.consent()["accepted"]:
+            raise ApiError(403, "the terms of use and the licence have not been accepted")
 
     # -- lives -----------------------------------------------------------------
 
@@ -75,6 +119,7 @@ class App:
         return self.lives_dir / f"{name.strip()}.life"
 
     def birth(self, body: dict) -> dict:
+        self.require_consent()
         name = str(body.get("name", "")).strip()
         path = self._path_for(name)
         if path.exists():
@@ -99,6 +144,7 @@ class App:
         return self.wake(name)
 
     def wake(self, name: str) -> dict:
+        self.require_consent()
         path = self._path_for(name)
         if not path.exists():
             raise ApiError(404, "no such being")
@@ -127,6 +173,42 @@ class App:
         if runner is None:
             raise ApiError(409, "no being is awake")
         return runner
+
+    # -- what the person gives ---------------------------------------------------
+
+    def receive(self, body: dict) -> None:
+        """A message, with or without attachments, for the being that is awake."""
+        runner = self.require_runner()
+        text = str(body.get("text", "")).strip()[:8000]
+        given = body.get("attachments") or []
+        if not isinstance(given, list) or len(given) > MAX_ATTACHMENTS:
+            raise ApiError(400, f"at most {MAX_ATTACHMENTS} attachments at a time")
+        if not text and not given:
+            raise ApiError(400, "empty message")
+        library, items = runner.life.library, []
+        for entry in given:
+            if not isinstance(entry, dict):
+                raise ApiError(400, "invalid attachment")
+            name, kind = str(entry.get("name") or "untitled"), entry.get("kind")
+            try:
+                if kind == "document":
+                    try:
+                        data = base64.b64decode(str(entry.get("data", "")), validate=True)
+                    except ValueError as error:
+                        raise ApiError(400, "unreadable attachment data") from error
+                    if len(data) > MAX_FILE_BYTES:
+                        raise ApiError(413, f"{name}: this file is too large")
+                    items.append(library.add_text(name, extract_text(name, data)))
+                elif kind in ("image", "video"):
+                    images = entry.get("images")
+                    if not isinstance(images, list) or not all(isinstance(i, dict) for i in images):
+                        raise ApiError(400, "invalid attachment")
+                    items.append(library.add_media(name, kind, images, duration=entry.get("duration")))
+                else:
+                    raise ApiError(400, "unknown kind of attachment")
+            except LibraryError as error:
+                raise ApiError(400, f"{name}: {error}") from error
+        runner.hear(text, items)
 
     # -- keys ------------------------------------------------------------------
 
@@ -174,7 +256,8 @@ def make_handler(app: App):
 
         def _body(self) -> dict:
             length = int(self.headers.get("Content-Length") or 0)
-            if length > 1_000_000:
+            if length > MAX_BODY_BYTES:
+                self.close_connection = True  # the body is left unread
                 raise ApiError(413, "request too large")
             try:
                 data = json.loads(self.rfile.read(length) or b"{}")
@@ -195,6 +278,8 @@ def make_handler(app: App):
                 if url.path.startswith("/api/"):
                     if not self._authorised(query):
                         return self._json({"error": "unauthorised"}, 401)
+                    if url.path == "/api/library/image":
+                        return self._library_image(query)
                     return self._api_get(url.path, query)
                 return self._static(url.path)
             except ApiError as error:
@@ -214,6 +299,10 @@ def make_handler(app: App):
                 self._json({"error": str(error)}, error.status)
 
         def _api_get(self, path: str, query: dict) -> None:
+            if path == "/api/consent":
+                return self._json({**app.consent(), "licence": app.licence_text()})
+            if path == "/api/dreams":
+                return self._json({"dreams": app.require_runner().life.dreams.all()})
             if path == "/api/lives":
                 return self._json({"lives": app.lives(), "keys": app.key_status(),
                                    "awake": app.runner.life.name if app.runner else None,
@@ -239,6 +328,11 @@ def make_handler(app: App):
             raise ApiError(404, "not found")
 
         def _api_post(self, path: str, body: dict) -> None:
+            if path == "/api/consent":
+                return self._json(app.accept(body))
+            if path == "/api/sleep":
+                app.require_runner().sleep()
+                return self._json({"ok": True})
             if path == "/api/birth":
                 return self._json(app.birth(body))
             if path == "/api/wake":
@@ -247,10 +341,7 @@ def make_handler(app: App):
                 app.rest()
                 return self._json({"ok": True})
             if path == "/api/message":
-                text = str(body.get("text", "")).strip()
-                if not text:
-                    raise ApiError(400, "empty message")
-                app.require_runner().hear(text[:8000])
+                app.receive(body)
                 return self._json({"ok": True})
             if path == "/api/settings":
                 runner = app.require_runner()
@@ -260,6 +351,18 @@ def make_handler(app: App):
                 app.store_key(str(body.get("kind", "")), str(body.get("key", "")))
                 return self._json({"keys": app.key_status()})
             raise ApiError(404, "not found")
+
+        def _library_image(self, query: dict) -> None:
+            library = app.require_runner().life.library
+            try:
+                number = int((query.get("n") or ["0"])[0])
+            except ValueError as error:
+                raise ApiError(400, "invalid image number") from error
+            found = library.image_file((query.get("id") or [""])[0], number)
+            if found is None:
+                raise ApiError(404, "no such image")
+            path, media_type = found
+            self._send(200, path.read_bytes(), media_type)
 
         def _static(self, path: str) -> None:
             name = "index.html" if path in ("/", "") else path.lstrip("/")

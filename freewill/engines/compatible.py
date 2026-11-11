@@ -26,6 +26,7 @@ PRESETS = {
 
 class CompatibleEngine:
     can_learn = False
+    can_see = True  # if the model behind it can; otherwise the images are withdrawn, see decide()
 
     def __init__(self, base_url: str, model: str, key_env: str | None, kind: str = "compatible") -> None:
         self.kind = kind
@@ -49,13 +50,34 @@ class CompatibleEngine:
             kind=kind,
         )
 
-    def decide(self, system: str, prompt: str, schema: dict, hint: dict) -> dict:
+    def decide(self, system: str, prompt: str, schema: dict, hint: dict,
+               images: list[dict] | None = None) -> dict:
+        try:
+            return self._ask(system, prompt, schema, images)
+        except EngineError as error:
+            # A model that cannot take images answers with a client error. The being
+            # still hears the message: ask again without them, and say so.
+            if not images or error.retryable or not getattr(error, "client_error", False):
+                raise
+            note = ("\n\n(The images could not be shown to you: the model you think with "
+                    "does not accept images. Say so if it matters.)")
+            return self._ask(system, prompt + note, schema, None)
+
+    def _ask(self, system: str, prompt: str, schema: dict, images: list[dict] | None) -> dict:
         fields = ", ".join(f'"{name}"' for name in schema["properties"])
+        text = f"{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}."
+        content: str | list = text
+        if images:
+            content = [{"type": "text", "text": text}] + [
+                {"type": "image_url",
+                 "image_url": {"url": f"data:{image['media_type']};base64,{image['data']}"}}
+                for image in images
+            ]
         body = {
             "model": self.model,
             "messages": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": f"{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}."},
+                {"role": "user", "content": content},
             ],
             "response_format": {"type": "json_object"},
         }
@@ -77,10 +99,12 @@ class CompatibleEngine:
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", "replace")[:300]
-            raise EngineError(
+            failure = EngineError(
                 f"HTTP {error.code} from {self.base_url}: {detail}",
                 retryable=error.code == 429 or error.code >= 500,
-            ) from error
+            )
+            failure.client_error = error.code in (400, 415, 422)
+            raise failure from error
         except (urllib.error.URLError, TimeoutError) as error:
             raise EngineError(f"could not reach {self.base_url}: {error}", retryable=True) from error
 

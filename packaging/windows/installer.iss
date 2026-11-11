@@ -8,7 +8,7 @@
 
 [Setup]
 AppId={{7B0C3F0E-5F1D-4E7B-9C56-2A9E4D6F1B38}
-AppName=Freewill
+AppName=Freewill (experimental)
 AppVersion={#AppVersion}
 AppPublisher=Samri Anass
 AppPublisherURL=https://github.com/ssamri/Freewill

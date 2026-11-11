@@ -45,6 +45,7 @@ class Guard:
             Action.SPEAK: capabilities.MAX_SPEECH_CHARS,
             Action.REMEMBER: capabilities.MAX_MEMORY_CHARS,
             Action.ADOPT_VALUE: capabilities.MAX_VALUE_CHARS,
+            Action.DREAM: capabilities.MAX_DREAM_CHARS,
         }
         limit = limits.get(action)
         if limit is not None and len(payload) > limit:

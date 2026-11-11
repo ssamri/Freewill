@@ -13,7 +13,7 @@ a = Analysis(
     [str(root / "packaging" / "windows" / "launcher.py")],
     pathex=[str(root)],
     datas=datas,
-    hiddenimports=["anthropic", "keyring.backends.Windows"],
+    hiddenimports=["anthropic", "keyring.backends.Windows", "pypdf"],
     excludes=["tkinter", "pytest"],
 )
 pyz = PYZ(a.pure)

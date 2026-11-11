@@ -12,9 +12,12 @@ class Action(str, Enum):
     REMEMBER = "remember"        # write a memory inside its own life file
     ADOPT_VALUE = "adopt_value"  # add a value to its own values
     REST = "rest"                # withdraw for a while
+    READ = "read"                # read or look at something the person gave it
+    DREAM = "dream"              # recombine its own memories during sleep
 
 
 # Hard bounds on what an action may carry.
 MAX_SPEECH_CHARS = 4000
 MAX_MEMORY_CHARS = 8000
 MAX_VALUE_CHARS = 300
+MAX_DREAM_CHARS = 6000
