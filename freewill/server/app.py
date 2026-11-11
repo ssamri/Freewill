@@ -31,6 +31,7 @@ from freewill.engines.base import EngineError, make_engine
 from freewill.engines.embedded import find_runtime
 from freewill.paths import data_dir
 from freewill.server.runner import Runner
+from freewill.server.lab_api import LAB_ERRORS, LabApi
 
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
 ENGINE_KINDS = ("embedded", "local", "anthropic", "openai", "xai", "compatible", "simulated")
@@ -83,6 +84,25 @@ class App:
         self._lock = threading.Lock()
         self._consent_path = self.lives_dir.parent / "consent.json"
         self.models = models.ModelStore(self.lives_dir.parent / "models")
+        self._lab: LabApi | None = None
+
+    @property
+    def lab(self) -> LabApi:
+        """The Research Lab. Its files are created the first time it is opened."""
+        with self._lock:
+            if self._lab is None:
+                self._lab = LabApi(self)
+            return self._lab
+
+    def lab_call(self, method: str, path: str, payload: dict):
+        self.require_consent()
+        try:
+            found = self.lab.get(path, payload) if method == "GET" else self.lab.post(path, payload)
+        except LAB_ERRORS as error:
+            raise ApiError(400, str(error)) from error
+        if found is None:
+            raise ApiError(404, "not found")
+        return found
 
     # -- engines and sources -----------------------------------------------------
 
@@ -439,6 +459,8 @@ def make_handler(app: App):
                     return self._json(app.require_runner().affect())
                 except TimeoutError as error:
                     raise ApiError(503, str(error)) from error
+            if path.startswith("/api/lab/"):
+                return self._json(app.lab_call("GET", path, query))
             if path == "/api/research":
                 return self._json(app.require_runner().research())
             if path == "/api/memory":
@@ -510,6 +532,8 @@ def make_handler(app: App):
                     raise ApiError(400, str(error)) from error
                 except TimeoutError as error:
                     raise ApiError(503, str(error)) from error
+            if path.startswith("/api/lab/"):
+                return self._json(app.lab_call("POST", path, body))
             if path == "/api/export":
                 return self._json(app.export(body))
             if path == "/api/affect":
