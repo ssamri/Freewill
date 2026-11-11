@@ -39,6 +39,7 @@ class Runner:
         self._living = threading.Lock()  # held while a moment is being lived
         self.paused_reason: str | None = None
         self._sleep_now = False
+        self._activity = "waiting"
         self.snapshot: dict = {}
 
         self._load_history()
@@ -73,13 +74,36 @@ class Runner:
             self._changed.notify_all()
 
     def _on_event(self, event: Event) -> None:
-        self._push({"type": event.type, "time": event.time, "data": event.data})
+        # Publish the current mode before waking an interface waiting for this
+        # event. Updating these fields needs no scan of the memories on disk.
+        with self._changed:
+            if event.type == "sleep":
+                self._set_activity("sleeping")
+            elif event.type == "stage":
+                self._set_activity("thinking")
+            elif event.type == "rest":
+                # Sleep ended; the tick still has to finish its persistence.
+                self._set_activity("thinking")
+            self._push({"type": event.type, "time": event.time, "data": event.data})
+
+    def _set_activity(self, activity: str) -> None:
+        with self._changed:
+            if self._activity == activity:
+                return
+            self._activity = activity
+            self.snapshot = {**self.snapshot, "activity": activity,
+                             "sleeping": activity == "sleeping"}
+            self._changed.notify_all()
 
     def events_since(self, seq: int, timeout: float = 15.0) -> list[dict]:
         """Events after `seq`. Blocks up to `timeout` seconds if there are none yet."""
         with self._changed:
             if self._seq <= seq:
-                self._changed.wait(timeout)
+                # Wake for a new event or a change of mode (thinking, sleeping,
+                # paused); a refreshed snapshot alone is not a reason to answer.
+                activity = self._activity
+                self._changed.wait_for(
+                    lambda: self._seq > seq or self._activity != activity, timeout)
             return [record for record in self._events if record["seq"] > seq]
 
     # -- life ------------------------------------------------------------------
@@ -212,13 +236,16 @@ class Runner:
                 continue
             asked = bool(self.being.inbox) or self.being.sleep_requested
             if self.paused_reason and not asked:
+                self._set_activity("paused")
                 next_thought = now + 5
                 continue
             # Hourly budget: spontaneous thinking pauses; being spoken to still gets through.
             thought_times = [stamp for stamp in thought_times if now - stamp < 3600]
             if len(thought_times) >= self.thoughts_per_hour and not asked:
+                self._set_activity("budget")
                 next_thought = now + 5
                 continue
+            self._set_activity("thinking")
             try:
                 with self._living:
                     lived = self.being.tick()
@@ -234,6 +261,16 @@ class Runner:
             except Exception as error:  # never let the life thread die silently
                 self.paused_reason = f"{type(error).__name__}: {error}"
                 self._push({"type": "engine_error", "time": "", "data": {"message": self.paused_reason}})
+            if self.paused_reason:
+                activity = "paused"
+            elif backoff:
+                activity = "retrying"
+            elif (len(thought_times) >= self.thoughts_per_hour
+                  and not self.being.inbox and not self.being.sleep_requested):
+                activity = "budget"
+            else:
+                activity = "waiting"
+            self._set_activity(activity)
             self._refresh_snapshot()
             next_thought = time.monotonic() + self.tempo + backoff
 
@@ -241,7 +278,7 @@ class Runner:
 
     def _refresh_snapshot(self) -> None:
         life, being = self.life, self.being
-        self.snapshot = {
+        snapshot = {
             "awake": True,
             "name": life.name,
             "age": life.age(),
@@ -272,3 +309,7 @@ class Runner:
             "kernel": being.guard.fingerprint[:12],
             "seq": self._seq,
         }
+        with self._changed:
+            snapshot.update(activity=self._activity, sleeping=self._activity == "sleeping")
+            self.snapshot = snapshot
+            self._changed.notify_all()

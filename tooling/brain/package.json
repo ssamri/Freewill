@@ -1,0 +1,15 @@
+{
+  "name": "freewill-brain-renderer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build the local, offline Three.js runtime for Freewill's brain view",
+  "scripts": {
+    "build": "esbuild entry.js --bundle --format=iife --global-name=FreewillThree --minify --legal-comments=eof --target=es2020 --outfile=../../freewill/ui/three.bundle.js",
+    "test:browser": "node browser-smoke.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "three": "0.183.2",
+    "playwright": "1.58.2"
+  }
+}

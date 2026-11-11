@@ -26,7 +26,8 @@ def self_test(app: App, url: str) -> int:
         with opener.open(request, timeout=10) as response:
             return response.read()
 
-    for name in ("index.html", "app.css", "app.js", "brain.js", "i18n.js"):
+    for name in ("index.html", "app.css", "app.js", "brain.js", "brain-canvas.js",
+                 "brain-shape.js", "three.bundle.js", "THIRD_PARTY_NOTICES.txt", "i18n.js"):
         assert get(name), f"missing interface file: {name}"
     assert "lives" in json.loads(get("api/lives"))
     kernel_sources = list((UI_DIR.parent / "core" / "kernel").glob("*.py"))

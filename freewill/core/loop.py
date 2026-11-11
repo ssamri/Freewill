@@ -266,7 +266,8 @@ class Being:
         memories = recall(self.life.memory, winner.text, CONSCIOUS, k=self.research.recall_k, rng=self.rng,
                           active=tuple(self.active), bias=bias, now=now) if self.research.recall_k else []
         for memory, path in memories:
-            self.events.emit("recall", id=memory.id, title=memory.title, path=path)
+            self.events.emit("recall", id=memory.id, title=memory.title, path=path,
+                             strength=memory.strength, state=memory.state, phase="conscious")
             if self.monitor:  # source monitoring: where what comes back to mind came from
                 self.monitor.recalled(next((tag[7:] for tag in memory.tags if tag.startswith("origin:")), "unknown"))
 
@@ -523,6 +524,9 @@ class Being:
                               touch=research.sleep_replay, now=now)
             if not memories:
                 break
+            for memory, path in memories:
+                self.events.emit("recall", id=memory.id, title=memory.title, path=path,
+                                 strength=memory.strength, state=memory.state, phase="dream")
             if research.sleep_replay:
                 self.events.emit("replay", memories=[memory.id for memory, _path in memories])
             if not research.dreaming:

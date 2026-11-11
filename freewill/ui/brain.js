@@ -1,449 +1,690 @@
-// The Brain view: an instrument of observation.
-//
-// What is real: the self at the centre, the sources of the subconscious around
-// it, every memory (grouped by the compartments the being chose), the links
-// between memories, and every wave and pulse of light, each of which is fired
-// by one event of the being's life at the moment it happens. What is not: the
-// faint mesh in the shape of a brain. It is only the tissue the waves travel
-// through, and the legend says so.
+// Freewill's brain is an event-driven instrument, not a model of LLM neurons.
+// Cyan tissue is illustrative. Memories, their links, and the events that
+// illuminate them come from the running being. Three.js is bundled locally.
 (function () {
   "use strict";
 
   const SOURCE_COLOR = {
-    message: [79, 195, 247], reminiscence: [255, 182, 92], need: [255, 123, 156], question: [197, 139, 255],
-    association: [95, 214, 163], drift: [150, 160, 200], reading: [127, 212, 201], dream: [176, 124, 255],
+    message: [0.31, 0.77, 0.97], reminiscence: [1, 0.64, 0.28], need: [1, 0.43, 0.59],
+    question: [0.77, 0.55, 1], association: [0.37, 0.84, 0.64], drift: [0.59, 0.63, 0.78],
+    reading: [0.50, 0.83, 0.79], dream: [0.72, 0.49, 1],
   };
-  // Where each source of the subconscious sits, in brain space (x: right, y: up, z: front).
-  const NUCLEUS_AT = {
-    message: [0, 0.02, 0.62], question: [0, 0.4, 0.26], association: [0.44, 0.18, -0.16],
-    reminiscence: [-0.46, -0.1, 0.1], need: [0, -0.36, 0.02], drift: [0.3, -0.24, -0.52],
-    reading: [-0.4, 0.24, -0.42], dream: [0, 0.1, -0.74],
+  const SOURCE_AT = {
+    message: [0.0, 0.04, 0.94], question: [-0.29, 0.65, 0.26], association: [0.74, 0.24, -0.12],
+    reminiscence: [-0.76, -0.12, 0.10], need: [0, -0.58, 0.06], drift: [0.56, -0.29, -0.66],
+    reading: [-0.54, 0.30, -0.72], dream: [0, -0.25, -1.02],
   };
-  const PALETTE = [[124, 116, 255], [255, 143, 177], [79, 195, 247], [255, 182, 92], [95, 214, 163],
-                   [197, 139, 255], [255, 123, 123], [127, 212, 201]];
-  const SELF = [170, 164, 255];
-  const TISSUE = 2100;
-
-  function mulberry(seed) {
-    return function () {
+  const PALETTE = [[0.49, 0.62, 1], [1, 0.62, 0.36], [0.32, 0.86, 0.87], [0.82, 0.58, 1],
+                   [0.48, 0.87, 0.63], [1, 0.54, 0.69], [0.91, 0.79, 0.41], [0.43, 0.70, 1]];
+  const SELF_COLOR = [0.86, 0.68, 1], MAX_WAVES = 10, MAX_SIGNALS = 220, TAIL = 8;
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, Number.isFinite(x) ? x : a));
+  const now = () => performance.now();
+  function hash(s) {
+    let h = 2166136261;
+    for (let i = 0; i < String(s).length; i++) { h ^= String(s).charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function random(seed) {
+    return () => {
       seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
       let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
-  function hash(text) {
-    let h = 2166136261;
-    for (let i = 0; i < text.length; i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  }
   function sourceKey(source) {
-    if (!source) return "drift";
-    if (source.startsWith("need")) return "need";
+    if (String(source).startsWith("need")) return "need";
     if (source === "return") return "message";
-    return NUCLEUS_AT[source] ? source : "drift";
+    return SOURCE_AT[source] ? source : "drift";
   }
-  const rgba = (c, a) => "rgba(" + c[0] + "," + c[1] + "," + c[2] + "," + a + ")";
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  function bezier(a, b, c, d, t, out) {
+    const u = 1 - t;
+    for (let k = 0; k < 3; k++) out[k] = u*u*u*a[k] + 3*u*u*t*b[k] + 3*u*t*t*c[k] + t*t*t*d[k];
+    return out;
+  }
+  function curve(a, b, seed) {
+    const r = random(seed), distance = Math.hypot(a[0]-b[0],a[1]-b[1],a[2]-b[2]), bend = distance * (0.08 + r() * 0.12);
+    return [a, mix(a, b, 0.33).map((v, i) => v + (r() - 0.5) * bend * (i === 1 ? 2 : 1)),
+            mix(a, b, 0.66).map((v, i) => v + (r() - 0.5) * bend * (i === 1 ? 2 : 1)), b];
+  }
 
-  // The tissue: two hemispheres and a cerebellum, as a shell of points.
+  // A spatial grid keeps illustrative connectivity linear in tissue size.
+  // No anatomical region or synthetic edge is presented as a real memory link.
   function buildTissue() {
-    const rand = mulberry(20261111), pts = [];
-    function lobe(count, cx, cy, cz, rx, ry, rz) {
-      let made = 0;
-      while (made < count) {
-        const u = rand() * 2 - 1, phi = rand() * Math.PI * 2, s = Math.sqrt(1 - u * u);
-        let x = s * Math.cos(phi), y = u, z = s * Math.sin(phi);
-        // Folds: the surface ripples, and a few points sit deeper, like white matter.
-        const fold = 1 + 0.06 * Math.sin(9 * x + 4 * z) * Math.cos(7 * y + 3 * x);
-        const depth = rand() < 0.22 ? 0.45 + 0.4 * rand() : 0.9 + 0.1 * rand();
-        x = cx + x * rx * fold * depth; y = cy + y * ry * fold * depth; z = cz + z * rz * fold * depth;
-        // Flatten the inner face of each hemisphere to leave the fissure between them.
-        if (cx !== 0 && Math.sign(cx) * x < 0.035) continue;
-        pts.push([x, y, z]); made++;
+    const rng = random(20461111), pts = [], cell = 0.18;
+    function lobe(count, side, cx, cy, cz, rx, ry, rz) {
+      let n = 0;
+      while (n < count) {
+        const y = 2 * rng() - 1, angle = rng() * Math.PI * 2, s = Math.sqrt(1 - y*y);
+        const x = s * Math.cos(angle), z = s * Math.sin(angle);
+        const groove = 1 + 0.046 * Math.sin(15*x + 8*z + 2*y) * Math.cos(12*y - 4*z)
+                           + 0.025 * Math.sin(26*y + 9*z);
+        const depth = rng() < 0.15 ? 0.64 + rng() * 0.22 : 0.96 + rng() * 0.04;
+        const p = [cx + x*rx*groove*depth, cy + y*ry*groove*depth, cz + z*rz*groove*depth];
+        if (side && p[0] * side < 0.045) continue;
+        // Broad frontal pole, a softer taper at the occipital end.
+        p[0] *= 1 + 0.055 * p[2];
+        pts.push(p); n++;
       }
     }
-    lobe(920, -0.36, 0.06, 0.02, 0.5, 0.56, 0.98);
-    lobe(920, 0.36, 0.06, 0.02, 0.5, 0.56, 0.98);
-    lobe(TISSUE - 1840, 0, -0.5, -0.72, 0.5, 0.26, 0.34);
-    // Each point reaches for its two nearest neighbours.
-    const edges = [];
-    for (let i = 0; i < pts.length; i++) {
-      let a = -1, b = -1, da = 1e9, db = 1e9;
-      for (let j = 0; j < pts.length; j++) {
-        if (i === j) continue;
-        const dx = pts[i][0] - pts[j][0], dy = pts[i][1] - pts[j][1], dz = pts[i][2] - pts[j][2];
-        const d = dx * dx + dy * dy + dz * dz;
-        if (d < da) { b = a; db = da; a = j; da = d; } else if (d < db) { b = j; db = d; }
+    if (Array.isArray(window.FreewillBrainShape) && window.FreewillBrainShape.length) {
+      // This static surface is the reference project's MIT-licensed brain mesh.
+      // Centre/scale only: preserve its sulci, hemispheres and recognisable profile.
+      for (const vertex of window.FreewillBrainShape) {
+        pts.push([(vertex[0] + 0.555) / 75, (vertex[1] - 0.76) / 75, (vertex[2] - 14.725) / 75]);
       }
-      if (a > i || da > 0) edges.push(i, a);
-      if (b >= 0) edges.push(i, b);
+    } else {
+      lobe(2400, -1, -0.40, 0.16, 0.00, 0.59, 0.72, 1.13);
+      lobe(2400, 1, 0.40, 0.16, 0.00, 0.59, 0.72, 1.13);
+      lobe(620, 0, 0, -0.57, -0.79, 0.61, 0.28, 0.40);
     }
-    return { pts, edges };
+    const grid = new Map(), edges = [], seen = new Set();
+    const key = (x, y, z) => x + "," + y + "," + z;
+    pts.forEach((p, i) => {
+      const k = key(Math.floor(p[0]/cell), Math.floor(p[1]/cell), Math.floor(p[2]/cell));
+      if (!grid.has(k)) grid.set(k, []); grid.get(k).push(i);
+    });
+    pts.forEach((p, i) => {
+      const gx = Math.floor(p[0]/cell), gy = Math.floor(p[1]/cell), gz = Math.floor(p[2]/cell);
+      const near = [];
+      for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) for (let z = -1; z <= 1; z++) {
+        const group = grid.get(key(gx+x, gy+y, gz+z));
+        if (!group) continue;
+        for (const j of group) if (i !== j) {
+          const q = pts[j], d = (p[0]-q[0])**2 + (p[1]-q[1])**2 + (p[2]-q[2])**2;
+          if (d < 0.19**2) near.push([j, d]);
+        }
+      }
+      near.sort((a, b) => a[1] - b[1]);
+      for (let n = 0; n < Math.min(3, near.length); n++) {
+        const j = near[n][0], id = Math.min(i,j) + ":" + Math.max(i,j);
+        if (!seen.has(id)) { seen.add(id); edges.push([i,j]); }
+      }
+    });
+    const fibres = [];
+    for (const [i,j] of edges) {
+      const path = curve(pts[i], pts[j], i*65537+j), a = [0,0,0], b = [0,0,0];
+      bezier(...path, 0, a);
+      for (let k = 1; k <= 2; k++) {
+        bezier(...path, k/2, b); fibres.push(...a, ...b); a[0]=b[0]; a[1]=b[1]; a[2]=b[2];
+      }
+    }
+    return { pts, fibres, grid, cell };
   }
-  let TISSUE_CACHE = null;
+  let tissueCache;
+
+  const WAVE_GLSL = `
+    uniform float uTime;
+    uniform vec4 uWaveOrigin[${MAX_WAVES}];
+    uniform vec4 uWaveColor[${MAX_WAVES}];
+    uniform vec2 uWaveShape[${MAX_WAVES}];
+    void waveAt(vec3 p, out float energy, out vec3 color) {
+      energy = 0.0; color = vec3(0.0);
+      for (int i=0; i<${MAX_WAVES}; i++) {
+        float age = uTime - uWaveOrigin[i].w;
+        float radius = uWaveShape[i].y;
+        float front = age * uWaveShape[i].x;
+        if (age >= 0.0 && front < radius + 0.25) {
+          float d = distance(p, uWaveOrigin[i].xyz);
+          float band = (d-front) / 0.14;
+          float e = exp(-band*band*1.6) * uWaveColor[i].w * max(0.0, 1.0-d/radius);
+          energy += e; color += uWaveColor[i].xyz * e;
+        }
+      }
+      if (energy > 0.001) color /= energy;
+    }
+  `;
+  const TISSUE_VERTEX = WAVE_GLSL + `
+    attribute float aSize;
+    uniform float uPixelRatio;
+    uniform float uAmbient;
+    uniform vec3 uBaseColor;
+    varying vec3 vColor;
+    varying float vEnergy;
+    void main() {
+      float e; vec3 c; waveAt(position, e, c);
+      vEnergy = e;
+      vColor = mix(uBaseColor, c, min(1.0, e*1.25));
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = min(10.0, (aSize + min(1.0,e)*1.2) * uPixelRatio * (3.2/-mv.z));
+    }
+  `;
+  const TISSUE_FRAGMENT = `
+    uniform float uAmbient;
+    varying vec3 vColor;
+    varying float vEnergy;
+    void main() {
+      float r = length(gl_PointCoord - 0.5)*2.0;
+      if (r > 1.0) discard;
+      float halo = exp(-r*r*5.0);
+      float core = exp(-r*r*40.0);
+      float alpha = (uAmbient + min(1.0,vEnergy)*0.32) * (halo*0.5+core*0.7);
+      gl_FragColor = vec4(mix(vColor, vec3(1.0), core*min(0.08,vEnergy*0.04)), alpha);
+    }
+  `;
+  const FIBRE_VERTEX = WAVE_GLSL + `
+    uniform vec3 uBaseColor;
+    varying vec3 vColor;
+    varying float vEnergy;
+    void main() {
+      float e; vec3 c; waveAt(position, e, c);
+      vEnergy = e; vColor = mix(uBaseColor, c, min(1.0,e*1.8));
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+    }
+  `;
+  const FIBRE_FRAGMENT = `
+    uniform float uLineOpacity;
+    varying vec3 vColor;
+    varying float vEnergy;
+    void main() { gl_FragColor = vec4(vColor, uLineOpacity + min(0.18,vEnergy*0.12)); }
+  `;
+  const NODE_VERTEX = `
+    attribute vec3 aColor;
+    attribute float aSize;
+    attribute float aEnergy;
+    attribute float aKind;
+    uniform float uPixelRatio;
+    varying vec3 vColor;
+    varying float vEnergy;
+    varying float vVisible;
+    varying float vKind;
+    void main() {
+      vColor=aColor; vEnergy=aEnergy; vVisible=step(0.1,aSize); vKind=aKind;
+      vec4 mv=modelViewMatrix*vec4(position,1.0);
+      gl_Position=projectionMatrix*mv;
+      gl_PointSize=min(180.0, aSize*uPixelRatio*(3.2/-mv.z)*(1.0+min(aEnergy,1.0)*0.18));
+    }
+  `;
+  const NODE_FRAGMENT = `
+    uniform float uNodeOpacity;
+    uniform float uLightTheme;
+    varying vec3 vColor;
+    varying float vEnergy;
+    varying float vVisible;
+    varying float vKind;
+    void main() {
+      if(vVisible<0.5) discard;
+      float r=length(gl_PointCoord-0.5)*2.0;
+      if(r>1.0) discard;
+      vec3 base=mix(vColor,vColor*0.48,uLightTheme);
+      vec3 paper=mix(vec3(0.025,0.032,0.065),vec3(0.97,0.97,1.0),uLightTheme);
+      float halo=exp(-r*r*5.0);
+      if(vKind>3.5) {
+        float core=exp(-r*r*30.0);
+        vec3 centre=mix(vec3(1.0),vColor*0.28,uLightTheme);
+        gl_FragColor=vec4(mix(base,centre,core*0.8),(core+halo*0.5)*uNodeOpacity);
+      } else {
+        // A solid silhouette keeps real data distinct from the additive tissue.
+        float isSelf=step(1.5,vKind)*(1.0-step(2.5,vKind));
+        float bodyRadius=mix(vKind<0.5?0.30:0.23,0.29,isSelf);
+        float body=1.0-smoothstep(bodyRadius-0.035,bodyRadius+0.025,r);
+        float rim=1.0-smoothstep(0.018,0.04,abs(r-mix(0.46,0.52,isSelf)));
+        float outer=(1.0-smoothstep(0.008,0.022,abs(r-0.78)))*isSelf;
+        float backing=1.0-smoothstep(0.59,0.70,r);
+        vec3 bead=mix(base,mix(vec3(1.0,0.96,0.87),base*0.65,uLightTheme),exp(-r*r*22.0)*0.65);
+        vec3 color=mix(paper,bead,body);
+        color=mix(color,base,max(rim,outer));
+        float alpha=max(backing*0.98,max(rim,outer)*0.98)+halo*0.10;
+        gl_FragColor=vec4(color,min(1.0,alpha)*uNodeOpacity);
+      }
+    }
+  `;
+
+  function fallback(canvas, tip, labels, options) {
+    if (!window.BrainCanvas) throw new Error("Brain renderer is unavailable");
+    // A canvas that acquired WebGL cannot subsequently acquire a 2D context.
+    const replacement = canvas.cloneNode(false); canvas.replaceWith(replacement);
+    const brain = new window.BrainCanvas(replacement, tip, labels, options);
+    brain.capabilities = { webgl: false, controls: false };
+    return brain;
+  }
 
   class Brain {
     constructor(canvas, tip, labels, options) {
-      this.canvas = canvas; this.tip = tip; this.labels = labels; this.options = options || {};
-      this.ctx = canvas.getContext("2d");
-      this.tissue = TISSUE_CACHE || (TISSUE_CACHE = buildTissue());
-      const n = this.tissue.pts.length;
-      this.sx = new Float32Array(n); this.sy = new Float32Array(n); this.sz = new Float32Array(n);
-      this.act = new Float32Array(n); this.acol = new Float32Array(n * 3);
-      this.nodes = new Map(); this.links = []; this.waves = []; this.pulses = []; this.rings = [];
-      this.sprites = new Map();
-      this.yaw = 0.6; this.pitch = 0.2; this.zoom = 1; this.spin = 0; this.asleep = false; this.sleepMix = 0;
-      this.drag = null; this.hover = null; this.running = true; this.last = performance.now();
-      this.still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-      this.buildFixed();
-
-      this.onDown = (e) => { this.drag = { x: e.clientX, y: e.clientY, moved: 0 }; canvas.setPointerCapture(e.pointerId); };
-      this.onMove = (e) => {
-        if (this.drag) {
-          const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y;
-          this.drag.moved += Math.abs(dx) + Math.abs(dy);
-          this.yaw += dx * 0.006; this.pitch = Math.max(-1.1, Math.min(1.1, this.pitch + dy * 0.005));
-          this.drag.x = e.clientX; this.drag.y = e.clientY; this.tip.hidden = true;
-        } else this.pick(e);
+      if (!window.FreewillThree) return fallback(canvas, tip, labels, options);
+      const { THREE, OrbitControls } = window.FreewillThree;
+      this.THREE=THREE; this.canvas=canvas; this.tip=tip; this.labels=labels; this.options=options||{};
+      this.capabilities={webgl:true, controls:true};
+      this.running=true; this.time=0; this.last=now(); this.nodes=new Map(); this.edges=[];
+      this.signals=new Array(MAX_SIGNALS).fill(null); this.nextSignal=0; this.pending=[]; this.waves=[];
+      this.need=0; this.fatigue=0; this.asleep=false; this.pausedReason=""; this.hover=null;
+      this.userControls={rotate:true,motion:true,paused:false};
+      this.media=matchMedia("(prefers-reduced-motion: reduce)"); this.reduced=this.media.matches;
+      this.resources=new Set(); this.labelsDOM=[]; this.memoryLoaded=false;
+      try {
+        this.renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:"high-performance"});
+        this.renderer.setPixelRatio(Math.min(1.75,window.devicePixelRatio||1));
+        this.renderer.setClearColor(0x000000,0);
+      } catch (error) {
+        if (this.renderer) this.renderer.dispose();
+        return fallback(canvas,tip,labels,options);
+      }
+      this.scene=new THREE.Scene();
+      this.camera=new THREE.PerspectiveCamera(35,1,0.05,50);
+      this.camera.position.set(3.15,0.78,2.15);
+      this.controls=new OrbitControls(this.camera,canvas);
+      this.controls.target.set(0,0.02,0); this.controls.enableDamping=true; this.controls.dampingFactor=0.075;
+      this.controls.enablePan=false; this.controls.minDistance=2.35; this.controls.maxDistance=7;
+      this.controls.minPolarAngle=0.24; this.controls.maxPolarAngle=Math.PI-0.24;
+      this.controls.autoRotateSpeed=0.18;
+      this.controls.update(); this.controls.saveState();
+      this.raycaster=new THREE.Raycaster(); this.raycaster.params.Points.threshold=0.065;
+      this.pointer=new THREE.Vector2(); this.projection=new THREE.Vector3();
+      this.uniforms={
+        uTime:{value:0},uPixelRatio:{value:this.renderer.getPixelRatio()},uAmbient:{value:0.76},
+        uBaseColor:{value:new THREE.Color(0.10,0.56,0.76)},uLineOpacity:{value:0.19},uNodeOpacity:{value:1},uLightTheme:{value:0},
+        uWaveOrigin:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector4(0,0,0,-1000))},
+        uWaveColor:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector4())},
+        uWaveShape:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector2(1,1))},
       };
-      this.onUp = (e) => {
-        const was = this.drag; this.drag = null;
-        if (was && was.moved < 5 && this.hover && this.hover.kind === "memory" && this.options.onOpen) this.options.onOpen(this.hover.id);
+      this.buildTissue(); this.buildFixed(); this.buildSignalPool(); this.rebuildNodes();
+      this.labelLayer=document.createElement("div"); this.labelLayer.className="brain-world-labels";
+      Object.assign(this.labelLayer.style,{position:"absolute",inset:"0",pointerEvents:"none",overflow:"hidden"});
+      this.labelLayer.setAttribute("aria-hidden","true"); canvas.parentElement.appendChild(this.labelLayer);
+      this.buildLabels();
+      this.onMove=(event)=>this.pick(event);
+      this.onDown=(event)=>{this.down={x:event.clientX,y:event.clientY};};
+      this.onUp=(event)=>{
+        const down=this.down;this.down=null;
+        if(!down || Math.hypot(event.clientX-down.x,event.clientY-down.y)>5) return;
+        this.pick(event);
+        if(this.options.onInspect) this.options.onInspect(this.hover?this.info(this.hover):null);
+        if(this.hover?.kind==="memory" && this.options.onOpen) this.options.onOpen(this.hover.id);
       };
-      this.onLeave = () => { this.hover = null; this.tip.hidden = true; };
-      this.onWheel = (e) => { e.preventDefault(); this.zoom = Math.max(0.6, Math.min(2.4, this.zoom * Math.exp(-e.deltaY * 0.0012))); };
-      canvas.addEventListener("pointerdown", this.onDown);
-      canvas.addEventListener("pointermove", this.onMove);
-      canvas.addEventListener("pointerup", this.onUp);
-      canvas.addEventListener("pointerleave", this.onLeave);
-      canvas.addEventListener("wheel", this.onWheel, { passive: false });
-      this.observer = new ResizeObserver(() => this.resize());
-      this.observer.observe(canvas);
-      this.resize();
-      requestAnimationFrame((t) => this.frame(t));
+      this.onLeave=()=>{this.hover=null; this.tip.hidden=true;};
+      this.onVisibility=()=>{this.last=now();};
+      this.onMedia=()=>{this.reduced=this.media.matches; this.last=now();};
+      this.onLost=(event)=>{event.preventDefault(); this.contextLost=true; this.tip.hidden=false;
+        this.tip.textContent=this.labels.contextLost||"3D paused — reload the page to restore graphics";};
+      this.onRestored=()=>{this.contextLost=false; this.last=now(); this.tip.hidden=true;};
+      canvas.addEventListener("pointermove",this.onMove);canvas.addEventListener("pointerdown",this.onDown);
+      canvas.addEventListener("pointerup",this.onUp);canvas.addEventListener("pointerleave",this.onLeave);
+      canvas.addEventListener("webglcontextlost",this.onLost);canvas.addEventListener("webglcontextrestored",this.onRestored);
+      document.addEventListener("visibilitychange",this.onVisibility);this.media.addEventListener("change",this.onMedia);
+      this.resizeObserver=new ResizeObserver(()=>this.resize());this.resizeObserver.observe(canvas);
+      this.resize();this.setTheme();
+      this.frame=this.frame.bind(this);this.raf=requestAnimationFrame(this.frame);
     }
 
-    destroy() {
-      this.running = false; this.observer.disconnect();
-      const c = this.canvas;
-      c.removeEventListener("pointerdown", this.onDown); c.removeEventListener("pointermove", this.onMove);
-      c.removeEventListener("pointerup", this.onUp); c.removeEventListener("pointerleave", this.onLeave);
-      c.removeEventListener("wheel", this.onWheel);
+    material(options) {
+      const m=new this.THREE.ShaderMaterial({uniforms:this.uniforms,transparent:true,
+        depthWrite:false,depthTest:false,blending:this.THREE.AdditiveBlending,...options});
+      this.resources.add(m);return m;
     }
-
-    resize() {
-      const ratio = Math.min(2, window.devicePixelRatio || 1), box = this.canvas.getBoundingClientRect();
-      this.w = box.width; this.h = box.height;
-      this.canvas.width = Math.max(1, Math.round(box.width * ratio));
-      this.canvas.height = Math.max(1, Math.round(box.height * ratio));
-      this.ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    geometry() { const g=new this.THREE.BufferGeometry();this.resources.add(g);return g; }
+    attribute(geometry,name,array,size) {
+      geometry.setAttribute(name,new this.THREE.BufferAttribute(array,size));
     }
-
-    // ----- what is real -----
-
+    buildTissue() {
+      const THREE=this.THREE,tissue=tissueCache||(tissueCache=buildTissue());this.tissue=tissue;
+      const g=this.geometry(),sizes=new Float32Array(tissue.pts.length),rng=random(91);
+      for(let i=0;i<sizes.length;i++) sizes[i]=1.0+rng()*0.9;
+      this.attribute(g,"position",new Float32Array(tissue.pts.flat()),3);this.attribute(g,"aSize",sizes,1);
+      this.tissuePoints=new THREE.Points(g,this.material({vertexShader:TISSUE_VERTEX,fragmentShader:TISSUE_FRAGMENT}));
+      this.scene.add(this.tissuePoints);
+      const f=this.geometry();this.attribute(f,"position",new Float32Array(tissue.fibres),3);
+      this.tissueLines=new THREE.LineSegments(f,this.material({vertexShader:FIBRE_VERTEX,fragmentShader:FIBRE_FRAGMENT}));
+      this.scene.add(this.tissueLines);
+    }
     buildFixed() {
-      this.nodes.set("@self", { id: "@self", kind: "self", title: this.labels.self, p: [0, 0, 0], color: SELF, r: 11 });
-      for (const [key, p] of Object.entries(NUCLEUS_AT)) {
-        this.nodes.set("~" + key, { id: "~" + key, kind: "nucleus", title: (this.labels.sources || {})[key] || key,
-                                    p, color: SOURCE_COLOR[key], r: 5.2 });
+      this.nodes.set("@self",{id:"@self",kind:"self",title:this.labels.self||"Self",p:[0,0.08,0],color:SELF_COLOR,size:116,flare:-100});
+      for(const [key,p] of Object.entries(SOURCE_AT)) this.nodes.set("~"+key,{id:"~"+key,kind:"source",source:key,
+        title:this.labels.sources?.[key]||key,p,color:SOURCE_COLOR[key],size:26,flare:-100});
+    }
+    buildLabels() {
+      this.labelLayer.replaceChildren();this.labelsDOM=[];
+      for(const node of this.nodes.values()) if(["source","self","memory"].includes(node.kind)) {
+        const el=document.createElement("span");
+        el.className="brain-node-label"+(node.kind==="self"?" brain-core-label":node.kind==="memory"?" brain-memory-label":"");
+        el.dataset.brainId=node.id;
+        const text=document.createElement("span");text.className="brain-label-text";
+        text.textContent=node.kind==="self"?(this.labels.core||"Core")+" · "+node.title:node.title;
+        el.appendChild(text);el.title=node.title;
+        el.style.setProperty("--node-color","rgb("+node.color.map(v=>Math.round(v*255)).join(",")+")");
+        const leader=document.createElement("span");leader.className="brain-label-leader";leader.hidden=true;
+        leader.style.setProperty("--node-color","rgb("+node.color.map(v=>Math.round(v*255)).join(",")+")");
+        this.labelLayer.append(leader,el);this.labelsDOM.push({node,el,leader});
       }
     }
-
-    // memories: [{id, title, compartment, strength, links}]
+    memoryPosition(memory,hub) {
+      const rng=random(hash(memory.id)),points=this.tissue.pts;
+      const vertex=points[hub.anchor],cell=this.tissue.cell,near=[];
+      const gx=Math.floor(vertex[0]/cell),gy=Math.floor(vertex[1]/cell),gz=Math.floor(vertex[2]/cell);
+      for(let x=-1;x<=1;x++)for(let y=-1;y<=1;y++)for(let z=-1;z<=1;z++){
+        const candidates=this.tissue.grid.get(`${gx+x},${gy+y},${gz+z}`);
+        if(candidates)for(const index of candidates)if(points[index][0]*vertex[0]>=0)near.push(index);
+      }
+      const chosen=points[near.length?near[Math.floor(rng()*near.length)]:hub.anchor];
+      // Use the actual cortex rather than an ever-expanding random cloud.
+      // The deterministic inward displacement keeps a memory inside its region
+      // regardless of total memory count or the order in which it was loaded.
+      const depth=.79+rng()*.12;
+      return chosen.map((v,i)=>v*depth+(rng()-.5)*.018*(i===0?.5:1));
+    }
     setMemories(memories) {
-      const now = performance.now(), first = !this.loaded;
-      const keep = new Set(["@self", ...Object.keys(NUCLEUS_AT).map((k) => "~" + k)]);
-      const compartments = [...new Set(memories.map((m) => m.compartment))].sort();
-      compartments.forEach((name, i) => {
-        const id = "#" + name; keep.add(id);
-        if (!this.nodes.has(id)) {
-          // A compartment settles on the cortex, at a place set by its name.
-          const h = hash(name), u = ((h & 0xffff) / 0xffff) * 1.5 - 0.6, phi = ((h >>> 16) / 0xffff) * Math.PI * 2;
-          const s = Math.sqrt(Math.max(0, 1 - u * u));
-          this.nodes.set(id, { id, kind: "hub", title: name, r: 3.4,
-                               p: [s * Math.cos(phi) * 0.8, u * 0.56, s * Math.sin(phi) * 0.95] });
+      if(!this.running)return;
+      const keep=new Set(["@self",...Object.keys(SOURCE_AT).map(k=>"~"+k)]);
+      const groups=new Map();
+      for(const m of memories||[]){const name=m.compartment||"memories";groups.set(name,(groups.get(name)||0)+1);}
+      for(const [name,count] of groups){
+        const id="#"+name;keep.add(id);let hub=this.nodes.get(id);
+        if(!hub){
+          const anchor=hash(name)%this.tissue.pts.length;
+          hub={id,kind:"compartment",title:name,anchor,p:this.tissue.pts[anchor].map(v=>v*.84),
+            color:PALETTE[hash(name)%PALETTE.length],size:10,flare:-100};this.nodes.set(id,hub);
         }
-        this.nodes.get(id).color = PALETTE[i % PALETTE.length];
-      });
-      memories.forEach((m) => {
-        keep.add(m.id);
-        const hub = this.nodes.get("#" + m.compartment);
-        let node = this.nodes.get(m.id);
-        if (!node) {
-          const rand = mulberry(hash(m.id));
-          const spread = 0.2 + 0.035 * Math.sqrt(memories.length);
-          const p = [hub.p[0] + (rand() - 0.5) * spread, hub.p[1] + (rand() - 0.5) * spread, hub.p[2] + (rand() - 0.5) * spread];
-          node = { id: m.id, kind: "memory", p, born: first ? 0 : now, flare: 0 };
-          this.nodes.set(m.id, node);
-          if (!first) { // a memory has just been kept: the self writes it into the cortex
-            this.pulse("@self", m.id, hub.color, 1.1, 1.4);
-            this.wave(p, hub.color, 0.7, 0.9);
+        hub.count=count;
+      }
+      for(const memory of memories||[]){
+        if(!memory.id)continue;keep.add(memory.id);
+        const hub=this.nodes.get("#"+(memory.compartment||"memories"));let node=this.nodes.get(memory.id);
+        if(!node){node={id:memory.id,kind:"memory",p:this.memoryPosition(memory,hub),flare:-100};this.nodes.set(memory.id,node);}
+        node.title=memory.title||memory.id;node.hub=hub.id;node.color=hub.color;
+        node.strength=clamp(Number(memory.strength),0,1);node.size=26+node.strength*12;
+        node.data=memory;
+      }
+      for(const id of this.nodes.keys())if(!keep.has(id))this.nodes.delete(id);
+      this.edges=[];const seen=new Set();
+      for(const key of Object.keys(SOURCE_AT))this.edges.push({from:"~"+key,to:"@self",kind:"source"});
+      for(const node of this.nodes.values())if(node.kind==="memory"){
+        this.edges.push({from:node.hub,to:node.id,kind:"group"});
+        for(const other of node.data.links||[]){
+          const key=[node.id,other].sort().join("\u0000");
+          if(other!==node.id&&this.nodes.get(other)?.kind==="memory"&&!seen.has(key)){
+            seen.add(key);this.edges.push({from:node.id,to:other,kind:"memory"});
           }
         }
-        node.title = m.title; node.hub = hub.id; node.color = hub.color;
-        node.strength = Math.max(0, Math.min(1, m.strength)); node.r = 3 + 3.6 * node.strength;
-      });
-      for (const id of [...this.nodes.keys()]) if (!keep.has(id)) this.nodes.delete(id);
-      this.links = [];
-      for (const key of Object.keys(NUCLEUS_AT)) this.links.push(["@self", "~" + key, 0.16]);
-      compartments.forEach((name) => this.links.push(["@self", "#" + name, 0.1]));
-      const seen = new Set();
-      memories.forEach((m) => {
-        this.links.push(["#" + m.compartment, m.id, 0.13]);
-        (m.links || []).forEach((other) => {
-          const key = m.id < other ? m.id + "|" + other : other + "|" + m.id;
-          if (!this.nodes.has(other) || seen.has(key)) return;
-          seen.add(key); this.links.push([m.id, other, 0.3]);
-        });
-      });
-      this.loaded = true;
-      this.counts = { memories: memories.length, links: this.links.filter((l) => l[2] === 0.3).length };
+      }
+      this.counts={memories:(memories||[]).length,links:seen.size};this.memoryLoaded=true;this.rebuildNodes();
+      if(this.labelLayer)this.buildLabels();
+      const pending=this.pending;this.pending=[];
+      for(const item of pending)if(this.time-item.at<12){
+        this.pendingReplayAt=item.at;
+        this[item.method](...item.args,true);
+      }
+      this.pendingReplayAt=undefined;
     }
-
-    // ----- what happens -----
-
-    wave(origin, color, amp, radius, speed) {
-      this.waves.push({ o: origin, color, amp, R: radius, speed: speed || 0.9, t0: performance.now() });
-      if (this.waves.length > 14) this.waves.shift();
+    rebuildNodes() {
+      const THREE=this.THREE;
+      if(this.nodePoints){this.scene.remove(this.nodePoints);this.resources.delete(this.nodePoints.geometry);this.nodePoints.geometry.dispose();}
+      if(this.graphLines){this.scene.remove(this.graphLines);this.resources.delete(this.graphLines.geometry);this.graphLines.geometry.dispose();}
+      const order={compartment:0,source:1,memory:2,self:3};
+      this.nodeList=[...this.nodes.values()].sort((a,b)=>order[a.kind]-order[b.kind]);const n=this.nodeList.length,g=this.geometry();
+      const positions=new Float32Array(n*3),colors=new Float32Array(n*3),sizes=new Float32Array(n),energy=new Float32Array(n),kinds=new Float32Array(n);
+      this.nodeList.forEach((node,i)=>{positions.set(node.p,i*3);colors.set(node.color,i*3);sizes[i]=node.size;node.index=i;kinds[i]=node.kind==="self"?2:node.kind==="source"?1:node.kind==="memory"?0:3;});
+      this.attribute(g,"position",positions,3);this.attribute(g,"aColor",colors,3);this.attribute(g,"aSize",sizes,1);
+      this.attribute(g,"aEnergy",energy,1);this.attribute(g,"aKind",kinds,1);g.attributes.aEnergy.setUsage(THREE.DynamicDrawUsage);g.computeBoundingSphere();
+      if(!this.nodeMaterial)this.nodeMaterial=this.material({vertexShader:NODE_VERTEX,fragmentShader:NODE_FRAGMENT,blending:THREE.NormalBlending});
+      this.nodePoints=new THREE.Points(g,this.nodeMaterial);this.nodePoints.renderOrder=6;this.nodePoints.frustumCulled=false;this.scene.add(this.nodePoints);
+      const vertices=[],lineColors=[];
+      for(const edge of this.edges){
+        const a=this.nodes.get(edge.from),b=this.nodes.get(edge.to);if(!a||!b)continue;
+        const path=curve(a.p,b.p,hash(edge.from+edge.to)),u=[0,0,0],v=[0,0,0];
+        const opacity=edge.kind==="memory"?.85:edge.kind==="group"?.12:.17;
+        const color=b.color.map(c=>c*opacity);bezier(...path,0,u);
+        for(let i=1;i<=10;i++){
+          bezier(...path,i/10,v);vertices.push(...u,...v);lineColors.push(...color,...color);u[0]=v[0];u[1]=v[1];u[2]=v[2];
+        }
+      }
+      const lines=this.geometry();this.attribute(lines,"position",new Float32Array(vertices),3);this.attribute(lines,"color",new Float32Array(lineColors),3);
+      if(!this.graphMaterial){this.graphMaterial=new THREE.LineBasicMaterial({vertexColors:true,transparent:true,opacity:.82,depthWrite:false,
+        blending:THREE.AdditiveBlending});this.resources.add(this.graphMaterial);}
+      this.graphLines=new THREE.LineSegments(lines,this.graphMaterial);this.graphLines.renderOrder=1;this.scene.add(this.graphLines);
     }
-    pulse(from, to, color, size, seconds, reach) {
-      if (!this.nodes.has(from) || !this.nodes.has(to)) return;
-      this.pulses.push({ from, to, color, size: size || 1, dur: (seconds || 1) * 1000, reach: reach || 1,
-                         t0: performance.now(), bend: (hash(from + to) % 100) / 100 - 0.5 });
+    buildSignalPool() {
+      const THREE=this.THREE,g=this.geometry(),n=MAX_SIGNALS*TAIL;
+      this.signalPosition=new Float32Array(n*3);this.signalColor=new Float32Array(n*3);this.signalSize=new Float32Array(n);
+      this.signalEnergy=new Float32Array(n);this.signalPosition.fill(1000);
+      this.attribute(g,"position",this.signalPosition,3);this.attribute(g,"aColor",this.signalColor,3);
+      this.attribute(g,"aSize",this.signalSize,1);this.attribute(g,"aEnergy",this.signalEnergy,1);
+      this.attribute(g,"aKind",new Float32Array(n).fill(4),1);
+      for(const a of Object.values(g.attributes))a.setUsage(THREE.DynamicDrawUsage);
+      this.signalPoints=new THREE.Points(g,this.material({vertexShader:NODE_VERTEX,fragmentShader:NODE_FRAGMENT}));
+      this.signalPoints.renderOrder=4;this.signalPoints.frustumCulled=false;this.scene.add(this.signalPoints);
     }
-    ring(color, strength) { this.rings.push({ color, strength, t0: performance.now() }); }
-
-    // A content reaches the stage; the others stay below attention.
-    stage(source, below) {
-      const key = sourceKey(source), color = SOURCE_COLOR[key];
-      this.wave(NUCLEUS_AT[key], color, 1, 1.7);
-      this.pulse("~" + key, "@self", color, 1.5, 0.9);
-      const node = this.nodes.get("~" + key); if (node) node.flare = performance.now();
-      (below || []).forEach((b, i) => {
-        const k = sourceKey(b.source);
-        setTimeout(() => {
-          if (!this.running) return;
-          this.wave(NUCLEUS_AT[k], SOURCE_COLOR[k], 0.34, 0.5, 0.6);
-          this.pulse("~" + k, "@self", SOURCE_COLOR[k], 0.6, 1.1, 0.45); // rises, and fades before the stage
-        }, 90 * i);
-      });
+    addWave(origin,color,amp=1,radius=2,speed=.85) {
+      if(this.userControls.paused||this.contextLost||document.hidden)return;
+      this.waves.push({origin:origin.slice(),color,amp:clamp(amp,0,2),radius,speed,at:this.time});
+      if(this.waves.length>MAX_WAVES)this.waves.shift();
     }
-    recall(id) {
-      const node = this.nodes.get(id); if (!node) return;
-      node.flare = performance.now();
-      this.wave(node.p, node.color, 0.5, 0.6);
-      this.pulse(id, "@self", node.color, 1.1, 1.1);
+    signal(from,to,color,energy=1,seconds=1.15,reach=1,delay=0) {
+      const a=this.nodes.get(from),b=this.nodes.get(to);if(!a||!b||this.userControls.paused||document.hidden)return;
+      const path=curve(a.p,b.p,hash(from+to));
+      this.signals[this.nextSignal]={path,color,energy,seconds,reach,start:this.time+delay};
+      this.nextSignal=(this.nextSignal+1)%MAX_SIGNALS;
     }
-    decision(accepted) {
-      if (accepted) { this.ring(SELF, 1); this.wave([0, 0, 0], [225, 222, 255], 0.8, 2.3, 1.25); }
-      else this.ring([255, 113, 134], 0.45);
+    flare(id,amount=1){
+      if(this.userControls.paused||document.hidden)return;
+      const node=this.nodes.get(id);if(node){node.flare=this.time;node.flareAmount=amount;}
     }
-    speech() { this.pulse("@self", "~message", SOURCE_COLOR.message, 1.4, 0.7); this.wave(NUCLEUS_AT.message, SOURCE_COLOR.message, 0.7, 1.2, 1.4); }
-    read() { this.pulse("~reading", "@self", SOURCE_COLOR.reading, 1.2, 1); }
-    dream(ids) {
-      const color = SOURCE_COLOR.dream, real = (ids || []).filter((id) => this.nodes.has(id));
-      real.forEach((id, i) => {
-        const node = this.nodes.get(id); node.flare = performance.now();
-        this.wave(node.p, color, 0.6, 0.9, 0.5);
-        const next = real[(i + 1) % real.length];
-        if (next !== id) this.pulse(id, next, color, 1.2, 2.2);
-      });
-      this.wave(NUCLEUS_AT.dream, color, 0.8, 2.2, 0.45);
+    waitFor(method,args,retry){
+      // A response already in flight can predate the event's new memory. Keep
+      // unresolved IDs until a later snapshot, preserving the original expiry.
+      const at=retry?(this.pendingReplayAt??this.time):this.time;
+      if(this.time-at>=12)return;
+      this.pending.push({method,args,at});if(this.pending.length>60)this.pending.shift();
     }
-    setAsleep(asleep) { this.asleep = !!asleep; }
-    // The being's needs are felt all the time: the most pressing one sends slow ripples.
+    stage(source,below,salience,data) {
+      const key=sourceKey(source),color=SOURCE_COLOR[key],strength=clamp(Number(salience)||.7,.15,1.4);
+      this.flare("~"+key,strength);this.flare("@self",.5);
+      this.addWave(SOURCE_AT[key],color,.8+strength*.5,2.1,.95);
+      for(let i=0;i<4;i++)this.signal("~"+key,"@self",color,strength,1.10,1,i*.07);
+      for(const [i,item]of(below||[]).slice(0,6).entries()){
+        const k=sourceKey(item.source),level=clamp(Number(item.salience)||.25,.1,.5);
+        this.flare("~"+k,level);this.signal("~"+k,"@self",SOURCE_COLOR[k],level,1.2,.48,i*.035);
+      }
+      this.lastEvent={type:"stage",source:key,...data};
+    }
+    recall(id,path,data,retry=false) {
+      const node=this.nodes.get(id);if(!node)return this.waitFor("recall",[id,path,data],retry);
+      if (typeof data?.strength === "number") {
+        node.strength=clamp(data.strength,0,1);node.size=26+node.strength*12;
+        node.data.strength=node.strength;
+        this.nodePoints.geometry.attributes.aSize.array[node.index]=node.size;
+        this.nodePoints.geometry.attributes.aSize.needsUpdate=true;
+      }
+      if (data?.state) node.data.state=data.state;
+      const color=path==="chance"?SOURCE_COLOR.dream:path==="neighbourhood"?SOURCE_COLOR.association:SOURCE_COLOR.reminiscence;
+      this.flare(id,1.4);this.flare(node.hub,.6);this.addWave(node.p,color,1.5,1.25,.8);
+      for(let i=0;i<4;i++)this.signal(id,"@self",color,1.25,1.25,1,i*.09);
+    }
+    remember(id,data,retry=false) {
+      const node=this.nodes.get(id);if(!node)return this.waitFor("remember",[id,data],retry);
+      this.flare(id,1.5);this.flare(node.hub,1);this.addWave(node.p,node.color,1.6,1.0,.65);
+      for(let i=0;i<5;i++)this.signal("@self",id,node.color,1.2,1.4,1,i*.08);
+    }
+    decision(accepted,data) {
+      const color=accepted?SELF_COLOR:[1,.29,.37];this.flare("@self",accepted?1.5:.9);
+      this.addWave(this.nodes.get("@self").p,color,accepted?1.35:.65,accepted?2.5:.8,1.25);
+      this.lastEvent={type:"decision",accepted,...data};
+    }
+    speech(data) {
+      this.flare("~message",1.4);this.addWave(SOURCE_AT.message,SOURCE_COLOR.message,1.2,1.2,1.3);
+      for(let i=0;i<5;i++)this.signal("@self","~message",SOURCE_COLOR.message,1.25,.85,1,i*.07);
+      this.lastEvent={type:"speech",...data};
+    }
+    read(data) {
+      this.flare("~reading",1);this.addWave(SOURCE_AT.reading,SOURCE_COLOR.reading,1.2,1.3,.8);
+      for(let i=0;i<3;i++)this.signal("~reading","@self",SOURCE_COLOR.reading,1.1,1.2,1,i*.09);
+      this.lastEvent={type:"read",...data};
+    }
+    dream(ids,data,retry=false) {
+      const known=(ids||[]).filter(id=>this.nodes.has(id));
+      if(known.length<(ids||[]).length){this.waitFor("dream",[ids,data],retry);return;}
+      this.flare("~dream",1.5);this.addWave(SOURCE_AT.dream,SOURCE_COLOR.dream,1.25,2.6,.55);
+      for(const [i,id]of known.slice(0,20).entries()){
+        const node=this.nodes.get(id);this.flare(id,1.4);this.addWave(node.p,SOURCE_COLOR.dream,.9,.8,.6);
+        this.signal(id,"~dream",SOURCE_COLOR.dream,1.1,2,1,i*.08);
+        // Dream co-activation travels to the dream source. A synapse between
+        // memories is illuminated only when it is a declared persisted link.
+        for (const other of (node.data?.links || []).filter(link => known.includes(link)).slice(0,8)) {
+          this.signal(id,other,SOURCE_COLOR.dream,1.1,2.2,1,.12);
+        }
+      }
+      this.lastEvent={type:"dream",...data};
+    }
+    setAsleep(value){this.asleep=!!value;}
     setNeeds(needs) {
-      let level = 0;
-      for (const [name, value] of Object.entries(needs || {})) if (name !== "fatigue") level = Math.max(level, value);
-      this.need = Math.max(0, Math.min(1, level)); this.fatigue = Math.max(0, Math.min(1, (needs || {}).fatigue || 0));
+      this.need=clamp(Math.max(0,...Object.entries(needs||{}).filter(([k])=>k!=="fatigue").map(([,v])=>Number(v)||0)),0,1);
+      this.fatigue=clamp(Number(needs?.fatigue)||0,0,1);
     }
-
-    // ----- drawing -----
-
-    sprite(color) {
-      const key = color.join(",");
-      let s = this.sprites.get(key);
-      if (!s) {
-        s = document.createElement("canvas"); s.width = s.height = 64;
-        const g = s.getContext("2d"), grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-        grad.addColorStop(0, rgba(color, 1)); grad.addColorStop(0.25, rgba(color, 0.55));
-        grad.addColorStop(0.6, rgba(color, 0.12)); grad.addColorStop(1, rgba(color, 0));
-        g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
-        this.sprites.set(key, s);
+    setSnapshot(snapshot) {
+      this.snapshot=snapshot||{};this.setNeeds(this.snapshot.needs);
+      if(typeof this.snapshot.sleeping==="boolean")this.setAsleep(this.snapshot.sleeping);
+    }
+    setPaused(reason){this.pausedReason=reason||"";}
+    setControls(settings){Object.assign(this.userControls,settings);this.last=now();}
+    resetView(){this.controls.reset();this.last=now();}
+    setTheme() {
+      this.dark=document.documentElement.dataset.theme!=="light";
+      const THREE=this.THREE;
+      this.uniforms.uBaseColor.value.copy(new THREE.Color(...(this.dark?[.08,.44,.61]:[.05,.31,.48])));
+      this.uniforms.uAmbient.value=this.dark?.24:.20;
+      this.uniforms.uLineOpacity.value=this.dark?.045:.075;
+      this.uniforms.uNodeOpacity.value=1;this.uniforms.uLightTheme.value=this.dark?0:1;
+      for(const object of [this.tissuePoints,this.tissueLines,this.signalPoints]){
+        object.material.blending=this.dark?THREE.AdditiveBlending:THREE.NormalBlending;object.material.needsUpdate=true;
       }
-      return s;
+      this.graphMaterial.blending=this.dark?THREE.AdditiveBlending:THREE.NormalBlending;this.graphMaterial.needsUpdate=true;
     }
-    glow(x, y, radius, color, alpha) {
-      if (alpha <= 0.003 || radius <= 0) return;
-      this.ctx.globalAlpha = Math.min(1, alpha);
-      this.ctx.drawImage(this.sprite(color), x - radius, y - radius, radius * 2, radius * 2);
+    info(node) {
+      const data={kind:node.kind,id:node.id,title:node.title};
+      if(node.source)data.source=node.source;
+      if(node.kind==="memory")Object.assign(data,{strength:node.strength,links:node.data.links||[],compartment:node.data.compartment,
+        summary:node.data.summary,state:node.data.state});
+      if(node.kind==="compartment")data.count=node.count;
+      return data;
     }
-
-    project(p, out) {
-      const x = p[0] * this.cy_ - p[2] * this.sy_, z0 = p[0] * this.sy_ + p[2] * this.cy_;
-      const y = p[1] * this.cp_ - z0 * this.sp_, z = p[1] * this.sp_ + z0 * this.cp_;
-      const k = 3.4 / (3.4 - z);
-      out.x = this.cx + x * this.scale * k; out.y = this.cyc - y * this.scale * k; out.z = z; out.k = k;
-      return out;
+    layoutLabels() {
+      const occupied=[], pad=8;
+      const items=this.labelsDOM.map(item=>{
+        this.projection.set(...item.node.p).project(this.camera);
+        return {...item,x:(this.projection.x*.5+.5)*this.w,y:(-this.projection.y*.5+.5)*this.h,z:this.projection.z};
+      });
+      const overlaps=rect=>occupied.some(b=>rect.x<b.x+b.w+pad&&rect.x+rect.w+pad>b.x&&rect.y<b.y+b.h+pad&&rect.y+rect.h+pad>b.y);
+      const fits=rect=>rect.x>16&&rect.x+rect.w<this.w-16&&rect.y>115&&rect.y+rect.h<this.h-48
+        &&!(rect.x+rect.w>this.w-320&&rect.y+rect.h>this.h-300)
+        &&!(rect.x<340&&rect.y+rect.h>this.h-130);
+      const show=(item,rect)=>{
+        item.el.hidden=false;item.el.style.transform=`translate(${Math.round(rect.x)}px,${Math.round(rect.y)}px)`;
+        item.el.classList.toggle("is-active",this.hover===item.node||this.time-item.node.flare<1.8);
+        occupied.push(rect);
+        const tx=clamp(item.x,rect.x,rect.x+rect.w),ty=clamp(item.y,rect.y,rect.y+rect.h);
+        const length=Math.hypot(tx-item.x,ty-item.y);
+        item.leader.hidden=length<5;
+        if(length>=5){item.leader.style.left=item.x+"px";item.leader.style.top=item.y+"px";
+          item.leader.style.width=length+"px";item.leader.style.transform=`rotate(${Math.atan2(ty-item.y,tx-item.x)}rad)`;}
+      };
+      for(const item of items){item.el.hidden=true;item.leader.hidden=true;}
+      const core=items.find(item=>item.node.kind==="self");
+      if(core&&core.z<1){
+        // Leave the central orb and its rings free of title collisions.
+        occupied.push({x:core.x-65,y:core.y-65,w:130,h:130});
+        show(core,{x:clamp(core.x-78,16,this.w-172),y:core.y+62,w:156,h:30});
+      }
+      const memories=items.filter(item=>item.node.kind==="memory"&&item.z<1&&item.z>-1);
+      memories.sort((a,b)=>{
+        const priority=item=>(this.hover===item.node?100:0)+Math.max(0,1.8-(this.time-item.node.flare))*12+(item.node.strength||0);
+        return priority(b)-priority(a)||a.node.id.localeCompare(b.node.id);
+      });
+      let shown=0;
+      for(const item of memories){
+        if(shown>=7&&this.hover!==item.node)continue;
+        const width=Math.min(178,Math.max(90,item.node.title.length*6.1+30)),height=28;
+        const offsets=[[18,-36],[-width-18,-36],[18,14],[-width-18,14],[24,-74],[-width-24,-74],[28,48],[-width-28,48],[40,-112],[-width-40,-112]];
+        for(const [dx,dy]of offsets){const rect={x:item.x+dx,y:item.y+dy,w:width,h:height};
+          if(fits(rect)&&!overlaps(rect)){show(item,rect);shown++;break;}}
+      }
+      // Source titles are secondary to the core and actual memories.
+      for(const item of items.filter(item=>item.node.kind==="source"&&item.z<1)){
+        const width=Math.min(145,Math.max(75,item.node.title.length*6.0+25));
+        for(const [dx,dy]of [[14,-18],[-width-14,-18],[14,22],[-width-14,22]]){
+          const rect={x:item.x+dx,y:item.y+dy,w:width,h:25};
+          if(fits(rect)&&!overlaps(rect)){show(item,rect);break;}
+        }
+      }
     }
-
+    resize() {
+      if(!this.running)return;
+      const box=this.canvas.getBoundingClientRect();this.w=Math.max(1,box.width);this.h=Math.max(1,box.height);
+      this.renderer.setSize(this.w,this.h,false);this.camera.aspect=this.w/this.h;this.camera.updateProjectionMatrix();
+    }
     pick(event) {
-      const box = this.canvas.getBoundingClientRect(), mx = event.clientX - box.left, my = event.clientY - box.top;
-      let best = null, bestD = 16 * 16;
-      this.nodes.forEach((node) => {
-        if (node.sx == null) return;
-        const d = (node.sx - mx) ** 2 + (node.sy - my) ** 2;
-        if (d < bestD) { best = node; bestD = d; }
-      });
-      this.hover = best;
-      this.canvas.style.cursor = best && best.kind === "memory" ? "pointer" : "grab";
-      if (!best) { this.tip.hidden = true; return; }
-      this.tip.hidden = false; this.tip.textContent = best.title;
-      this.tip.style.left = Math.min(this.w - 290, mx + 14) + "px"; this.tip.style.top = my + 14 + "px";
+      if(!this.running||this.contextLost||this.down&&Math.hypot(event.clientX-this.down.x,event.clientY-this.down.y)>5)return;
+      const box=this.canvas.getBoundingClientRect();
+      this.pointer.set((event.clientX-box.left)/box.width*2-1,-(event.clientY-box.top)/box.height*2+1);
+      this.raycaster.setFromCamera(this.pointer,this.camera);
+      const hits=this.raycaster.intersectObject(this.nodePoints,false);
+      const hit=hits.find(item=>this.nodeList[item.index]);this.hover=hit?this.nodeList[hit.index]:null;
+      this.canvas.style.cursor=this.hover?"pointer":"grab";this.tip.hidden=!this.hover;
+      if(this.hover){this.tip.textContent=this.hover.title;
+        this.tip.style.left=clamp(event.clientX-box.left+14,8,this.w-240)+"px";
+        this.tip.style.top=clamp(event.clientY-box.top+14,8,this.h-70)+"px";}
     }
-
-    frame(now) {
-      if (!this.running) return;
-      const dt = Math.min(0.05, (now - this.last) / 1000); this.last = now;
-      const ctx = this.ctx, dark = document.documentElement.dataset.theme === "dark";
-      this.sleepMix += ((this.asleep ? 1 : 0) - this.sleepMix) * Math.min(1, dt * 1.5);
-      if (!this.drag && !this.still) this.yaw += dt * (0.11 - 0.07 * this.sleepMix);
-      this.cy_ = Math.cos(this.yaw); this.sy_ = Math.sin(this.yaw); this.cp_ = Math.cos(this.pitch); this.sp_ = Math.sin(this.pitch);
-      this.cx = this.w / 2; this.cyc = this.h / 2 - 8; this.scale = Math.min(this.w * 0.62, this.h) * 0.47 * this.zoom;
-      if (!this.asleep && this.need > 0.05 && now - (this.lastNeed || 0) > 2600 - 1200 * this.need) {
-        this.lastNeed = now;
-        this.wave(NUCLEUS_AT.need, SOURCE_COLOR.need, 0.12 + 0.3 * this.need, 0.5 + 0.5 * this.need, 0.45);
-      }
-
-      ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
-      ctx.clearRect(0, 0, this.w, this.h);
-      ctx.globalCompositeOperation = dark ? "lighter" : "source-over";
-      const ink = dark ? [140, 150, 235] : [70, 76, 130];
-      const tint = (c) => (dark ? c : [Math.round(c[0] * 0.72), Math.round(c[1] * 0.72), Math.round(c[2] * 0.78)]);
-      const boost = dark ? 1 : 1.35;
-
-      // Waves of activity through the tissue.
-      this.waves = this.waves.filter((w) => (now - w.t0) / 1000 * w.speed < w.R + 0.3);
-      const pts = this.tissue.pts, act = this.act, acol = this.acol, o = { x: 0, y: 0, z: 0, k: 1 };
-      act.fill(0); acol.fill(0);
-      for (const w of this.waves) {
-        const front = (now - w.t0) / 1000 * w.speed, c = tint(w.color);
-        for (let i = 0; i < pts.length; i++) {
-          const p = pts[i], dx = p[0] - w.o[0], dy = p[1] - w.o[1], dz = p[2] - w.o[2];
-          const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          if (d > w.R) continue;
-          const off = (d - front) / 0.16;
-          if (off > 2.5 || off < -4) continue;
-          // A bright front, and a short afterglow behind it.
-          const a = w.amp * (1 - d / w.R) * (off > 0 ? Math.exp(-off * off) : Math.exp(-off * off * 0.22));
-          if (a < 0.01) continue;
-          act[i] += a; acol[i * 3] += c[0] * a; acol[i * 3 + 1] += c[1] * a; acol[i * 3 + 2] += c[2] * a;
+    updateSignals() {
+      const p=[0,0,0],motion=this.userControls.motion&&!this.reduced;
+      for(let i=0;i<MAX_SIGNALS;i++){
+        const signal=this.signals[i];
+        if(!signal){for(let tail=0;tail<TAIL;tail++)this.signalSize[i*TAIL+tail]=0;continue;}
+        const elapsed=(this.time-signal.start)/signal.seconds;
+        if(elapsed>1.3){this.signals[i]=null;for(let tail=0;tail<TAIL;tail++)this.signalSize[i*TAIL+tail]=0;continue;}
+        for(let tail=0;tail<TAIL;tail++){
+          const index=i*TAIL+tail,t=elapsed-tail*.025;
+          if(t<0||t>1||!motion){this.signalSize[index]=0;continue;}
+          bezier(...signal.path,t*signal.reach,p);this.signalPosition.set(p,index*3);this.signalColor.set(signal.color,index*3);
+          this.signalSize[index]=(13-tail*.9)*signal.energy*(1-tail/TAIL);
+          this.signalEnergy[index]=Math.min(1,signal.energy)*(1-tail/TAIL)*(signal.reach<1?1-t:1);
         }
       }
-
-      // Tissue: points, then the fibres between them.
-      for (let i = 0; i < pts.length; i++) { this.project(pts[i], o); this.sx[i] = o.x; this.sy[i] = o.y; this.sz[i] = o.z; }
-      const breath = 0.5 + 0.5 * Math.sin(now / (1400 + 1800 * this.sleepMix));
-      const edges = this.tissue.edges;
-      ctx.lineWidth = 0.6; ctx.strokeStyle = rgba(ink, dark ? 0.11 : 0.13); ctx.globalAlpha = 1;
-      ctx.beginPath();
-      for (let e = 0; e < edges.length; e += 2) {
-        const a = edges[e], b = edges[e + 1];
-        ctx.moveTo(this.sx[a], this.sy[a]); ctx.lineTo(this.sx[b], this.sy[b]);
+      for(const attribute of Object.values(this.signalPoints.geometry.attributes))attribute.needsUpdate=true;
+    }
+    frame(timestamp) {
+      if(!this.running)return;
+      this.raf=requestAnimationFrame(this.frame);
+      const elapsed=Math.max(0,(timestamp-this.last)/1000),dt=Math.min(.05,elapsed);this.last=timestamp;
+      if(document.hidden||this.contextLost)return;
+      const paused=this.userControls.paused;
+      // Preserve real durations on software-rendered or busy devices. A paused
+      // life stops new events; its final real effects must still dissipate.
+      if(!paused)this.time+=elapsed;
+      const motion=this.userControls.motion&&!this.reduced;
+      this.controls.autoRotate=!!(this.userControls.rotate&&motion&&!paused&&!this.pausedReason);
+      this.controls.autoRotateSpeed=this.asleep?.04:.18;
+      this.controls.update(dt);
+      this.uniforms.uTime.value=this.time;
+      // Needs change a continuous state light; they never fabricate events.
+      this.waves=this.waves.filter(w=>(this.time-w.at)*w.speed<w.radius+.3);
+      for(let i=0;i<MAX_WAVES;i++){
+        const wave=motion?this.waves[i]:null;
+        if(wave){this.uniforms.uWaveOrigin.value[i].set(...wave.origin,wave.at);
+          this.uniforms.uWaveColor.value[i].set(...wave.color,wave.amp);
+          this.uniforms.uWaveShape.value[i].set(wave.speed,wave.radius);}
+        else this.uniforms.uWaveOrigin.value[i].w=-1000;
       }
-      ctx.stroke();
-      for (let e = 0; e < edges.length; e += 2) {
-        const a = edges[e], b = edges[e + 1], level = (act[a] + act[b]) / 2;
-        if (level < 0.05) continue;
-        const i = act[a] > act[b] ? a : b, s = act[i] || 1;
-        ctx.strokeStyle = "rgb(" + Math.round(acol[i * 3] / s) + "," + Math.round(acol[i * 3 + 1] / s) + "," + Math.round(acol[i * 3 + 2] / s) + ")";
-        ctx.globalAlpha = Math.min(1, level * 1.3 * boost); ctx.lineWidth = 0.8 + level * 1.6;
-        ctx.beginPath(); ctx.moveTo(this.sx[a], this.sy[a]); ctx.lineTo(this.sx[b], this.sy[b]); ctx.stroke();
+      const energies=this.nodePoints.geometry.attributes.aEnergy.array;
+      for(const node of this.nodeList){
+        let level=Math.max(0,1-(this.time-node.flare)/1.8)*(node.flareAmount||1);
+        if(node.source==="need")level+=this.need*.18;
+        if(node.kind==="self")level+=this.asleep?.04:.12;
+        energies[node.index]=clamp(level,0,2);
       }
-      const violet = tint(SOURCE_COLOR.dream);
-      for (let i = 0; i < pts.length; i++) {
-        const depth = 0.45 + 0.55 * (this.sz[i] + 1.2) / 2.4, a = act[i];
-        ctx.globalAlpha = Math.min(1, (0.2 + 0.5 * depth * depth) * boost);
-        ctx.fillStyle = this.sleepMix > 0.5 ? rgba(violet, 1) : rgba(ink, 1);
-        const size = 0.8 + 1.5 * depth * depth;
-        ctx.fillRect(this.sx[i] - size / 2, this.sy[i] - size / 2, size, size);
-        if (a > 0.03) {
-          const c = [Math.round(acol[i * 3] / a), Math.round(acol[i * 3 + 1] / a), Math.round(acol[i * 3 + 2] / a)];
-          this.glow(this.sx[i], this.sy[i], (4 + 13 * Math.min(1, a)) * depth, c, Math.min(1, a * 1.5 * boost));
-        }
-      }
-
-      // Real nodes: positions first, then links, then the nodes themselves from back to front.
-      const drawn = [];
-      this.nodes.forEach((node) => {
-        this.project(node.p, o); node.sx = o.x; node.sy = o.y; node.sz = o.z; node.sk = o.k; drawn.push(node);
-      });
-      for (const [a, b, alpha] of this.links) {
-        const A = this.nodes.get(a), B = this.nodes.get(b); if (!A || !B) continue;
-        const color = alpha === 0.3 ? tint(B.color || SELF) : ink;
-        ctx.globalAlpha = Math.min(1, alpha * (dark ? 1 : 1.5) * (0.5 + 0.5 * (A.sz + B.sz + 2.4) / 4.8));
-        ctx.strokeStyle = rgba(color, 1); ctx.lineWidth = alpha === 0.3 ? 1 : 0.7;
-        ctx.beginPath(); ctx.moveTo(A.sx, A.sy); ctx.lineTo(B.sx, B.sy); ctx.stroke();
-      }
-      drawn.sort((a, b) => a.sz - b.sz);
-      ctx.textAlign = "center"; ctx.font = "11.5px 'Segoe UI', system-ui, sans-serif";
-      for (const node of drawn) {
-        const depth = 0.5 + 0.5 * (node.sz + 1.2) / 2.4, c = tint(node.color || SELF);
-        const flare = node.flare ? Math.max(0, 1 - (now - node.flare) / 1600) : 0;
-        const born = node.born ? Math.max(0, 1 - (now - node.born) / 2600) : 0;
-        let r = node.r * node.sk * (this.scale / 260);
-        if (node.kind === "self") {
-          r *= 1 + 0.12 * breath;
-          this.glow(node.sx, node.sy, r * 9, c, (0.34 + 0.22 * breath) * boost);
-          this.glow(node.sx, node.sy, r * 4, c, 0.8);
-          this.glow(node.sx, node.sy, r * 2.2, dark ? [255, 255, 255] : c, 1);
-          // Three slow orbits: fatigue slows them, sleep nearly stops them.
-          ctx.lineWidth = 0.8; ctx.strokeStyle = rgba(c, 1);
-          for (let k = 0; k < 3; k++) {
-            const turn = now / (5200 + 5000 * (this.fatigue || 0) + 14000 * this.sleepMix) + k * 2.1;
-            ctx.globalAlpha = 0.34 * boost;
-            ctx.beginPath(); ctx.ellipse(node.sx, node.sy, r * (2.6 + k * 0.9), r * (0.9 + k * 0.35), turn, 0, Math.PI * 2); ctx.stroke();
-          }
-        } else {
-          const live = Math.max(flare, born);
-          this.glow(node.sx, node.sy, r * (4 + 6 * live), c, (0.62 + 0.38 * live) * (0.4 + 0.6 * depth) * boost);
-          this.glow(node.sx, node.sy, r * 1.5, dark ? [255, 255, 255] : c, 0.6 * depth + 0.4 * live);
-        }
-        if (node.kind !== "memory" || node === this.hover) {
-          ctx.globalAlpha = (node.kind === "self" ? 0.95 : 0.34 + 0.5 * depth) * (node.kind === "hub" ? 0.8 : 1);
-          ctx.fillStyle = dark ? "#dfe2f2" : "#2a2e44";
-          ctx.fillText(node.title, node.sx, node.sy + r * 1.6 + 13);
-        }
-      }
-
-      // Pulses: light travelling from one real node to another.
-      this.pulses = this.pulses.filter((p) => now - p.t0 < p.dur);
-      for (const p of this.pulses) {
-        const A = this.nodes.get(p.from), B = this.nodes.get(p.to); if (!A || !B || A.sx == null) continue;
-        const t = (now - p.t0) / p.dur, c = tint(p.color);
-        const mx = (A.sx + B.sx) / 2 - (B.sy - A.sy) * 0.22 * p.bend, my = (A.sy + B.sy) / 2 + (B.sx - A.sx) * 0.22 * p.bend;
-        for (let tail = 0; tail < 9; tail++) {
-          const u = (t - tail * 0.022) * p.reach; if (u < 0) break;
-          const v = 1 - u, x = v * v * A.sx + 2 * v * u * mx + u * u * B.sx, y = v * v * A.sy + 2 * v * u * my + u * u * B.sy;
-          const fade = (1 - tail / 9) * (p.reach < 1 ? 1 - t : Math.min(1, (1 - t) * 6));
-          this.glow(x, y, (7 - tail * 0.55) * p.size * (this.scale / 260), c, 0.85 * fade * boost);
-          if (tail === 0) this.glow(x, y, 2.6 * p.size * (this.scale / 260), dark ? [255, 255, 255] : c, fade);
-        }
-      }
-
-      // Rings around the self: a decision has just been taken.
-      const self = this.nodes.get("@self");
-      this.rings = this.rings.filter((r) => now - r.t0 < 1300);
-      for (const r of this.rings) {
-        const t = (now - r.t0) / 1300;
-        ctx.globalAlpha = (1 - t) * 0.8 * r.strength * boost; ctx.strokeStyle = rgba(tint(r.color), 1); ctx.lineWidth = 2.2 * (1 - t) + 0.4;
-        ctx.beginPath(); ctx.arc(self.sx, self.sy, (10 + 150 * t * r.strength) * (this.scale / 260), 0, Math.PI * 2); ctx.stroke();
-      }
-
-      ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
-      requestAnimationFrame((t) => this.frame(t));
+      this.nodePoints.geometry.attributes.aEnergy.needsUpdate=true;
+      this.updateSignals();
+      this.layoutLabels();
+      this.renderer.render(this.scene,this.camera);
+    }
+    destroy() {
+      if(!this.running)return;this.running=false;cancelAnimationFrame(this.raf);
+      this.resizeObserver.disconnect();this.controls.dispose();this.labelLayer.remove();this.tip.hidden=true;
+      const c=this.canvas;c.removeEventListener("pointermove",this.onMove);c.removeEventListener("pointerdown",this.onDown);
+      c.removeEventListener("pointerup",this.onUp);c.removeEventListener("pointerleave",this.onLeave);
+      c.removeEventListener("webglcontextlost",this.onLost);c.removeEventListener("webglcontextrestored",this.onRestored);
+      document.removeEventListener("visibilitychange",this.onVisibility);this.media.removeEventListener("change",this.onMedia);
+      for(const resource of this.resources)resource.dispose();this.resources.clear();
+      this.renderer.dispose();this.scene.clear();this.nodes.clear();this.pending=[];this.signals=[];
     }
   }
-
-  window.Brain = Brain;
+  window.Brain=Brain;
 })();
