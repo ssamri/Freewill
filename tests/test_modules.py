@@ -426,3 +426,34 @@ def test_english_is_the_default_and_the_two_catalogues_never_mix():
     leaked += [key for key, value in french.items() if isinstance(value, str)
                and sum(mark in f" {value.lower()} " for mark in english_marks) >= 2]
     assert leaked == [], leaked
+
+
+# -- H4: adapters beside a frozen base (LoRA), on a toy base model only --------------------------------
+
+def _toy_base(folder: Path) -> None:
+    from transformers import GPT2Config, GPT2LMHeadModel
+    import torch
+    torch.manual_seed(0)
+    GPT2LMHeadModel(GPT2Config(vocab_size=256, n_positions=256, bos_token_id=None, eos_token_id=None, n_embd=32, n_layer=2, n_head=2)).save_pretrained(folder)
+
+
+@pytest.mark.skipif(torch_or_none() is None, reason="PyTorch is not installed")
+def test_lora_trains_only_the_adapter_and_keeps_nothing_that_does_not_help(tmp_path):
+    pytest.importorskip("peft")
+    pytest.importorskip("transformers")
+    from freewill.learning import lora
+    _toy_base(tmp_path / "base")
+    corpus = tmp_path / "corpus.txt"
+    corpus.write_text(TEXT, encoding="utf-8")
+    as_bytes = lambda text: list(text.encode("utf-8"))  # noqa: E731
+    with pytest.raises(lora.LoraError):
+        lora.train(tmp_path / "base", corpus, tmp_path / "out", approved_by_human=False, encode=as_bytes)
+    with pytest.raises(lora.LoraError):  # a GGUF file is not a trainable base
+        lora.train(tmp_path, corpus, tmp_path / "out", approved_by_human=True, encode=as_bytes)
+    kept = lora.train(tmp_path / "base", corpus, tmp_path / "out", approved_by_human=True, steps=60, encode=as_bytes)
+    assert kept["decision"] == "accepted" and kept["heldout_loss_after"] < kept["heldout_loss_before"]
+    assert kept["base_weights_changed"] is False and kept["base_weights_before"] == kept["base_weights_after"]
+    assert 0 < kept["trainable_adapter_parameters"] < kept["base_parameters"]
+    assert (tmp_path / "out" / "freewill_manifest.json").exists() and kept["adapter_sha256"]
+    nothing = lora.train(tmp_path / "base", corpus, tmp_path / "none", approved_by_human=True, steps=0, encode=as_bytes)
+    assert nothing["decision"] == "rejected" and not (tmp_path / "none").exists()

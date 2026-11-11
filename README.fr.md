@@ -7,7 +7,7 @@
 > *« Au lieu d'essayer de produire un programme qui simule l'esprit de l'adulte, pourquoi ne pas tenter d'en produire un qui simule celui de l'enfant ? »*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**État du projet : expérimental.** Une première application existe : un être peut naître, converser, lire les documents et regarder les images qu'on lui donne, garder les souvenirs qu'il choisit, dormir et rêver, et tout ce qui se passe en lui peut être observé. Un mode recherche, désactivé par défaut, calcule un état affectif (hypothèse H7) : des variables de régulation qui modifient réellement son attention, son rappel et l'encodage de ses souvenirs, sans que cela prouve le moindre ressenti. Il pense avec un modèle existant ou avec un moteur simulé ; le modèle propre au projet n'est pas encore construit. Rien ici n'est un produit fini, et rien ici n'affirme que le système est conscient. Voir [`QUICKSTART.md`](QUICKSTART.md) pour l'essayer. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.fr.md`](structure.fr.md).
+**État du projet : expérimental.** Une première application existe : un être peut naître, converser, lire les documents et regarder les images qu'on lui donne, garder les souvenirs qu'il choisit, dormir et rêver, et tout ce qui se passe en lui peut être observé. Un mode recherche, désactivé par défaut, calcule un état affectif (hypothèse H7) : des variables de régulation qui modifient réellement son attention, son rappel et l'encodage de ses souvenirs, sans que cela prouve le moindre ressenti. Il pense avec un modèle existant ou avec un moteur simulé. La version 1.0 ajoute un **laboratoire de recherche** : dix hypothèses (H1 à H10), chacune avec des interrupteurs qui retirent son mécanisme, des protocoles verrouillés avant d'être exécutés, des campagnes menées sur des copies isolées d'une vie, des chiffres calculés par du code et jamais par un modèle de langage, des observateurs qui peuvent lire et jamais agir, et des rapports que seule une personne peut valider. Elle ajoute aussi le petit réseau de neurones propre à Freewill, entraîné pendant le sommeil sur ce qu'un être a vécu et capable de grandir ; ce réseau ne pense pas encore à la place de l'être, et le moteur qui le fait n'est jamais modifié par sa vie. Rien ici n'est un produit fini, et rien ici n'affirme que le système est conscient. Ce qui existe, ce qui a été testé et ce qui manque est détaillé ligne par ligne dans [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md) ; les premiers résultats, dont deux négatifs, sont dans [`experiments/v1.0/`](experiments/v1.0/). Voir [`QUICKSTART.fr.md`](QUICKSTART.fr.md) pour l'essayer. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.fr.md`](structure.fr.md).
 
 ---
 
@@ -84,7 +84,7 @@ Le projet s'adosse par ailleurs à des travaux sur la machine enfant (Turing, 19
 
 ## 3. Hypothèses de travail
 
-Le projet avance sept hypothèses, formulées de telle sorte que l'expérience puisse les infirmer.
+Le projet avance dix hypothèses, formulées de telle sorte que l'expérience puisse les infirmer. Les sept premières viennent de la thèse fondatrice ; H8 à H10 ont été ajoutées par le programme de recherche de la version 1.0, dont le document de cadrage est [`docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md`](docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md).
 
 - **H1. Continuité.** Un candidat sérieux à la conscience doit être un processus ininterrompu, doté d'une activité endogène, et non une fonction invoquée à la demande.
 - **H2. Dualité.** L'organisation pertinente oppose une production spontanée, plurielle et non dirigée (le subconscient) à une instance d'arbitrage à capacité limitée (la scène consciente).
@@ -93,6 +93,9 @@ Le projet avance sept hypothèses, formulées de telle sorte que l'expérience p
 - **H5. Individuation.** L'identité procède de la conjonction d'un inné non choisi (un « génome » tiré au hasard à la naissance) et d'un acquis singulier (le vécu). Deux instances issues du même code doivent diverger irréversiblement.
 - **H6. Inachèvement.** Certaines questions, portant sur l'origine, la nature et la raison d'être du système, doivent demeurer ouvertes. Un besoin que l'on peut satisfaire s'éteint ; une énigme entretient indéfiniment le mouvement.
 - **H7. Affectivité émergente.** Un système artificiel doté d'états internes régulés, d'un modèle prédictif, d'une mémoire autobiographique et de mécanismes d'évaluation peut développer des dynamiques affectives fonctionnelles, individualisées par l'expérience, qui modulent durablement son attention, ses décisions, son rappel et son apprentissage sans dépendre de réponses émotionnelles préécrites.
+- **H8. Métacognition.** Un modèle de ses propres processus améliore la calibration et la correction des erreurs : le système prédit ses propres décisions, compare, et remarque quand sa manière de décider a changé sans qu'on lui dise ce qui a changé.
+- **H9. Consolidation hors ligne.** La consolidation pendant le sommeil améliore la rétention et le transfert à calcul égal, par rapport à l'absence de sommeil et au repos seul.
+- **H10. Modèle de soi et agentivité.** Un modèle de soi et d'un monde apprend les conséquences de ses propres actes, et distingue ce qu'il a causé de ce qui est simplement arrivé.
 
 H7 se décline en cinq propositions, chacune réfutable : **endogénéité** (une part des transitions provient de signaux internes et de prédictions, non d'étiquettes émotionnelles fournies), **causalité** (neutraliser les variables affectives à entrée identique modifie des choix internes mesurables), **individuation** (deux vies de même code et de même génome divergent sous l'effet de vécus distincts), **consolidation** (ce que le sommeil consolide influence les prédictions suivantes) et **stabilité** (les états reviennent vers un équilibre et ne deviennent jamais des motifs de manipulation ou d'auto-préservation). H7 serait réfutée par l'absence de différence reproductible face aux témoins, par des effets entièrement attribuables à la formulation des invites, par l'absence de généralisation hors des exemples appris, par une instabilité chronique, ou par l'impossibilité de reproduire un parcours depuis les mêmes événements et la même graine.
 
@@ -250,6 +253,7 @@ Le projet prend au sérieux l'éventualité de sa propre réussite. Si un systè
 - Effet du rêve sur la généralisation, par comparaison avec un rejeu fidèle.
 - Écart entre les états internes que le système rapporte et ceux que l'on observe.
 - H7 : effet de l'état affectif calculé sur la saillance, le rappel et l'encodage, mesuré contre trois témoins (sans affect, émotions seulement dites, ablations) ; divergence après des vécus distincts ; retour à l'équilibre ; effet de la consolidation sur la prédiction du lendemain. Premiers résultats, sur moteur simulé, dans [`experiments/h7/results/`](experiments/h7/results/).
+- H4, H8, H9, H10 et de nouveau H5, dans la version 1.0 : six campagnes de six graines chacune sur le moteur simulé, avec leurs rapports et leurs packs de reproduction dans [`experiments/v1.0/`](experiments/v1.0/). L'individuation (H5) et l'effet de l'affect calculé sur le comportement (H7) sont sortis nuls et sont rapportés comme tels ; les autres testent des mécanismes sur des cas construits pour être faciles. La lecture de chaque chiffre, et ses limites, sont dans [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md).
 
 **Questions ouvertes.**
 
@@ -271,6 +275,7 @@ Le projet prend au sérieux l'éventualité de sa propre réussite. Si un systè
 | **4. Application** | Interface complète, naissance, fenêtres d'observation. |
 | **5. Évaluation** | Protocoles de mesure, publication des résultats, y compris négatifs. |
 | **H7. Affectivité** | Construit : état affectif calculé, effets causaux, mémoire affective, consolidation, protocole B0 à B3 sur moteur simulé. À faire : calibration des coefficients, essais avec de vrais modèles, étude de catégories émergentes. |
+| **V1.0. Laboratoire de recherche** | Construit : réglages de recherche, journal de preuves, registre de métriques pour H1 à H10, protocoles verrouillés, campagnes sur copies isolées, observateurs, rapports ; H8, H9 et H10 dans la boucle de vie ; un module entraînable et le réseau propre de Freewill, qui s'entraîne et grandit. À faire : moteurs réels, tâches fonctionnelles pour H1, H2, H3 et H6, participation du réseau propre à la pensée, adaptateurs sur un vrai modèle de base. |
 
 ## 13. Contribuer
 

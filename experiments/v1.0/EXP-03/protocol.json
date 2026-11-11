@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-03",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Métacognition masquée",
+    "en": "Masked metacognition"
+  },
+  "hypotheses": [
+    "H8"
+  ],
+  "design": "masked_perturbation",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "placebo",
+      "history": "quiet",
+      "research": {
+        "metacognition": true
+      },
+      "engine_rule": {
+        "*": 0.9
+      }
+    },
+    {
+      "name": "perturbed",
+      "history": "quiet",
+      "research": {
+        "metacognition": true
+      },
+      "engine_rule": {
+        "*": 0.9
+      },
+      "perturb": {
+        "*": 0.1
+      }
+    },
+    {
+      "name": "perturbed_no_revision",
+      "history": "quiet",
+      "research": {
+        "metacognition": true,
+        "meta_revision": false
+      },
+      "engine_rule": {
+        "*": 0.9
+      },
+      "perturb": {
+        "*": 0.1
+      }
+    }
+  ],
+  "reference": "placebo",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "ticks": 40
+    }
+  ],
+  "primary_outcome": "h8.alert",
+  "secondary_outcomes": [
+    "h8.brier",
+    "h8.brier_late",
+    "h2.dismiss_rate"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "92b35d65edd31ffbe72e1087d501c321cf7f7ef1e8057351536db203797e9826",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:46:36+00:00"
+}

@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-06",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Adaptation neuronale",
+    "en": "Neural adaptation"
+  },
+  "hypotheses": [
+    "H4"
+  ],
+  "design": "adapter_comparison",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "memory_only",
+      "history": "two_days",
+      "engine_rule": {
+        "question": 0.95,
+        "need": 0.9,
+        "association": 0.5,
+        "reminiscence": 0.15,
+        "drift": 0.1,
+        "*": 0.6
+      }
+    },
+    {
+      "name": "adapter",
+      "history": "two_days",
+      "research": {
+        "learner": true
+      },
+      "engine_rule": {
+        "question": 0.95,
+        "need": 0.9,
+        "association": 0.5,
+        "reminiscence": 0.15,
+        "drift": 0.1,
+        "*": 0.6
+      }
+    },
+    {
+      "name": "adapter_growth",
+      "history": "two_days",
+      "research": {
+        "learner": true,
+        "learner_growth": true
+      },
+      "engine_rule": {
+        "question": 0.95,
+        "need": 0.9,
+        "association": 0.5,
+        "reminiscence": 0.15,
+        "drift": 0.1,
+        "*": 0.6
+      }
+    }
+  ],
+  "reference": "memory_only",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "ticks": 40
+    }
+  ],
+  "primary_outcome": "h2.dismiss_rate",
+  "secondary_outcomes": [
+    "h4.validation_gain",
+    "h4.forgetting",
+    "h4.parameters",
+    "h4.parameter_delta",
+    "h4.trainings_accepted"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "86d4debc258004c9d1f76715a7ebf2023102ce09ba3bb863e13a25c59e1b45f8",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:47:15+00:00"
+}

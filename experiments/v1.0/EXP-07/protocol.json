@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-07",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Agentivité dans un monde virtuel",
+    "en": "Agency in a virtual world"
+  },
+  "hypotheses": [
+    "H10"
+  ],
+  "design": "sandbox_world",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "no_self_model",
+      "history": "quiet",
+      "research": {
+        "sandbox": true,
+        "self_model": false
+      },
+      "agency": {
+        "exogenous": 0.25
+      }
+    },
+    {
+      "name": "self_model",
+      "history": "quiet",
+      "research": {
+        "sandbox": true
+      },
+      "agency": {
+        "exogenous": 0.25
+      }
+    },
+    {
+      "name": "self_model_calm",
+      "history": "quiet",
+      "research": {
+        "sandbox": true
+      },
+      "agency": {
+        "exogenous": 0.0
+      }
+    },
+    {
+      "name": "self_model_noisy_senses",
+      "history": "quiet",
+      "research": {
+        "sandbox": true
+      },
+      "agency": {
+        "exogenous": 0.25,
+        "noise": 0.2
+      }
+    },
+    {
+      "name": "self_model_rule_change",
+      "history": "quiet",
+      "research": {
+        "sandbox": true
+      },
+      "agency": {
+        "exogenous": 0.25,
+        "break_action": "east",
+        "break_after": 60
+      }
+    }
+  ],
+  "reference": "no_self_model",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "ticks": 40
+    }
+  ],
+  "primary_outcome": "h10.attribution_accuracy",
+  "secondary_outcomes": [
+    "h10.prediction_error"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "c855559c7bfcaafed65ea74c6bb75a6d96fda050ecc7e3c78d7de62b1bdabb53",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:47:23+00:00"
+}

@@ -7,7 +7,7 @@
 > *"Instead of trying to produce a programme to simulate the adult mind, why not rather try to produce one which simulates the child's?"*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. A research mode, off by default, computes an affective state (hypothesis H7): regulation variables that really change its attention, its recall and the encoding of its memories, without this proving that anything is felt. It thinks with an existing model or with a simulated engine; the project's own model is not built yet. Nothing here is a finished product, and nothing here claims that the system is conscious. See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
+**Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. A research mode, off by default, computes an affective state (hypothesis H7): regulation variables that really change its attention, its recall and the encoding of its memories, without this proving that anything is felt. It thinks with an existing model or with a simulated engine. Version 1.0 adds a **Research Lab**: ten hypotheses (H1 to H10), each with switches that remove its mechanism, protocols locked before they run, campaigns on isolated copies of a life, figures computed by code and never by a language model, observers that may read and never act, and reports that only a person can validate. It also adds Freewill's own small neural network, trained during sleep on what a being lived and able to grow; this network does not yet think for the being, and the engine that does is never changed by its life. Nothing here is a finished product, and nothing here claims that the system is conscious. What exists, what was tested and what is missing is listed line by line in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md); the first results, two of them negative, are in [`experiments/v1.0/`](experiments/v1.0/). See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
 
 ---
 
@@ -84,7 +84,7 @@ The project also rests on work on the child machine (Turing, 1950), on self-modi
 
 ## 3. Working hypotheses
 
-The project advances seven hypotheses, framed so that the experiment may refute them.
+The project advances ten hypotheses, framed so that the experiment may refute them. The first seven come from the founding thesis; H8 to H10 were added by the research programme of version 1.0, whose framing document (in French) is [`docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md`](docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md).
 
 - **H1. Continuity.** A serious candidate for consciousness must be an uninterrupted process endowed with endogenous activity, not a function invoked on demand.
 - **H2. Duality.** The relevant organisation sets a spontaneous, plural and undirected production (the subconscious) against a limited-capacity instance of arbitration (the conscious stage).
@@ -93,6 +93,9 @@ The project advances seven hypotheses, framed so that the experiment may refute 
 - **H5. Individuation.** Identity arises from the conjunction of an unchosen endowment (a "genome" drawn at random at birth) and a singular acquisition (lived experience). Two instances issued from the same code must diverge irreversibly.
 - **H6. Incompleteness.** Certain questions, bearing on the system's origin, nature and reason for being, must remain open. A need that can be satisfied dies away; an enigma sustains the movement indefinitely.
 - **H7. Emergent affectivity.** An artificial system endowed with regulated internal states, a predictive model, an autobiographical memory and mechanisms of appraisal can develop functional affective dynamics, individualised by experience, which durably modulate its attention, its decisions, its recall and its learning without depending on pre-written emotional responses.
+- **H8. Metacognition.** A model of its own processes improves calibration and the correction of errors: the system predicts its own decisions, compares, and notices when the way it decides has changed without being told what changed.
+- **H9. Offline consolidation.** Consolidation during sleep improves retention and transfer at equal computation, compared with no sleep and with rest alone.
+- **H10. Self-model and agency.** A model of itself and of a world learns the consequences of its own acts, and tells what it caused from what merely happened.
 
 H7 unfolds into five propositions, each refutable: **endogeneity** (part of the transitions comes from internal signals and predictions, not from emotional labels supplied to it), **causality** (neutralising the affective variables on identical input changes measurable internal choices), **individuation** (two lives of the same code and the same genome diverge under different histories), **consolidation** (what sleep consolidates influences later predictions) and **stability** (the states return towards an equilibrium and never become grounds for manipulation or self-preservation). H7 would be refuted by the absence of a reproducible difference against the controls, by effects wholly attributable to the wording of prompts, by no generalisation beyond the examples learned, by chronic instability, or by the impossibility of reproducing a course from the same events and the same seed.
 
@@ -250,6 +253,7 @@ The project takes seriously the possibility of its own success. Should a system 
 - Effect of dreaming on generalisation, compared with faithful replay.
 - Discrepancy between the internal states the system reports and those observed.
 - H7: effect of the computed affective state on salience, recall and encoding, measured against three controls (no affect, emotions only spoken, ablations); divergence after different histories; return to equilibrium; effect of consolidation on the next day's prediction. First results, on the simulated engine, in [`experiments/h7/results/`](experiments/h7/results/).
+- H4, H8, H9, H10 and H5 again, in version 1.0: six campaigns of six seeds each on the simulated engine, with their reports and reproduction packs in [`experiments/v1.0/`](experiments/v1.0/). Individuation (H5) and the behavioural effect of computed affect (H7) came out null and are reported as such; the others test mechanisms on cases built to be easy. The reading of each figure, and its limits, are in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
 
 **Open questions.**
 
@@ -271,6 +275,7 @@ The project takes seriously the possibility of its own success. Should a system 
 | **4. Application** | Complete interface, birth, windows of observation. |
 | **5. Evaluation** | Measurement protocols, publication of results, negative ones included. |
 | **H7. Affectivity** | Built: computed affective state, causal effects, affective memory, consolidation, protocol B0 to B3 on the simulated engine. To do: calibration of the coefficients, trials with real models, study of emergent categories. |
+| **V1.0. Research Lab** | Built: research settings, evidence journal, metric register for H1 to H10, locked protocols, campaigns on isolated copies, observers, reports; H8, H9 and H10 in the life loop; a trainable module and Freewill's own network that trains and grows. To do: real engines, functional tasks for H1, H2, H3 and H6, the own network taking part in thinking, adapters on a real base model. |
 
 ## 13. Contributing
 
