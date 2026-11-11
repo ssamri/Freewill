@@ -58,10 +58,15 @@ def markdown(results: dict, protocol: dict, experiment: dict, language: str, *, 
         protocol=protocol["protocol_id"], version=protocol["protocol_version"], sha=protocol["sha256"][:12],
         runs=len(experiment["runs"]), t0=results["baseline_snapshot_sha256"][:12],
         engine=results["engine"].get("kind"), units=len(results["units"]), planned=results["units_planned"]))
-    primary = results["divergence"]
-    intervals = [(row["excess_over_twin"] or {}).get("interval_95") for row in primary]
-    if primary and all(i is not None for i in intervals):
-        out.extend([r["null"] if all(i[0] <= 0 <= i[1] for i in intervals) else r["nonnull"], ""])
+    divergence = results["divergence"]
+    main = protocol["primary_outcome"]
+    wanted = [main] + list(protocol["secondary_outcomes"])
+    if main == "h5.heldout_divergence":
+        intervals = [(row["excess_over_twin"] or {}).get("interval_95") for row in divergence]
+    else:
+        intervals = [row["interval_95"] for row in results["comparisons"] if row["metric_id"] == main]
+    if intervals and all(i is not None for i in intervals):
+        out.extend([r["primary_null"] if all(i[0] <= 0 <= i[1] for i in intervals) else r["primary_nonnull"], ""])
     known = {h["id"]: h for h in texts.hypotheses(language)}
     section("question", *[f"**{h}. {known[h]['title']}.** {known[h]['claim']} {known[h]['limits']}"
                           for h in protocol["hypotheses"]])
@@ -77,24 +82,38 @@ def markdown(results: dict, protocol: dict, experiment: dict, language: str, *, 
     out.extend(["", f"`seeds = {protocol['seeds']}`", ""])
     section("statistics", r["stat_text"].format(min_ci=stats.MIN_UNITS_FOR_INTERVAL, min_test=stats.MIN_UNITS_FOR_TEST))
 
-    out.extend([f"## {r['results']}", "", f"### {r['h5_head']}", "",
-                "| " + " | ".join(r["h5_cols"]) + " |", "|" + "---|" * len(r["h5_cols"])])
-    for row in primary:
-        excess = row["excess_over_twin"]
-        out.append("| " + " | ".join([
-            f"`{row['condition']}`", _show(row["mean_distance"], na),
-            _show(excess["mean_difference"], na) if excess else r["no_twin"],
-            _show(excess["interval_95"], na) if excess else na, _show(excess["p_sign_flip"], na) if excess else na,
-            f"`{row['evidence_id']}`"]) + " |")
-    out.extend(["", f"### {r['table_head']}", "", r["mechanism_note"], "",
-                "| " + " | ".join(r["cols"]) + " |", "|" + "---|" * len(r["cols"])])
-    for row in results["comparisons"]:
-        if row["metric_id"].startswith("tech."):
-            continue
-        out.append("| " + " | ".join([
-            f"`{row['metric_id']}`", f"`{row['condition']}`", words["levels"][row["level"]],
-            _show(row["mean_difference"], na), _show(row["effect_size_dz"], na), _show(row["interval_95"], na),
-            _show(row["p_sign_flip"], na), f"`{row['evidence_id']}`"]) + " |")
+    out.extend([f"## {r['results']}", ""])
+    has_twin = any(row["excess_over_twin"] for row in divergence)
+    if divergence and (has_twin or main == "h5.heldout_divergence"):  # shown only where its noise floor is known
+        head = r["h5_head"] + (f" ({r['primary_mark']})" if main == "h5.heldout_divergence" else "")
+        out.extend([f"### {head}", "", "| " + " | ".join(r["h5_cols"]) + " |", "|" + "---|" * len(r["h5_cols"])])
+        for row in divergence:
+            excess = row["excess_over_twin"]
+            out.append("| " + " | ".join([
+                f"`{row['condition']}`", _show(row["mean_distance"], na),
+                _show(excess["mean_difference"], na) if excess else r["no_twin"],
+                _show(excess["interval_95"], na) if excess else na, _show(excess["p_sign_flip"], na) if excess else na,
+                f"`{row['evidence_id']}`"]) + " |")
+        out.append("")
+
+    def rows(keep) -> list[str]:
+        lines = ["| " + " | ".join(r["cols"]) + " |", "|" + "---|" * len(r["cols"])]
+        for row in results["comparisons"]:
+            if not keep(row["metric_id"]):
+                continue
+            name = f"`{row['metric_id']}`" + (f" ({r['primary_mark']})" if row["metric_id"] == main else "")
+            lines.append("| " + " | ".join([
+                name, f"`{row['condition']}`", words["levels"][row["level"]],
+                _show(row["mean_difference"], na), _show(row["effect_size_dz"], na), _show(row["interval_95"], na),
+                _show(row["p_sign_flip"], na), f"`{row['evidence_id']}`"]) + " |")
+        return lines if len(lines) > 2 else []
+
+    stated = rows(lambda metric_id: metric_id in wanted)
+    if stated:
+        out.extend([f"### {r['table_head']}", "", r["mechanism_note"], ""] + stated + [""])
+    others = rows(lambda metric_id: metric_id not in wanted and not metric_id.startswith("tech."))
+    if others:
+        out.extend([f"### {r['other_head']}", "", r["other_note"], ""] + others)
     missing = sorted({(m, reason) for table in results["conditions"].values() for m, cell in table.items()
                       for reason in cell["not_computable"]})
     if missing:
@@ -104,7 +123,8 @@ def markdown(results: dict, protocol: dict, experiment: dict, language: str, *, 
     out.append("")
     section("qualitative", r["no_qual"])
     out.extend([f"## {r['anomalies']}", ""] + ([f"- {a}" for a in results["anomalies"]] or [f"- {na}" if False else "- 0"]) + [""])
-    section("threats", *[f"- {line}" for line in r["threats_text"]])
+    specific = r["design_threats"].get(protocol["design"])
+    section("threats", *[f"- {line}" for line in ((specific,) if specific else ()) + tuple(r["threats_text"])])
     section("interpretation", r["interpretation_text"])
     section("not_shown", *[f"- {line}" for line in r["not_shown_text"]])
     used = [step for review in (reviews or []) for step in review["steps"]]

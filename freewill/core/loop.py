@@ -311,6 +311,8 @@ class Being:
                 self.life.library.mark_read(document["id"], document["number"])
                 self.events.emit("read", id=document["id"], name=document["name"],
                                  number=document["number"], of=document["of"])
+                if self.own:  # what was read was lived too
+                    self.own.live([document["text"]])
             if winner.source == "reading" and decision.accepted:
                 self.needs.satisfy("curiosity", 0.3)
 
