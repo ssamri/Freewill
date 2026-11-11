@@ -63,6 +63,20 @@ Noor.life/
 └── memory/           its memories, as files you can open and read
 ```
 
+### The application
+
+On Windows, download the installer `Freewill-Setup-<version>.exe` from the [Releases page](https://github.com/ssamri/Freewill/releases) and run it. It installs for your user only and asks for no administrator rights. The installer is not signed yet, so Windows may show a "Windows protected your PC" notice: choose "More info", then "Run anyway".
+
+From the source, on any system:
+
+```bash
+pip install -e ".[app,anthropic]"
+freewill-app              # a native window
+freewill-app --browser    # the same interface in your browser
+```
+
+The application talks only to a service on your own machine, bound to `127.0.0.1` and protected by a session token. Access keys are kept in your system's credential store, never in a life file.
+
 ### Tests
 
 ```bash
@@ -128,6 +142,20 @@ Noor.life/
 ├── events.log        tout ce qui s'est passé, ligne par ligne
 └── memory/           ses souvenirs, en fichiers que vous pouvez ouvrir et lire
 ```
+
+### L'application
+
+Sous Windows, téléchargez l'installateur `Freewill-Setup-<version>.exe` depuis la [page Releases](https://github.com/ssamri/Freewill/releases) et lancez-le. Il s'installe pour votre seul compte et ne demande aucun droit d'administrateur. L'installateur n'est pas encore signé : Windows peut afficher « Windows a protégé votre ordinateur » ; choisissez « Informations complémentaires », puis « Exécuter quand même ».
+
+Depuis les sources, sur tout système :
+
+```bash
+pip install -e ".[app,anthropic]"
+freewill-app              # une fenêtre native
+freewill-app --browser    # la même interface dans votre navigateur
+```
+
+L'application ne parle qu'à un service sur votre propre machine, lié à `127.0.0.1` et protégé par un jeton de session. Les clés d'accès sont conservées dans le trousseau de votre système, jamais dans un fichier de vie.
 
 ### Tests
 

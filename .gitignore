@@ -7,3 +7,7 @@ build/
 dist/
 # Life files are individuals, not source code.
 *.life/
+
+# Build output
+build/
+dist/

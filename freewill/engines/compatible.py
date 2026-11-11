@@ -28,6 +28,7 @@ class CompatibleEngine:
     can_learn = False
 
     def __init__(self, base_url: str, model: str, key_env: str | None, kind: str = "compatible") -> None:
+        self.kind = kind
         if not base_url:
             raise EngineError("this engine needs a base URL (--base-url)")
         if not model:
@@ -60,9 +61,11 @@ class CompatibleEngine:
         }
         headers = {"Content-Type": "application/json"}
         if self.key_env:
-            key = os.environ.get(self.key_env)
+            from freewill.keys import get_key
+            key = get_key(self.kind) or os.environ.get(self.key_env)
             if not key:
-                raise EngineError(f"set the {self.key_env} environment variable to use this engine")
+                raise EngineError(f"no access key for this engine: add one in the settings, "
+                                  f"or set the {self.key_env} environment variable")
             headers["Authorization"] = f"Bearer {key}"
 
         request = urllib.request.Request(

@@ -34,7 +34,10 @@ class AnthropicEngine:
         self.model = model or DEFAULT_MODEL
         self.effort = effort or DEFAULT_EFFORT
         self.name = f"anthropic:{self.model}"
-        self._client = anthropic.Anthropic()
+        from freewill.keys import get_key
+        key = get_key("anthropic")
+        # With no stored key, the SDK resolves credentials from the environment itself.
+        self._client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
 
     def decide(self, system: str, prompt: str, schema: dict, hint: dict) -> dict:
         anthropic = self._anthropic

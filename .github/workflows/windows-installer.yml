@@ -1,0 +1,77 @@
+name: windows installer
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "freewill/**"
+      - "packaging/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[app,anthropic]" pyinstaller
+
+      - name: Read the version
+        id: version
+        shell: bash
+        run: echo "value=$(python -c 'import freewill; print(freewill.__version__)')" >> "$GITHUB_OUTPUT"
+
+      - name: Build the application
+        run: pyinstaller --noconfirm packaging/windows/freewill.spec
+
+      - name: Check the packaged application
+        shell: pwsh
+        run: |
+          $lives = Join-Path $env:RUNNER_TEMP "lives"
+          $run = Start-Process -FilePath "dist\Freewill\Freewill.exe" -ArgumentList "--self-test", "--lives", "`"$lives`"" -Wait -PassThru
+          if ($run.ExitCode -ne 0) { throw "self-test failed with exit code $($run.ExitCode)" }
+          if (-not (Test-Path (Join-Path $lives "Selftest.life"))) { throw "self-test did not bring a being into the world" }
+
+      - name: Build the installer
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) {
+            choco install innosetup --yes --no-progress
+            $env:PATH += ";${env:ProgramFiles(x86)}\Inno Setup 6"
+          }
+          iscc "/DAppVersion=${{ steps.version.outputs.value }}" packaging\windows\installer.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Freewill-Setup-${{ steps.version.outputs.value }}
+          path: dist/Freewill-Setup-*.exe
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish the installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.exe --repo "$GITHUB_REPOSITORY" --title "Freewill $GITHUB_REF_NAME" --generate-notes

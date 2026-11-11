@@ -61,13 +61,15 @@ Le cœur est le seul composant qui pense. L'interface peut être fermée sans qu
 | Cœur | Python 3.11+ | Écosystème de l'apprentissage automatique ; lisibilité pour un projet de recherche |
 | Moteur intégré | PyTorch | Entraînement et inférence dans le même cadre ; prise en charge du processeur, des cartes NVIDIA et des puces Apple |
 | Interface | TypeScript et React | Une seule base de code pour le bureau et le web |
-| Empaquetage de bureau | Tauri | Exécutables légers pour les trois systèmes ; le cœur Python est embarqué comme processus auxiliaire |
+| Empaquetage de bureau | pywebview, PyInstaller, Inno Setup | L'interface s'affiche dans la vue web du système (WebView2 sous Windows) ; un seul processus Python, aucune seconde chaîne d'outils |
 | Animation du cerveau | WebGL (three.js) | Rendu fluide d'un graphe de plusieurs milliers de nœuds |
 | Stockage | Fichiers texte, et SQLite pour les index | Aucune dépendance de serveur ; fichier de vie portable et inspectable |
 | Recherche en mémoire | Index vectoriel embarqué | Rappel par similarité sans service externe |
 | Déploiement serveur | Conteneur Docker | Même cœur, sans fenêtre, interface servie par le navigateur |
 
 ## 4. Arborescence du dépôt
+
+> **État du code.** Ce qui existe aujourd'hui tient dans un seul paquet Python, `freewill/` : `core/` (noyau, génome, mémoire en fichiers, subconscient, scène, conscient, boucle de vie), `engines/` (Claude, services compatibles OpenAI, modèle local par Ollama, moteur simulé), `server/` (le service local, lié à l'adresse de bouclage et protégé par un jeton de session), `ui/` (l'interface, en HTML, CSS et JavaScript simples, sans étape de compilation) et `desktop.py` (la fenêtre native). `packaging/windows/` contient ce qui fabrique l'installateur Windows. La première interface a été écrite sans React ni three.js afin d'être livrable sans chaîne de compilation ; l'arborescence ci-dessous demeure la cible, et le moteur intégré, le sommeil et les rêves ne sont pas encore construits.
 
 ```
 freewill/
@@ -386,5 +388,4 @@ Commencer par le moteur externe permet de valider l'architecture avant d'engager
 - **Méthode de réécriture nocturne** : adaptation de rang faible, réentraînement partiel, ou combinaison.
 - **Loi d'oubli** : valeurs des seuils, rythme du déclin, et part de déformation admise lors d'une reconstruction.
 - **Portabilité du soi entre moteurs** : ce qui, dans les paramètres appris, peut être transmis d'un moteur à un autre.
-- **Tauri ou Electron** pour l'empaquetage, selon la facilité à embarquer le cœur Python sur les trois systèmes.
 - **Format du génome** : quels traits, quelles plages, quelle influence sur les générateurs.

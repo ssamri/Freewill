@@ -332,3 +332,110 @@ def test_an_openai_compatible_engine_needs_its_key(monkeypatch):
     engine = make_engine({"kind": "openai", "model": "some-model"})
     with pytest.raises(EngineError, match="OPENAI_API_KEY"):
         engine.decide("s", "p", {"properties": {"decision": {}}}, {})
+
+
+# -- the local service behind the application ----------------------------------
+
+import json as _json
+import urllib.error
+import urllib.request
+
+import pytest as _pytest
+
+from freewill.server.app import App, serve
+
+
+@_pytest.fixture
+def service(tmp_path):
+    app = App(tmp_path / "lives")
+    server = serve(app)
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def call(path, body=None, token=app.token, host=None):
+        headers = {"X-Freewill-Token": token} if token else {}
+        if host:
+            headers["Host"] = host
+        data = None if body is None else _json.dumps(body).encode()
+        request = urllib.request.Request(base + path, data=data, headers=headers)
+        try:
+            with opener.open(request, timeout=20) as response:
+                return response.status, response.read()
+        except urllib.error.HTTPError as error:
+            return error.code, error.read()
+
+    yield app, call
+    app.rest()
+    server.shutdown()
+
+
+def test_service_refuses_calls_without_the_session_token(service):
+    _app, call = service
+    assert call("/api/lives", token=None)[0] == 401
+    assert call("/api/lives", token="wrong")[0] == 401
+    assert call("/api/message", {"text": "hello"}, token=None)[0] == 401
+
+
+def test_service_refuses_a_foreign_host_header(service):
+    _app, call = service
+    assert call("/api/lives", host="evil.example")[0] == 403
+
+
+def test_service_serves_the_interface_with_its_token_and_nothing_outside_it(service):
+    app, call = service
+    status, page = call("/", token=None)
+    assert status == 200 and app.token.encode() in page
+    assert call("/app.js", token=None)[0] == 200
+    assert call("/../server/app.py", token=None)[0] == 404
+    assert call("/%2e%2e/keys.py", token=None)[0] == 404
+
+
+def test_service_birth_message_and_memory(service):
+    app, call = service
+    status, body = call("/api/birth", {"name": "Noor", "language": "fr", "interlocutor": "Anass",
+                                       "engine": {"kind": "simulated"}})
+    assert status == 200
+    snapshot = _json.loads(body)
+    assert snapshot["name"] == "Noor" and snapshot["kernel"]
+    assert "seed" not in snapshot["genome"]
+    assert call("/api/birth", {"name": "Noor", "engine": {"kind": "simulated"}})[0] == 409
+
+    assert call("/api/message", {"text": "Bonjour Noor"})[0] == 200
+    seen, seq = [], 0
+    for _ in range(10):
+        events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
+        seen += [event["type"] for event in events]
+        seq = max([seq] + [event["seq"] for event in events])
+        if "speech" in seen or "silence" in seen:
+            break
+    assert "heard" in seen and "stage" in seen and "decision" in seen
+
+    assert call("/api/settings", {"tempo": 0.1, "thoughts_per_hour": 0})[0] == 200
+    assert app.runner.tempo == 2.0  # never faster than the floor
+
+    listing = _json.loads(call("/api/memory")[1])["memories"]
+    for memory in listing:
+        item = _json.loads(call("/api/memory/item?id=" + memory["id"])[1])
+        assert item["title"] == memory["title"]
+    assert call("/api/memory/item?id=../../identity")[0] == 404
+
+
+def test_service_rejects_bad_names_and_unknown_engines(service):
+    _app, call = service
+    assert call("/api/birth", {"name": "../escape", "engine": {"kind": "simulated"}})[0] == 400
+    assert call("/api/birth", {"name": "Lina", "engine": {"kind": "telepathy"}})[0] == 400
+    assert call("/api/snapshot")[0] == 409
+
+
+def test_a_stored_key_never_reaches_the_life_file(service, monkeypatch):
+    app, call = service
+    monkeypatch.setattr("freewill.keys.set_key", lambda kind, key: False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    status, _ = call("/api/birth", {"name": "Lina", "engine": {"kind": "openai", "model": "some-model"},
+                                    "api_key": "sk-secret-value"})
+    assert status == 200
+    app.rest()
+    for path in (app.lives_dir / "Lina.life").rglob("*"):
+        if path.is_file():
+            assert "sk-secret-value" not in path.read_text(encoding="utf-8", errors="ignore")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
