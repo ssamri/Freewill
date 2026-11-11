@@ -402,8 +402,10 @@ def test_service_birth_message_and_memory(service):
     assert call("/api/birth", {"name": "Noor", "engine": {"kind": "simulated"}})[0] == 409
 
     assert call("/api/message", {"text": "Bonjour Noor"})[0] == 200
+    import time as _time
     seen, seq = [], 0
-    for _ in range(10):
+    deadline = _time.monotonic() + 60  # a deadline, not a number of polls
+    while _time.monotonic() < deadline:
         events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
         seen += [event["type"] for event in events]
         seq = max([seq] + [event["seq"] for event in events])
@@ -628,8 +630,12 @@ def test_service_takes_attachments_and_serves_dreams(service):
     assert call("/api/message", {"text": "x", "attachments": [{"name": "a", "kind": "program"}]})[0] == 400
     assert call("/api/message", {"text": "", "attachments": []})[0] == 400
 
+    # Events arrive one poll at a time and a sleep now emits one per phase, so
+    # the wait is bounded by a deadline, not by a number of polls.
+    import time as _time
     seen, seq = [], 0
-    for _ in range(10):
+    deadline = _time.monotonic() + 60
+    while _time.monotonic() < deadline:
         events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
         seen += [event["type"] for event in events]
         seq = max([seq] + [event["seq"] for event in events])
@@ -637,7 +643,8 @@ def test_service_takes_attachments_and_serves_dreams(service):
             break
     assert "read" in seen
     assert call("/api/sleep", {})[0] == 200
-    for _ in range(10):
+    deadline = _time.monotonic() + 60
+    while _time.monotonic() < deadline:
         events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
         seen += [event["type"] for event in events]
         seq = max([seq] + [event["seq"] for event in events])
