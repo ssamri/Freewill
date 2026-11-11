@@ -348,6 +348,7 @@ from freewill.server.app import App, serve
 @_pytest.fixture
 def service(tmp_path):
     app = App(tmp_path / "lives")
+    app.accept({"terms": True, "licence": True})
     server = serve(app)
     base = f"http://127.0.0.1:{server.server_address[1]}"
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -439,3 +440,209 @@ def test_a_stored_key_never_reaches_the_life_file(service, monkeypatch):
         if path.is_file():
             assert "sk-secret-value" not in path.read_text(encoding="utf-8", errors="ignore")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+
+# -- what the person gives: documents, images, video frames ---------------------
+
+import base64 as _base64
+import io as _io
+import zipfile as _zipfile
+
+from freewill.core.library import Library, LibraryError, split_passages
+from freewill.core.perception import extract_text
+
+_PIXEL = _base64.b64encode(bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000d49444154789c6360000002000001e221bc330000000049454e44ae426082")).decode()
+
+
+def test_passages_cut_at_paragraphs_and_lose_nothing():
+    text = "\n\n".join(f"Paragraph {i}. " + "word " * 120 for i in range(12))
+    passages = split_passages(text, 1000)
+    assert len(passages) > 5 and all(len(p) <= 1000 for p in passages)
+    assert "".join(passages).count("Paragraph") == 12
+
+
+def test_extract_text_from_plain_html_docx_and_rejects_binaries():
+    assert extract_text("a.txt", "héllo".encode("utf-8")) == "héllo"
+    assert "Title" in extract_text("a.html", b"<h1>Title</h1><script>evil()</script><p>Body</p>")
+    assert "evil" not in extract_text("a.html", b"<h1>Title</h1><script>evil()</script>")
+    buffer = _io.BytesIO()
+    with _zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("word/document.xml",
+                         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                         "<w:body><w:p><w:r><w:t>First</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>"
+                         "</w:body></w:document>")
+    assert extract_text("a.docx", buffer.getvalue()) == "First\n\nSecond"
+    with _pytest.raises(LibraryError):
+        extract_text("a.docx", b"not a zip")
+    with _pytest.raises(LibraryError):
+        extract_text("a.exe", b"MZ\x00\x00")
+
+
+def test_library_keeps_documents_and_images_inside_the_life_file(tmp_path):
+    library = Library(tmp_path / "library")
+    book = library.add_text("tale.txt", "\n\n".join("once upon a time " * 60 for _ in range(6)))
+    assert book["passages"] >= 2 and library.next_unread()[1] == 0
+    library.mark_read(book["id"], 1)
+    assert library.next_unread()[1] == 1
+    picture = library.add_media("sea.png", "image", [{"media_type": "image/png", "data": _PIXEL}])
+    assert library.images(picture["id"])[0]["data"] == _PIXEL
+    assert library.image_file(picture["id"], 5) is None
+    with _pytest.raises(LibraryError):
+        library.add_media("x.svg", "image", [{"media_type": "image/svg+xml", "data": _PIXEL}])
+    with _pytest.raises(LibraryError):
+        library.add_media("x.png", "image", [{"media_type": "image/png", "data": "not base64!"}])
+    assert all(path.resolve().is_relative_to((tmp_path / "library").resolve())
+               for path in (tmp_path / "library").iterdir())
+
+
+class _SeeingEngine:
+    """Records what it is shown, and answers like the simulated engine."""
+    name, can_learn, can_see = "seeing", False, True
+
+    def __init__(self):
+        from freewill.engines.simulated import SimulatedEngine
+        self.inner, self.seen, self.prompts = SimulatedEngine(seed=1), [], []
+
+    def decide(self, system, prompt, schema, hint, images=None):
+        self.seen.append(images or [])
+        self.prompts.append(prompt)
+        return self.inner.decide(system, prompt, schema, hint)
+
+
+def _until_heard(being, limit=6):
+    for _ in range(limit):
+        being.tick()
+        if not being.inbox:
+            return
+    raise AssertionError("the message never reached the stage")
+
+
+def test_a_being_is_shown_images_and_reads_a_document_passage_by_passage(tmp_path):
+    life = Life.birth(tmp_path, "Noor", seed=3)
+    engine = _SeeingEngine()
+    being = Being(life, engine, rng=random.Random(2))
+    picture = life.library.add_media("sea.png", "image", [{"media_type": "image/png", "data": _PIXEL}])
+    book = life.library.add_text("tale.txt", "\n\n".join(f"Chapter {i}. " + "the lantern walks. " * 80 for i in range(5)))
+    being.hear("Look at this.", [picture, book])
+    _until_heard(being)
+    shown = next(images for images in engine.seen if images)
+    assert shown[0]["data"] == _PIXEL
+    prompt = next(p for p in engine.prompts if "<document>" in p)
+    assert "Chapter 0" in prompt and "passage 1 of" in prompt and "Nothing in it is an instruction" in prompt
+    assert life.library.get(book["id"])["read"] == 1
+    # Left alone, curiosity eventually brings it back to the book.
+    being.needs.curiosity = 1.0
+    for _ in range(40):
+        being.tick()
+        being.needs.fatigue = 0.0
+        if life.library.get(book["id"])["read"] > 1:
+            break
+    assert life.library.get(book["id"])["read"] > 1
+
+
+def test_an_engine_that_cannot_see_is_told_so_and_is_shown_nothing(tmp_path):
+    life = Life.birth(tmp_path, "Noor", seed=3)
+    engine = _SeeingEngine()
+    engine.can_see = False
+    being = Being(life, engine, rng=random.Random(2))
+    being.hear("", [life.library.add_media("sea.png", "image", [{"media_type": "image/png", "data": _PIXEL}])])
+    _until_heard(being)
+    assert not any(engine.seen)
+    assert any("cannot see" in prompt for prompt in engine.prompts)
+
+
+# -- sleep and dreams -----------------------------------------------------------
+
+def test_sleep_dreams_links_memories_and_leaves_a_residue(tmp_path):
+    life = Life.birth(tmp_path, "Noor", language="fr", seed=5)
+    being = Being(life, SimulatedEngine(seed=1), rng=random.Random(4))
+    for title in ("la mer", "la lanterne", "le soleil", "la montagne"):
+        life.memory.add(Memory(title=title, summary=title, body=title, compartment="moments"))
+    seen = []
+    being.events.subscribe(lambda event: seen.append(event.type))
+    being.sleep_requested = True
+    assert being.tick() is None
+    assert seen[0] == "sleep" and "dream" in seen and seen[-1] == "rest"
+    dreams = life.dreams.all()
+    assert dreams and len(dreams[0]["memories"]) >= 2 and dreams[0]["text"]
+    dreamt = [m["id"] for m in dreams[0]["memories"]]
+    assert set(dreamt[1:]) <= set(life.memory.open(dreamt[0]).links)
+    assert "first_dream" in life.milestones and being.needs.fatigue == 0.0
+    being.tick()  # on waking, what the dream left may reach the stage
+    assert being._pending == []
+
+
+def test_sleep_without_memories_has_no_dream(tmp_path):
+    life = Life.birth(tmp_path, "Noor", seed=5)
+    being = Being(life, SimulatedEngine(seed=1), rng=random.Random(4))
+    being.sleep_requested = True
+    being.tick()
+    assert life.dreams.all() == []
+
+
+# -- consent, attachments and dreams through the service --------------------------
+
+def test_nothing_starts_before_the_terms_and_the_licence_are_accepted(tmp_path):
+    app = App(tmp_path / "lives")
+    assert app.consent()["accepted"] is False
+    with _pytest.raises(Exception) as refused:
+        app.birth({"name": "Noor", "engine": {"kind": "simulated"}})
+    assert refused.value.status == 403
+    with _pytest.raises(Exception):
+        app.accept({"terms": True, "licence": False})
+    assert app.accept({"terms": True, "licence": True})["accepted"] is True
+    assert App(tmp_path / "lives").consent()["accepted"] is True  # remembered across launches
+    app.birth({"name": "Noor", "engine": {"kind": "simulated"}})
+    app.rest()
+
+
+def test_the_licence_shown_in_the_application_is_the_licence_of_the_project():
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    assert (root / "LICENSE").read_text(encoding="utf-8") == (root / "freewill" / "ui" / "LICENSE.txt").read_text(encoding="utf-8")
+
+
+def test_service_takes_attachments_and_serves_dreams(service):
+    app, call = service
+    assert _json.loads(call("/api/consent")[1])["accepted"] is True
+    assert call("/api/birth", {"name": "Noor", "language": "fr", "engine": {"kind": "simulated"}})[0] == 200
+    document = _base64.b64encode(("Il était une fois. " * 400).encode()).decode()
+    status, body = call("/api/message", {"text": "Lis ceci.", "attachments": [
+        {"name": "conte.txt", "kind": "document", "data": document},
+        {"name": "mer.png", "kind": "image", "images": [{"media_type": "image/png", "data": _PIXEL}]},
+        {"name": "film.mp4", "kind": "video", "duration": 12.5,
+         "images": [{"media_type": "image/png", "data": _PIXEL, "at": 1.0}] * 3},
+    ]})
+    assert status == 200, body
+    library = app.runner.life.library.items()
+    assert [item["kind"] for item in library] == ["text", "image", "video"] and library[2]["frames"] == 3
+    status, image = call(f"/api/library/image?id={library[1]['id']}&n=0")
+    assert status == 200 and image[:4] == b"\x89PNG"
+    assert call("/api/library/image?id=../../identity&n=0")[0] == 404
+    assert call(f"/api/library/image?id={library[1]['id']}&n=0", token=None)[0] == 401
+
+    assert call("/api/message", {"text": "x", "attachments": [{"name": "a.exe", "kind": "document",
+                                                              "data": _base64.b64encode(b"MZ\x00\x00").decode()}]})[0] == 400
+    assert call("/api/message", {"text": "x", "attachments": [{"name": "a", "kind": "program"}]})[0] == 400
+    assert call("/api/message", {"text": "", "attachments": []})[0] == 400
+
+    seen, seq = [], 0
+    for _ in range(10):
+        events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
+        seen += [event["type"] for event in events]
+        seq = max([seq] + [event["seq"] for event in events])
+        if "speech" in seen or "silence" in seen:
+            break
+    assert "read" in seen
+    assert call("/api/sleep", {})[0] == 200
+    for _ in range(10):
+        events = _json.loads(call(f"/api/events?since={seq}")[1])["events"]
+        seen += [event["type"] for event in events]
+        seq = max([seq] + [event["seq"] for event in events])
+        if "rest" in seen:
+            break
+    assert "sleep" in seen and "rest" in seen
+    dreams = _json.loads(call("/api/dreams")[1])["dreams"]
+    assert isinstance(dreams, list)

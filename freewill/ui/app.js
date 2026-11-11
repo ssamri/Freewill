@@ -17,7 +17,8 @@
     view: "chat",
     snap: null, seq: 0, run: 0,
     chat: [], moments: [], current: null, ticker: "",
-    memories: [], memLoaded: false, comp: null, memId: null, memItem: null,
+    memories: [], memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
+    dreams: null, asleep: false,
     keys: {},
   };
 
@@ -58,6 +59,9 @@
     dreams: '<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
     theme: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
+    attach: '<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.8 1.8 0 0 1-2.5-2.5l7.4-7.4"/>',
+    file: '<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4"/>',
+    close: '<path d="m6 6 12 12M18 6 6 18"/>',
   };
   function icon(name) {
     const span = document.createElement("span");
@@ -99,6 +103,44 @@
   function pct(x) { return Math.round(100 * Math.max(0, Math.min(1, x))) + " %"; }
   function bar(x) { return h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * Math.max(0, Math.min(1, x))) + "%" })); }
 
+  const brandMark = (style) => h("div", { class: "brand", style },
+    h("i", { class: "brand-mark" }), h("span", {}, "Freewill"), h("span", { class: "tag neutral exp" }, t("exp")));
+
+  // ---------- terms of use and licence, accepted before anything else ----------
+
+  function showGate(consent) {
+    const G = { step: 1, terms: false, licence: false, error: "" };
+    function draw() {
+      const card = h("div", { class: "welcome-card glass gate" });
+      const check = (key, label) => h("label", { class: "check" },
+        h("input", { type: "checkbox", checked: G[key], onchange: (e) => { G[key] = e.target.checked; draw(); } }), h("span", {}, label));
+      card.append(brandMark("padding:0"), h("div", { class: "steps", style: "margin-top:14px" },
+        [1, 2].map((i) => h("i", { class: i <= G.step ? "on" : "" }))), h("div", { class: "hint", style: "margin-top:8px" }, t("gate.step", { n: G.step })));
+      if (G.step === 1) {
+        card.append(h("h1", {}, t("gate.terms_title")), h("p", {}, t("gate.terms_lead")),
+          h("div", { class: "scrollbox", tabindex: "0" }, tr("gate.terms").map(([title, text]) =>
+            h("div", { class: "term" }, h("b", {}, title), h("p", {}, text)))),
+          check("terms", t("gate.terms_check")),
+          h("div", { class: "actions" },
+            h("button", { class: "icon-btn", title: t("theme"), "aria-label": t("theme"), onclick: () => { toggleTheme(); } }, icon("theme")),
+            h("button", { class: "btn primary", disabled: !G.terms, onclick: () => { G.step = 2; draw(); } }, t("gate.next"))));
+      } else {
+        card.append(h("h1", {}, t("gate.licence_title")), h("p", {}, t("gate.licence_lead")),
+          h("pre", { class: "scrollbox licence", tabindex: "0" }, consent.licence),
+          check("licence", t("gate.licence_check")),
+          G.error ? h("div", { class: "error", role: "alert" }, G.error) : "",
+          h("div", { class: "actions" },
+            h("button", { class: "btn", onclick: () => { G.step = 1; draw(); } }, t("gate.back")),
+            h("button", { class: "btn primary", disabled: !G.licence || !G.terms, onclick: async () => {
+              try { await api("/api/consent", { terms: true, licence: true }); showWelcome(); }
+              catch (e) { G.error = t("errors.generic", { message: e.message }); draw(); }
+            } }, t("gate.accept"))));
+      }
+      root.replaceChildren(h("div", { class: "welcome" }, card));
+    }
+    draw();
+  }
+
   // ---------- welcome and birth ----------
 
   async function showWelcome() {
@@ -115,7 +157,7 @@
 
       if (W.step === 0) {
         card.append(
-          h("div", { class: "brand", style: "padding:0" }, h("i", { class: "brand-mark" }), h("span", {}, "Freewill")),
+          brandMark("padding:0"),
           h("h1", {}, t("welcome.lead")),
           h("p", {}, t("welcome.caveat")));
         if (info.lives.length) {
@@ -204,7 +246,8 @@
 
   function enter(snap) {
     Object.assign(S, { snap, seq: 0, chat: [], moments: [], current: null, ticker: "", memories: [],
-                       memLoaded: false, comp: null, memId: null, memItem: null, view: "chat" });
+                       memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
+                       dreams: null, asleep: false, view: "chat" });
     const run = ++S.run;
     drawShell();
     loadMemories();
@@ -239,12 +282,12 @@
   function absorb(event) {
     const d = event.data || {}, past = !!event.past, m = S.current;
     switch (event.type) {
-      case "heard": S.chat.push({ who: "other", text: d.text }); break;
+      case "heard": S.chat.push({ who: "other", text: d.text, attachments: d.attachments || [] }); break;
       case "stage":
         S.current = { kind: "stage", time: event.time, past, source: d.source, text: d.text, salience: d.salience,
                       below: d.below || [], recalls: [], extras: [] };
         S.moments.push(S.current);
-        if (!past) { pulse(); if (brain) brain.stage(); }
+        if (!past) { pulse(); if (brain) brain.stage(d.source, d.below); }
         break;
       case "recall":
         if (m) m.recalls.push(d.title);
@@ -253,10 +296,12 @@
       case "decision":
         if (m) { m.accepted = d.accepted; m.reason = d.reason; m.thought = d.thought; }
         if (d.thought) S.ticker = d.thought;
+        if (!past && brain) brain.decision(d.accepted);
         break;
       case "speech":
         S.chat.push({ who: "self", text: d.text, spontaneous: d.spontaneous });
         if (m) m.said = d.text;
+        if (!past && brain) brain.speech();
         break;
       case "silence":
         S.chat.push({ who: "note", text: t("chat.silent", { name: S.snap.name }) });
@@ -265,8 +310,23 @@
       case "remember": if (m) m.extras.push(t("sub.keeps") + " : " + d.title); return true;
       case "value": if (m) m.extras.push(t("sub.value") + " : " + d.text); break;
       case "milestone": if (m) m.extras.push(t("sub.first") + " : " + (tr("miles")[d.name] || d.name)); break;
+      case "read":
+        if (m) m.extras.push(t("sub.reads") + " : " + d.name + " (" + d.number + "/" + d.of + ")");
+        if (!past && brain) brain.read();
+        break;
+      case "sleep":
+        S.asleep = !past;
+        S.moments.push({ kind: "note", time: event.time, past, text: t("sub.sleep") });
+        S.current = null;
+        break;
+      case "dream":
+        S.moments.push({ kind: "dream", time: event.time, past, title: d.title, text: d.text });
+        S.dreams = null;
+        if (!past) { S.ticker = d.text; if (brain) brain.dream(d.memories); if (S.view === "dreams") loadDreams(); }
+        return true;
       case "rest":
-        S.moments.push({ kind: "rest", time: event.time, past, faded: d.faded });
+        S.asleep = false;
+        S.moments.push({ kind: "note", time: event.time, past, text: t("sub.woke", { d: d.dreams || 0, n: d.faded || 0 }) });
         S.current = null;
         return true;
       case "kernel_refusal": case "engine_error": case "engine_refusal":
@@ -289,6 +349,69 @@
     } catch (_) { /* next event will retry */ }
   }
 
+  async function loadDreams() {
+    const run = S.run;
+    try {
+      const data = await api("/api/dreams");
+      if (run !== S.run) return;
+      S.dreams = data.dreams;
+      if (S.view === "dreams") refresh();
+    } catch (_) { /* next event will retry */ }
+  }
+
+  // Images are reduced in the window before they are handed over; from a video
+  // only a few still frames are taken. The original file never leaves this page.
+  function toJpeg(source, width, height, limit) {
+    const k = Math.min(1, limit / Math.max(width, height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * k)); canvas.height = Math.max(1, Math.round(height * k));
+    canvas.getContext("2d").drawImage(source, 0, 0, canvas.width, canvas.height);
+    const url = canvas.toDataURL("image/jpeg", 0.85);
+    return { media_type: "image/jpeg", data: url.slice(url.indexOf(",") + 1), url };
+  }
+  async function prepareImage(file) {
+    let bitmap;
+    try { bitmap = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+    catch (_) { throw new Error(t("chat.bad_image", { name: file.name })); }
+    const image = toJpeg(bitmap, bitmap.width, bitmap.height, 1280);
+    return { name: file.name, kind: "image", images: [{ media_type: image.media_type, data: image.data }], thumb: image.url };
+  }
+  function prepareVideo(file, frames) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video"), url = URL.createObjectURL(file), images = [];
+      const fail = () => { URL.revokeObjectURL(url); reject(new Error(t("chat.bad_video", { name: file.name }))); };
+      const timer = setTimeout(fail, 45000);
+      let times = [], thumb = null;
+      video.muted = true; video.preload = "auto"; video.playsInline = true;
+      video.onerror = () => { clearTimeout(timer); fail(); };
+      video.onloadedmetadata = () => {
+        const duration = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+        if (!duration || !video.videoWidth) { clearTimeout(timer); return fail(); }
+        times = Array.from({ length: frames }, (_, i) => ((i + 0.5) / frames) * duration);
+        video.currentTime = times[0];
+      };
+      video.onseeked = () => {
+        const frame = toJpeg(video, video.videoWidth, video.videoHeight, 768);
+        images.push({ media_type: frame.media_type, data: frame.data, at: Math.round(times[images.length] * 10) / 10 });
+        thumb = thumb || frame.url;
+        if (images.length < times.length) { video.currentTime = times[images.length]; return; }
+        clearTimeout(timer); URL.revokeObjectURL(url);
+        resolve({ name: file.name, kind: "video", images, duration: video.duration, thumb });
+      };
+      video.src = url;
+    });
+  }
+  function prepareDocument(file) {
+    return new Promise((resolve, reject) => {
+      if (file.size > 30e6) return reject(new Error(t("chat.too_big", { name: file.name })));
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error(t("errors.generic", { message: file.name })));
+      reader.onload = () => resolve({ name: file.name, kind: "document", data: String(reader.result).slice(String(reader.result).indexOf(",") + 1) });
+      reader.readAsDataURL(file);
+    });
+  }
+  const mediaUrl = (id, n) => "/api/library/image?id=" + encodeURIComponent(id) + "&n=" + n + "&token=" + encodeURIComponent(TOKEN);
+
   // ---------- shell ----------
 
   const NAV = ["chat", "subconscious", "memory", "brain", "state", "milestones", "dreams", "settings"];
@@ -301,8 +424,7 @@
     ui.name = h("div", { class: "being-name" });
     ui.age = h("div", { class: "being-age" });
     ui.nav = h("nav", { class: "nav" }, NAV.map((id) =>
-      h("button", { "data-view": id, onclick: () => go(id) }, icon(id), h("span", {}, t("nav." + id)),
-        id === "dreams" ? h("span", { class: "soon" }, t("soon")) : null)));
+      h("button", { "data-view": id, onclick: () => go(id) }, icon(id), h("span", {}, t("nav." + id)))));
     ui.engine = h("div", { class: "engine-badge" });
     ui.title = h("h1", {});
     ui.tickerText = h("span", { class: "ticker-text" });
@@ -310,7 +432,7 @@
     ui.view = h("div", { class: "view" });
     root.replaceChildren(h("div", { class: "shell" },
       h("aside", { class: "sidebar glass" },
-        h("div", { class: "brand" }, h("i", { class: "brand-mark" }), h("span", {}, "Freewill")),
+        brandMark(),
         h("div", { class: "being" }, ui.orb, h("div", { style: "min-width:0" }, ui.name, ui.age)),
         ui.nav,
         h("div", { class: "sidebar-foot" }, ui.engine,
@@ -325,7 +447,7 @@
     S.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
     store.set("fw-theme", S.theme);
     applyTheme();
-    if (S.snap && S.view === "settings") go("settings");
+    if (S.snap && ui.view && S.view === "settings") go("settings");
   }
 
   function pulse() {
@@ -346,6 +468,8 @@
     ui.title.textContent = t("nav." + id);
     ui.view.className = "view" + (["chat", "memory", "brain"].includes(id) ? " flush" : "");
     ui.view.replaceChildren();
+    ui.view.ondragover = ui.view.ondragleave = ui.view.ondrop = null;
+    ui.view.classList.remove("dropping");
     view = VIEWS[id]();
     refresh();
   }
@@ -361,7 +485,8 @@
     ui.banner.hidden = !snap.paused;
     ui.banner.textContent = snap.paused ? t("paused", { reason: snap.paused }) : "";
     const last = S.moments[S.moments.length - 1];
-    ui.orb.classList.toggle("resting", !!last && last.kind === "rest");
+    ui.orb.classList.toggle("resting", S.asleep);
+    if (brain) brain.setAsleep(S.asleep);
     if (view && view.update) view.update();
   }
 
@@ -369,19 +494,61 @@
 
   const VIEWS = {
     chat() {
+      const MAX = 6;
       const scroll = h("div", { class: "chat-scroll", role: "log", "aria-live": "polite" });
       const input = h("textarea", { rows: 1, "aria-label": t("chat.placeholder", { name: S.snap.name }),
                                     placeholder: t("chat.placeholder", { name: S.snap.name }) });
+      const chips = h("div", { class: "chips" }), note = h("div", { class: "hint composer-note", role: "status" });
+      const picker = h("input", { type: "file", multiple: true, hidden: true,
+        accept: "image/*,video/*,.txt,.md,.pdf,.docx,.epub,.html,.htm,.csv,.json,.rtf,.srt,text/*" });
+      let pending = [], busy = 0;
+      const drawChips = () => {
+        chips.replaceChildren(...pending.map((item, index) => h("span", { class: "chip" },
+          item.thumb ? h("img", { src: item.thumb, alt: "" }) : icon("file"), h("span", {}, item.name),
+          item.kind === "video" ? h("span", { class: "faint" }, t("chat.frames", { n: item.images.length })) : null,
+          h("button", { "aria-label": t("chat.remove", { name: item.name }), onclick: () => { pending.splice(index, 1); drawChips(); } }, icon("close")))));
+        const blind = !S.snap.engine.can_see && pending.some((item) => item.kind !== "document");
+        if (blind) note.textContent = t("chat.blind", { name: S.snap.name });
+        else if (!busy && note.dataset.kind !== "error") note.textContent = "";
+      };
+      const say = (text, kind) => { note.dataset.kind = kind || ""; note.textContent = text; };
+      async function addFiles(files) {
+        for (const file of files) {
+          if (pending.length + busy >= MAX) { say(t("chat.too_many", { n: MAX }), "error"); break; }
+          busy++; say(t("chat.preparing", { name: file.name }));
+          try {
+            const item = file.type.startsWith("image/") ? await prepareImage(file)
+              : file.type.startsWith("video/") ? await prepareVideo(file, 6) : await prepareDocument(file);
+            pending.push(item); say("");
+          } catch (e) { say(e.message, "error"); }
+          busy--; drawChips();
+        }
+      }
+      picker.addEventListener("change", () => { addFiles([...picker.files]); picker.value = ""; });
       const send = async () => {
         const text = input.value.trim();
-        if (!text) return;
-        input.value = ""; input.style.height = "";
-        try { await api("/api/message", { text }); } catch (e) { input.value = text; }
+        if ((!text && !pending.length) || busy) return;
+        const attachments = pending.map(({ thumb, ...rest }) => rest), kept = pending;
+        input.value = ""; input.style.height = ""; pending = []; drawChips();
+        try { await api("/api/message", { text, attachments }); say(""); }
+        catch (e) { input.value = text; pending = kept; drawChips(); say(t("errors.generic", { message: e.message }), "error"); }
       };
       input.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
       input.addEventListener("input", () => { input.style.height = ""; input.style.height = Math.min(160, input.scrollHeight) + "px"; });
-      ui.view.append(scroll, h("div", { class: "composer" }, input, h("button", { class: "btn primary", onclick: send }, t("chat.send"))));
+      input.addEventListener("paste", (e) => { const files = [...(e.clipboardData || {}).files || []]; if (files.length) { e.preventDefault(); addFiles(files); } });
+      const zone = ui.view;
+      zone.ondragover = (e) => { e.preventDefault(); zone.classList.add("dropping"); };
+      zone.ondragleave = (e) => { if (!zone.contains(e.relatedTarget)) zone.classList.remove("dropping"); };
+      zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove("dropping"); addFiles([...e.dataTransfer.files]); };
+      ui.view.append(scroll, h("div", { class: "drop-veil" }, t("chat.drop")), chips, note,
+        h("div", { class: "composer" }, picker,
+          h("button", { class: "icon-btn attach", title: t("chat.attach"), "aria-label": t("chat.attach"), onclick: () => picker.click() }, icon("attach")),
+          input, h("button", { class: "btn primary", onclick: send }, t("chat.send"))));
       setTimeout(() => input.focus(), 0);
+      const attachment = (a) => a.kind === "text"
+        ? h("span", { class: "chip in" }, icon("file"), h("span", {}, a.name), h("span", { class: "faint" }, t("chat.passages", { n: a.passages })))
+        : h("span", { class: "thumbs", title: a.name }, Array.from({ length: Math.min(a.frames || 1, 6) }, (_, n) =>
+            h("img", { src: mediaUrl(a.id, n), alt: a.name, loading: "lazy" })));
       let shown = -1;
       return { update() {
         if (shown === S.chat.length) return;
@@ -394,7 +561,8 @@
         scroll.replaceChildren(...S.chat.map((m) => m.who === "note"
           ? h("div", { class: "msg-note" }, m.text)
           : h("div", { class: "msg " + m.who + (m.spontaneous ? " spontaneous" : ""),
-                       title: m.spontaneous ? t("chat.spontaneous") : null }, m.text)));
+                       title: m.spontaneous ? t("chat.spontaneous") : null },
+              (m.attachments || []).length ? h("div", { class: "attached" }, m.attachments.map(attachment)) : null, m.text)));
         if (stick) scroll.scrollTop = scroll.scrollHeight;
       } };
     },
@@ -408,9 +576,14 @@
         shown = stamp;
         if (!S.moments.length) return ui.view.replaceChildren(h("div", { class: "empty" }, h("p", {}, t("sub.empty"))));
         ui.view.replaceChildren(...S.moments.slice().reverse().map((m) => {
-          if (m.kind === "rest") {
+          if (m.kind === "note") {
             return h("div", { class: "moment" + (m.past ? " past" : "") }, h("div", { class: "moment-head", style: "margin:0" },
-              h("span", { class: "tag neutral" }, t("sub.rest", { n: m.faded == null ? 0 : m.faded })), h("time", {}, clock(m.time))));
+              h("span", { class: "tag neutral" }, m.text), h("time", {}, clock(m.time))));
+          }
+          if (m.kind === "dream") {
+            return h("article", { class: "moment dreamt" + (m.past ? " past" : "") },
+              h("div", { class: "moment-head" }, h("span", { class: "tag" }, t("sub.dream")), h("b", {}, m.title), h("time", {}, clock(m.time))),
+              h("div", { class: "moment-thought" }, m.text));
           }
           const verdict = m.accepted == null ? null : h("div", { class: "moment-verdict" },
             h("span", { class: "tag " + (m.accepted ? "good" : "bad") }, m.accepted ? t("sub.welcomed") : t("sub.dismissed")),
@@ -437,13 +610,40 @@
 
     memory() {
       const cols = [h("div", {}), h("div", {}), h("div", {})];
-      ui.view.append(h("div", { class: "memory" }, cols));
+      const grid = h("div", { class: "memory" }, cols), shelf = h("div", { class: "shelf" });
+      const search = h("input", { type: "search", class: "search", value: S.memQuery, placeholder: t("mem.search"), "aria-label": t("mem.search"),
+        oninput: (e) => { S.memQuery = e.target.value; draw(); } });
+      const tabs = h("div", { class: "tabs", role: "tablist" });
+      ui.view.append(h("div", { class: "toolbar" }, tabs, search), grid, shelf);
       async function open(id) {
         S.memId = id; S.memItem = null; draw();
         try { S.memItem = await api("/api/memory/item?id=" + encodeURIComponent(id)); } catch (_) { S.memId = null; }
         draw();
       }
+      function drawTabs() {
+        tabs.replaceChildren(...["memories", "library"].map((id) => h("button", { role: "tab", "aria-selected": String(S.memTab === id),
+          class: S.memTab === id ? "on" : "", onclick: () => { S.memTab = id; draw(); } },
+          t("mem.tab_" + id), h("span", { class: "faint" }, id === "memories" ? S.memories.length : (S.snap.library || []).length))));
+        const lib = S.memTab === "library";
+        grid.hidden = lib; shelf.hidden = !lib; search.hidden = lib;
+      }
+      function drawLibrary() {
+        const items = (S.snap.library || []).slice().reverse(), kinds = tr("mem.kinds");
+        if (!items.length) return shelf.replaceChildren(h("div", { class: "empty" }, h("p", {}, t("mem.lib_empty", { name: S.snap.name }))));
+        shelf.replaceChildren(h("p", { class: "hint", style: "margin-bottom:14px" }, t("mem.lib_hint", { name: S.snap.name })),
+          ...items.map((item) => h("div", { class: "card book" },
+            item.kind === "text" ? h("span", { class: "book-icon" }, icon("file")) : h("img", { src: mediaUrl(item.id, 0), alt: "" }),
+            h("div", { style: "min-width:0;flex:1" },
+              h("div", { class: "mem-title" }, item.name),
+              h("div", { class: "small muted" }, kinds[item.kind] + " · " + day(item.added)),
+              item.kind === "text"
+                ? [h("div", { style: "margin:8px 0 4px" }, bar(item.read / Math.max(1, item.passages))),
+                   h("div", { class: "hint" }, t("mem.lib_read", { read: item.read, of: item.passages }))]
+                : h("div", { class: "hint", style: "margin-top:6px" }, t("mem.lib_frames", { n: item.frames }))))));
+      }
       function draw() {
+        drawTabs();
+        if (S.memTab === "library") return drawLibrary();
         if (!S.memories.length) {
           cols[0].replaceChildren(); cols[2].replaceChildren();
           cols[1].replaceChildren(h("div", { class: "empty" }, h("p", {}, S.memLoaded ? t("mem.empty", { name: S.snap.name }) : "…")));
@@ -455,38 +655,55 @@
           onclick: () => { S.comp = name; draw(); } }, h("span", {}, label), h("span", { class: "faint" }, n));
         cols[0].replaceChildren(comp(null, t("mem.all"), S.memories.length),
           ...Object.keys(counts).sort().map((name) => comp(name, name, counts[name])));
+        const words = S.memQuery.toLowerCase().split(/\s+/).filter(Boolean);
         const list = S.memories.filter((m) => !S.comp || m.compartment === S.comp)
+          .filter((m) => { const hay = (m.title + " " + m.summary + " " + (m.tags || []).join(" ")).toLowerCase(); return words.every((w) => hay.includes(w)); })
           .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-        cols[1].replaceChildren(...list.map((m) => h("button", { class: "mem" + (S.memId === m.id ? " active" : ""), onclick: () => open(m.id) },
-          h("div", { class: "mem-title" }, m.title), h("div", { class: "mem-sum" }, m.summary), bar(m.strength))));
+        cols[1].replaceChildren(...(list.length ? list.map((m) => h("button", { class: "mem" + (S.memId === m.id ? " active" : ""), onclick: () => open(m.id) },
+          h("div", { class: "mem-title" }, m.title), h("div", { class: "mem-sum" }, m.summary),
+          h("div", { class: "mem-foot" }, bar(m.strength), m.state !== "complete" ? h("span", { class: "tag neutral" }, tr("mem.states")[m.state] || m.state) : null)))
+          : [h("p", { class: "muted", style: "padding:12px" }, t("mem.none"))]));
         const it = S.memItem;
         if (!it) return cols[2].replaceChildren(h("div", { class: "empty" }, h("p", {}, S.memId ? "…" : t("mem.pick"))));
-        const states = tr("mem.states");
+        const states = tr("mem.states"), titles = new Map(S.memories.map((m) => [m.id, m.title]));
         cols[2].replaceChildren(
           h("h2", { style: "font-size:18px" }, it.title),
           h("p", { class: "muted", style: "margin-top:4px" }, it.summary),
           h("div", { class: "mem-body" }, it.body && it.body.trim() ? it.body : h("span", { class: "faint" }, t("mem.lost"))),
           h("div", { class: "kv" },
             h("b", {}, t("mem.date")), h("span", {}, day(it.date)),
+            it.last_recall ? [h("b", {}, t("mem.recalled")), h("span", {}, day(it.last_recall))] : null,
             h("b", {}, t("mem.state")), h("span", {}, (states[it.state] || it.state) + (it.kept ? " · " + t("mem.kept") : "")),
             h("b", {}, t("mem.strength")), h("span", {}, pct(it.strength)),
             h("b", {}, t("mem.importance")), h("span", {}, pct(it.importance)),
             it.tags && it.tags.length ? [h("b", {}, t("mem.tags")), h("span", {}, it.tags.join(", "))] : null,
-            it.links && it.links.length ? [h("b", {}, t("mem.links")), h("span", {}, it.links.join(", "))] : null));
+            it.links && it.links.length ? [h("b", {}, t("mem.links")), h("span", { class: "linkrow" }, it.links.filter((id) => titles.has(id)).map((id) =>
+              h("button", { class: "chip in link", onclick: () => open(id) }, titles.get(id))))] : null));
       }
-      let shown = null;
-      return { update() { if (shown !== S.memories) { shown = S.memories; draw(); } } };
+      if (S.memId && !S.memItem) open(S.memId);
+      let shown = null, books = "";
+      return { update() {
+        const stamp = JSON.stringify(S.snap.library || []);
+        if (shown !== S.memories || books !== stamp) { shown = S.memories; books = stamp; draw(); }
+      } };
     },
 
     brain() {
       const canvas = h("canvas", { role: "img", "aria-label": t("brain.legend") });
       const tip = h("div", { class: "brain-tip", hidden: true });
-      const legend = h("div", { class: "brain-legend" });
-      ui.view.append(h("div", { class: "brain" }, canvas, legend, tip));
-      brain = new window.Brain(canvas, tip, { self: t("brain.self") });
+      const legend = h("div", { class: "brain-legend" }), hud = h("div", { class: "brain-hud" });
+      ui.view.append(h("div", { class: "brain" }, canvas, hud, legend, h("div", { class: "brain-hint" }, t("brain.hint")), tip));
+      brain = new window.Brain(canvas, tip, { self: t("brain.self"), sources: tr("sources") },
+        { onOpen: (id) => { S.memId = id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory"); } });
       brain.setMemories(S.memories);
+      brain.setAsleep(S.asleep);
       return { update() {
-        legend.textContent = S.memories.length ? t("brain.legend") : t("brain.empty", { name: S.snap.name });
+        brain.setNeeds(S.snap.needs);
+        legend.textContent = t("brain.legend") + (S.memories.length ? "" : " " + t("brain.empty", { name: S.snap.name }));
+        const counts = brain.counts || { memories: 0, links: 0 };
+        hud.replaceChildren(
+          h("span", { class: "tag " + (S.asleep ? "" : "good") }, S.asleep ? t("brain.asleep") : t("brain.awake")),
+          h("span", {}, counts.memories + " " + t("brain.memories")), h("span", {}, counts.links + " " + t("brain.links")));
       } };
     },
 
@@ -523,7 +740,7 @@
         const snap = S.snap, stamp = JSON.stringify(snap.milestones);
         if (stamp === shown) return;
         shown = stamp;
-        const order = ["first_thought", "first_refusal", "first_memory", "first_spontaneous_word", "first_silence", "first_value"];
+        const order = ["first_thought", "first_refusal", "first_memory", "first_spontaneous_word", "first_silence", "first_value", "first_dream"];
         const done = order.filter((k) => snap.milestones[k]).sort((a, b) => snap.milestones[a].localeCompare(snap.milestones[b]));
         ui.view.replaceChildren(h("div", { class: "timeline" },
           h("div", { class: "tl" }, h("b", {}, t("miles.birth")), h("span", { class: "small muted" }, day(snap.born))),
@@ -534,10 +751,27 @@
     },
 
     dreams() {
-      ui.view.append(h("div", { class: "empty" }, h("div", {},
-        h("h2", { style: "font-size:18px;margin-bottom:10px;color:var(--text)" }, t("dreams.title")),
-        h("p", {}, t("dreams.body", { name: S.snap.name })))));
-      return {};
+      const list = h("div", { class: "dreams" });
+      const button = h("button", { class: "btn", onclick: async () => { button.disabled = true; try { await api("/api/sleep", {}); } catch (_) { button.disabled = false; } } });
+      ui.view.append(h("div", { class: "toolbar plain" }, h("p", { class: "hint", style: "flex:1" }, t("dreams.hint")), button), list);
+      if (!S.dreams) loadDreams();
+      let shown;
+      return { update() {
+        button.textContent = S.asleep ? t("dreams.sleeping", { name: S.snap.name }) : t("dreams.sleep");
+        if (S.asleep) button.disabled = true; else if (shown !== undefined && !S.asleep) button.disabled = false;
+        if (shown === S.dreams && shown !== undefined) return;
+        shown = S.dreams;
+        if (!S.dreams) return list.replaceChildren(h("div", { class: "empty" }, h("p", {}, "…")));
+        if (!S.dreams.length) return list.replaceChildren(h("div", { class: "empty" }, h("p", {}, t("dreams.empty", { name: S.snap.name }))));
+        const known = new Set(S.memories.map((m) => m.id));
+        list.replaceChildren(...S.dreams.map((d) => h("article", { class: "card dream" },
+          h("div", { class: "moment-head" }, h("h2", {}, d.title), h("time", {}, day(d.date))),
+          h("p", { class: "dream-text" }, d.text),
+          d.residue ? h("p", { class: "dream-residue" }, h("b", {}, t("dreams.residue") + " : "), d.residue) : null,
+          (d.memories || []).length ? h("div", { class: "linkrow", style: "margin-top:12px" }, h("span", { class: "hint" }, t("dreams.woven")),
+            d.memories.map((m) => h("button", { class: "chip in link", disabled: !known.has(m.id),
+              onclick: () => { S.memId = m.id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory"); } }, m.title))) : null)));
+      } };
     },
 
     settings() {
@@ -585,6 +819,8 @@
   applyTheme();
   (async function start() {
     try {
+      const consent = await api("/api/consent");
+      if (!consent.accepted) return showGate(consent);
       const info = await api("/api/lives");
       S.keys = info.keys || {};
       if (info.awake) return enter(await api("/api/snapshot"));

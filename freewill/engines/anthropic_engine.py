@@ -22,6 +22,7 @@ _SERVER_SIDE_FALLBACK = {
 
 class AnthropicEngine:
     can_learn = False
+    can_see = True
 
     def __init__(self, model: str | None = None, effort: str | None = None) -> None:
         try:
@@ -39,13 +40,21 @@ class AnthropicEngine:
         # With no stored key, the SDK resolves credentials from the environment itself.
         self._client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
 
-    def decide(self, system: str, prompt: str, schema: dict, hint: dict) -> dict:
+    def decide(self, system: str, prompt: str, schema: dict, hint: dict,
+               images: list[dict] | None = None) -> dict:
         anthropic = self._anthropic
+        content: str | list = prompt
+        if images:
+            content = [
+                {"type": "image", "source": {"type": "base64", "media_type": image["media_type"],
+                                             "data": image["data"]}}
+                for image in images
+            ] + [{"type": "text", "text": prompt}]
         request: dict = {
             "model": self.model,
             "max_tokens": 16000,
             "system": system,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": content}],
             "output_config": {
                 "effort": self.effort,
                 "format": {"type": "json_schema", "schema": schema},

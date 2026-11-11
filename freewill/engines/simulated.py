@@ -13,13 +13,25 @@ import random
 class SimulatedEngine:
     name = "simulated"
     can_learn = False
+    can_see = False
 
     def __init__(self, seed: int | None = None) -> None:
         self.rng = random.Random(seed)
 
-    def decide(self, system: str, prompt: str, schema: dict, hint: dict) -> dict:
+    def decide(self, system: str, prompt: str, schema: dict, hint: dict,
+               images: list[dict] | None = None) -> dict:
         text = hint.get("text", "")
         french = hint.get("language") == "fr"
+        if hint.get("kind") == "dream":
+            titles = hint.get("memories", [])
+            woven = (" » et « " if french else "” and “").join(titles)
+            return {
+                "title": ("(simulé) " if french else "(simulated) ") + (titles[0] if titles else "…")[:60],
+                "dream": (f"(moteur simulé, sans rêve réel) « {woven} » se mêlent." if french
+                          else f"(simulated engine, no real dream) “{woven}” blend together."),
+                "residue": ("(simulé) Il me reste une image de cette nuit." if french
+                            else "(simulated) An image from the night stays with me."),
+            }
         is_message = hint.get("source") == "message"
         accept = is_message or self.rng.random() > 0.2 + 0.4 * hint.get("refusal", 0.5)
 

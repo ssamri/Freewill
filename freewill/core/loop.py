@@ -16,12 +16,27 @@ from freewill.core.events import EventStream
 from freewill.core.kernel import Action, Guard, KernelViolation
 from freewill.core.kernel.needs import Needs
 from freewill.core.life import Life, describe_duration
-from freewill.core.memory import CONSCIOUS, Memory, recall
+from freewill.core.memory import CONSCIOUS, DREAM, Memory, recall
 from freewill.core.memory.strength import decay
+from freewill.core.sleep import DREAM_SCHEMA, dream_prompt, dream_system, link_together
 from freewill.core.subconscious import Proposal, Subconscious
 from freewill.core.subconscious.drift import Drift
 from freewill.core.workspace import compete
 from freewill.engines.base import Engine, EngineError, EngineRefusal
+
+_T = {
+    "en": {"reading": "I could go on reading “{name}” (passage {number} of {of}).",
+           "attached": "attached", "file_only": "(sent without a word)",
+           "residue": "I wake with this, left by a dream: {residue}",
+           "image": "an image, “{name}”", "video": "{frames} still frames from a video, “{name}”{duration}",
+           "seconds": ", {seconds} seconds long"},
+    "fr": {"reading": "Je pourrais continuer à lire « {name} » (passage {number} sur {of}).",
+           "attached": "pièce jointe", "file_only": "(envoyé sans un mot)",
+           "residue": "Je me réveille avec ceci, laissé par un rêve : {residue}",
+           "image": "une image, « {name} »", "video": "{frames} images fixes tirées d'une vidéo, « {name} »{duration}",
+           "seconds": ", d'une durée de {seconds} secondes"},
+}
+_LANGUAGE_NAMES = {"en": "English", "fr": "French"}
 
 _RETURN = {
     "en": "I was suspended for {duration}. I am back.",
@@ -64,6 +79,8 @@ class Being:
         self.staged: deque[str] = deque(maxlen=4)
         self._last_tick = datetime.now(timezone.utc)
         self._pending: list[Proposal] = []
+        self.t = _T.get(life.language, _T["en"])
+        self.sleep_requested = False
 
         # Sense of time: notice how long the suspension lasted.
         last_seen = state.get("last_seen")
@@ -80,12 +97,47 @@ class Being:
 
     # -- perception ------------------------------------------------------------
 
-    def hear(self, text: str) -> None:
-        """Something is said to the being. It will reach the stage, or not at once."""
+    def hear(self, text: str, attachments: tuple[dict, ...] | list[dict] = ()) -> None:
+        """Something is said or given to the being. It will reach the stage, or not at once.
+
+        `attachments` are items already placed in its library.
+        """
         text = text.strip()
-        if text:
-            self.inbox.append({"text": text, "waited": 0})
-            self.events.emit("heard", text=text)
+        if text or attachments:
+            self.inbox.append({"text": text, "waited": 0,
+                               "attachments": [item["id"] for item in attachments]})
+            self.events.emit("heard", text=text,
+                             attachments=[self.life.library.public(item) for item in attachments])
+
+    def _perceive(self, item_ids: list[str]) -> tuple[dict, list[dict], list[str]]:
+        """What the given library items offer to the mind: text to read, images to look at."""
+        library, t = self.life.library, self.t
+        perception: dict = {"documents": [], "media": [], "visible": getattr(self.engine, "can_see", False)}
+        images: list[dict] = []
+        names: list[str] = []
+        for item_id in item_ids:
+            item = library.get(item_id)
+            if item is None:
+                continue
+            names.append(item["name"])
+            self.guard.check(Action.READ)
+            if item["kind"] == "text":
+                number = min(item["read"], item["passages"] - 1)
+                perception["documents"].append({
+                    "id": item["id"], "name": item["name"], "number": number + 1,
+                    "of": item["passages"], "text": library.passage(item["id"], number),
+                })
+            else:
+                if item["kind"] == "video":
+                    duration = (t["seconds"].format(seconds=round(item["duration"]))
+                                if item.get("duration") else "")
+                    perception["media"].append(t["video"].format(
+                        frames=item["frames"], name=item["name"], duration=duration))
+                else:
+                    perception["media"].append(t["image"].format(name=item["name"]))
+                if perception["visible"]:
+                    images.extend(library.images(item["id"]))
+        return perception, images[:8], names
 
     # -- one moment ------------------------------------------------------------
 
@@ -98,8 +150,9 @@ class Being:
         genome = self.life.genome
         self.needs.grow(minutes, curiosity=genome.curiosity, sociability=genome.sociability)
 
-        if self.needs.fatigue >= 1.0:
-            self._rest(now)
+        if self.needs.fatigue >= 1.0 or self.sleep_requested:
+            self.sleep_requested = False
+            self._sleep(now)
             return None
 
         last_thought = self.recent_thoughts[-1] if self.recent_thoughts else ""
@@ -109,10 +162,19 @@ class Being:
         )
         proposals.extend(self._pending)
         self._pending = []
+        reading = self.life.library.next_unread()
+        if reading:
+            item, number = reading
+            proposals.append(Proposal(
+                "reading",
+                self.t["reading"].format(name=item["name"], number=number + 1, of=item["passages"]),
+                0.3 + 0.45 * self.needs.curiosity * (0.5 + genome.curiosity) + self.rng.uniform(-0.05, 0.05),
+            ))
         if self.inbox:
             message = self.inbox[0]
             # Someone speaking is hard to ignore, and harder the longer they wait.
-            proposals.append(Proposal("message", message["text"], 0.95 + 0.2 * message["waited"]))
+            proposals.append(Proposal("message", message["text"] or self.t["file_only"],
+                                      0.95 + 0.2 * message["waited"]))
 
         self._habituate(proposals)
         competition = compete(proposals)
@@ -126,11 +188,19 @@ class Being:
         )
 
         is_message = winner.source == "message"
+        message, perception, images = None, None, []
         if is_message:
-            self.inbox.popleft()
-            self.dialogue.append({"who": "other", "text": winner.text})
-        elif self.inbox:
-            self.inbox[0]["waited"] += 1
+            message = self.inbox.popleft()
+            perception, images, names = self._perceive(message.get("attachments", []))
+            said = winner.text
+            if names:
+                said += f" [{self.t['attached']} : {', '.join(names)}]"
+            self.dialogue.append({"who": "other", "text": said})
+        else:
+            if self.inbox:
+                self.inbox[0]["waited"] += 1
+            if winner.source == "reading" and reading:
+                perception, images, _names = self._perceive([reading[0]["id"]])
 
         memories = recall(self.life.memory, winner.text, CONSCIOUS, k=3, rng=self.rng,
                           active=tuple(self.active))
@@ -145,14 +215,26 @@ class Being:
                 dialogue=tuple(self.dialogue),
                 memories=memories,
                 memory_map=self.life.memory.map(),
+                perception=perception,
+                images=images,
             )
         except EngineError as error:
             if is_message:  # do not lose what was said
                 self.dialogue.pop()
-                self.inbox.appendleft({"text": winner.text, "waited": 0})
+                self.inbox.appendleft({**message, "waited": 0})
             kind = "engine_refusal" if isinstance(error, EngineRefusal) else "engine_error"
             self.events.emit(kind, message=str(error), retryable=error.retryable)
             raise
+
+        # What was read is read: the first passage of a document given with a message,
+        # or the next passage of the book in hand if the being chose to go on.
+        if perception and (is_message or decision.accepted):
+            for document in perception["documents"]:
+                self.life.library.mark_read(document["id"], document["number"])
+                self.events.emit("read", id=document["id"], name=document["name"],
+                                 number=document["number"], of=document["of"])
+            if winner.source == "reading" and decision.accepted:
+                self.needs.satisfy("curiosity", 0.3)
 
         self._apply(winner, decision, memories)
         self._save(now)
@@ -244,20 +326,64 @@ class Being:
         self.needs.after_thought(life.genome.sleep_need)
         life.state["thoughts"] = life.state.get("thoughts", 0) + 1
 
-    def _rest(self, now: datetime) -> None:
-        """Withdraw for a while. Memories that were not revisited weaken.
-
-        Sleep proper, with replay and dreams, is the next phase of the project.
-        """
+    def _sleep(self, now: datetime) -> None:
+        """Sleep: replay and dream, link what the dreams brought together, let the rest fade."""
         self.guard.check(Action.REST)
+        life, store = self.life, self.life.memory
+        self.events.emit("sleep")
+
+        dreams = 0
+        count = len(store)
+        nights = 0 if count == 0 else 1 if count < 4 else 2 if count < 12 else 3
+        mix = DREAM.loosened(life.genome.association)
+        for _ in range(nights):
+            cue = self.rng.choice(list(self.recent_thoughts)) if self.recent_thoughts else ""
+            # Replay: the memories drawn tonight are strengthened by being relived.
+            memories = recall(store, cue, mix, k=min(3, count), rng=self.rng, active=tuple(self.active))
+            if not memories:
+                break
+            hint = {"kind": "dream", "language": life.language,
+                    "memories": [memory.title for memory, _path in memories]}
+            try:
+                data = self.engine.decide(
+                    dream_system(life.name, _LANGUAGE_NAMES.get(life.language, life.language)),
+                    dream_prompt(memories, tuple(self.recent_thoughts)),
+                    DREAM_SCHEMA, hint,
+                )
+                title = str(data.get("title") or "").strip()
+                text = str(data.get("dream") or "").strip()
+                residue = str(data.get("residue") or "").strip()
+                if not text:
+                    continue
+                self.guard.check(Action.DREAM, text + residue)
+            except EngineError as error:
+                self.events.emit("engine_error", message=str(error), retryable=error.retryable)
+                break
+            except KernelViolation as violation:
+                self.events.emit("kernel_refusal", message=str(violation))
+                continue
+            ids = [memory.id for memory, _path in memories]
+            linked = link_together(store, ids)
+            dream = life.dreams.add(
+                title or text[:40], text, residue,
+                [{"id": memory.id, "title": memory.title, "path": path} for memory, path in memories],
+            )
+            dreams += 1
+            self.events.emit("dream", id=dream["id"], title=dream["title"], text=text,
+                             memories=ids, linked=linked)
+            if life.mark("first_dream"):
+                self.events.emit("milestone", name="first_dream")
+            if residue:
+                self._pending = [Proposal("dream", self.t["residue"].format(residue=residue), 0.6)]
+
         faded = 0
-        for memory in self.life.memory.headers():
-            full = self.life.memory.open(memory.id)
+        for memory in store.headers():
+            full = store.open(memory.id)
             if decay(full, now):
                 faded += 1
-            self.life.memory.save(full)
+            store.save(full)
         self.needs.fatigue = 0.0
-        self.events.emit("rest", faded=faded)
+        self.events.emit("rest", faded=faded, dreams=dreams)
         self._save(now)
 
     def _save(self, now: datetime) -> None:

@@ -22,9 +22,16 @@ class Engine(Protocol):
     # Whether this engine can rewrite its own parameters during sleep.
     # External engines cannot: for them, consolidation bears on the life file only.
     can_learn: bool
+    # Whether this engine can be shown images. Whether it really understands
+    # them depends on the model behind it.
+    can_see: bool
 
-    def decide(self, system: str, prompt: str, schema: dict, hint: dict) -> dict:
+    def decide(self, system: str, prompt: str, schema: dict, hint: dict,
+               images: list[dict] | None = None) -> dict:
         """Return a JSON object matching `schema`.
+
+        `images`, when given, are {media_type, data(base64)} items to look at
+        along with the prompt.
 
         `hint` carries the same situation in structured form, for engines that
         do not read prose (the simulated engine).

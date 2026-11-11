@@ -13,7 +13,9 @@ from pathlib import Path
 
 from freewill.core.genome import Genome
 from freewill.core.kernel.needs import Needs
+from freewill.core.library import Library
 from freewill.core.memory import MemoryStore
+from freewill.core.sleep import DreamStore
 
 
 def _now() -> str:
@@ -31,6 +33,8 @@ class Life:
         self.milestones: dict[str, str] = self._read("milestones.json")
         self.state: dict = self._read("state.json")
         self.memory = MemoryStore(self.path / "memory")
+        self.library = Library(self.path / "library")
+        self.dreams = DreamStore(self.path / "dreams")
 
     # -- birth ---------------------------------------------------------------
 

@@ -32,7 +32,8 @@ def self_test(app: App, url: str) -> int:
     kernel_sources = list((UI_DIR.parent / "core" / "kernel").glob("*.py"))
     assert kernel_sources, "the kernel sources are missing: its fingerprint would mean nothing"
     if getattr(sys, "frozen", False):  # the packaged application must carry its optional parts
-        import anthropic, keyring, webview  # noqa: F401,E401
+        import anthropic, keyring, pypdf, webview  # noqa: F401,E401
+    app.accept({"terms": True, "licence": True})
     born = app.birth({"name": "Selftest", "engine": {"kind": "simulated"}})
     assert born["kernel"] == kernel_fingerprint()[:12]
     app.rest()
@@ -67,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
             except ImportError:
                 print("pywebview is not installed; opening in the browser instead.")
         if webview is not None:
-            webview.create_window("Freewill", url, width=1240, height=800, min_size=(940, 620),
+            webview.create_window("Freewill (experimental)", url, width=1240, height=800, min_size=(940, 620),
                                   background_color="#0e1016")
             webview.start()
         else:

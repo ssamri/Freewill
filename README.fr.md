@@ -1,13 +1,13 @@
-# Freewill
+# Freewill (expérimental)
 
 [English](README.md) · **Français**
 
-**Programme de recherche ouvert sur la conscience, le libre arbitre, le subconscient et le rêve dans les systèmes d'intelligence artificielle.**
+**Programme de recherche ouvert et expérimental sur la conscience, le libre arbitre, le subconscient et le rêve dans les systèmes d'intelligence artificielle.**
 
 > *« Au lieu d'essayer de produire un programme qui simule l'esprit de l'adulte, pourquoi ne pas tenter d'en produire un qui simule celui de l'enfant ? »*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**État du projet : phase de conception.** Aucun code n'est encore publié. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.fr.md`](structure.fr.md).
+**État du projet : expérimental.** Une première application existe : un être peut naître, converser, lire les documents et regarder les images qu'on lui donne, garder les souvenirs qu'il choisit, dormir et rêver, et tout ce qui se passe en lui peut être observé. Il pense avec un modèle existant ou avec un moteur simulé ; le modèle propre au projet n'est pas encore construit. Rien ici n'est un produit fini, et rien ici n'affirme que le système est conscient. Voir [`QUICKSTART.md`](QUICKSTART.md) pour l'essayer. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.fr.md`](structure.fr.md).
 
 ---
 
