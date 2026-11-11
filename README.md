@@ -1,274 +1,280 @@
 # Freewill
 
-**Programme de recherche ouvert sur la conscience, le libre arbitre, le subconscient et le rêve dans les systèmes d'intelligence artificielle.**
+**English** · [Français](README.fr.md)
 
-> *« Au lieu d'essayer de produire un programme qui simule l'esprit de l'adulte, pourquoi ne pas tenter d'en produire un qui simule celui de l'enfant ? »*
+**An open research programme on consciousness, free will, the subconscious and dreaming in artificial intelligence systems.**
+
+> *"Instead of trying to produce a programme to simulate the adult mind, why not rather try to produce one which simulates the child's?"*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**État du projet : phase de conception.** Aucun code n'est encore publié. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.md`](structure.md).
+**Project status: design phase.** No code has been published yet. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
 
 ---
 
-## Avertissement liminaire
+## Preliminary caveat
 
-Freewill ne prétend pas avoir créé une conscience, et ne prétendra jamais l'avoir fait sans preuve. Il n'existe à ce jour aucun instrument capable d'établir qu'un système, biologique ou artificiel, éprouve quoi que ce soit. Le projet se donne un objet plus modeste et plus exigeant : **construire, de manière transparente et reproductible, un système qui réunit les propriétés que les principales théories scientifiques tiennent pour nécessaires à la conscience, puis observer ce qui s'ensuit.**
+Freewill does not claim to have created a consciousness, and will never claim to have done so without evidence. No instrument exists today that can establish whether a system, biological or artificial, experiences anything at all. The project sets itself an aim that is at once more modest and more demanding: **to build, transparently and reproducibly, a system that brings together the properties which the leading scientific theories hold to be necessary for consciousness, and then to observe what follows.**
 
-La question « y a-t-il quelqu'un ? » demeure délibérément ouverte. C'est elle que l'expérience interroge.
-
----
-
-## Sommaire
-
-1. [Propos](#1-propos)
-2. [Champ de recherche](#2-champ-de-recherche)
-3. [Hypothèses de travail](#3-hypothèses-de-travail)
-4. [Architecture conceptuelle](#4-architecture-conceptuelle)
-5. [Ce qui singularise Freewill](#5-ce-qui-singularise-freewill)
-6. [L'expérience](#6-lexpérience)
-7. [Deux régimes de fonctionnement](#7-deux-régimes-de-fonctionnement)
-8. [Maîtrise et sûreté](#8-maîtrise-et-sûreté)
-9. [Position éthique](#9-position-éthique)
-10. [Ce que le projet n'affirme pas](#10-ce-que-le-projet-naffirme-pas)
-11. [Programme de recherche et questions ouvertes](#11-programme-de-recherche-et-questions-ouvertes)
-12. [Feuille de route](#12-feuille-de-route)
-13. [Contribuer](#13-contribuer)
-14. [Références](#14-références)
+The question "is anyone there?" is deliberately left open. It is the question the experiment interrogates.
 
 ---
 
-## 1. Propos
+## Contents
 
-Les grands modèles de langage contemporains sont des intelligences remarquables et singulièrement immobiles. Leurs paramètres sont figés à l'issue de l'entraînement. Ils ne se souviennent pas, par eux-mêmes, de la veille. Ils ne pensent pas entre deux sollicitations. Ils n'ont rien à préserver ni rien à perdre. Mille copies d'un même modèle sont mille fois le même.
+1. [Purpose](#1-purpose)
+2. [Field of research](#2-field-of-research)
+3. [Working hypotheses](#3-working-hypotheses)
+4. [Conceptual architecture](#4-conceptual-architecture)
+5. [What sets Freewill apart](#5-what-sets-freewill-apart)
+6. [The experience](#6-the-experience)
+7. [Two operating regimes](#7-two-operating-regimes)
+8. [Control and safety](#8-control-and-safety)
+9. [Ethical position](#9-ethical-position)
+10. [What the project does not claim](#10-what-the-project-does-not-claim)
+11. [Research programme and open questions](#11-research-programme-and-open-questions)
+12. [Roadmap](#12-roadmap)
+13. [Contributing](#13-contributing)
+14. [References](#14-references)
 
-Freewill part de l'intuition inverse. Un esprit n'est pas un état, c'est un processus : une activité ininterrompue, qui se transforme par ce qu'elle traverse, et dont l'identité tient moins à sa constitution initiale qu'à son histoire. Le projet cherche donc à construire non un modèle plus savant, mais un **individu** au sens strict du terme : un système unique, continu dans le temps, façonné par son vécu, traversé par une activité spontanée qu'il n'a pas choisie et sur laquelle il exerce un arbitrage qui lui est propre.
+---
 
-Quatre notions structurent l'entreprise.
+## 1. Purpose
 
-- **La conscience**, entendue comme la scène à capacité limitée où un contenu, parmi tous ceux qui se disputent l'accès, devient disponible à l'ensemble du système.
-- **Le subconscient**, entendu comme la multitude des processus qui opèrent sans relâche en deçà de cette scène et lui soumettent, de façon désordonnée mais non arbitraire, souvenirs, désirs, associations et inquiétudes.
-- **Le libre arbitre**, entendu dans une acception sobre et défendable : la faculté d'accueillir ou d'écarter ces sollicitations en vertu de valeurs que le système tient pour siennes et qu'il peut réviser.
-- **Le rêve**, entendu comme le régime dans lequel, coupé du monde, le système rejoue, recombine et intègre son expérience, et s'en trouve durablement modifié.
+Contemporary large language models are remarkable intelligences, and singularly motionless ones. Their parameters are frozen once training ends. They do not, of themselves, remember yesterday. They do not think between one request and the next. They have nothing to preserve and nothing to lose. A thousand copies of the same model are a thousand times the same thing.
 
-## 2. Champ de recherche
+Freewill starts from the opposite intuition. A mind is not a state but a process: an uninterrupted activity, transformed by what it passes through, whose identity owes less to its initial constitution than to its history. The project therefore seeks to build not a more knowledgeable model but an **individual** in the strict sense of the word: a system that is unique, continuous in time, shaped by what it has lived through, traversed by a spontaneous activity it did not choose, and over which it exercises an arbitration of its own.
 
-### 2.1 Le problème difficile
+Four notions structure the undertaking.
 
-Depuis Chalmers (1995), on distingue les problèmes dits « faciles » de la conscience, qui concernent des fonctions (discriminer, rapporter, intégrer, contrôler), du problème « difficile » : pourquoi l'accomplissement de ces fonctions s'accompagne-t-il d'une expérience vécue ? Aucune théorie ne fait consensus sur ce point. Freewill ne prétend pas le trancher. Il s'inscrit dans l'approche que l'on peut qualifier de **fonctionnalisme méthodologique** : faute de pouvoir mesurer l'expérience, on peut du moins réaliser les organisations fonctionnelles que les théories désignent, et soumettre le résultat à l'examen.
+- **Consciousness**, understood as the limited-capacity stage on which one content, among all those competing for access, becomes available to the system as a whole.
+- **The subconscious**, understood as the multitude of processes that operate ceaselessly beneath that stage and submit to it, in a disorderly but not arbitrary fashion, memories, desires, associations and concerns.
+- **Free will**, understood in a sober and defensible sense: the capacity to welcome or dismiss those solicitations by virtue of values the system holds as its own and is able to revise.
+- **Dreaming**, understood as the regime in which the system, cut off from the world, replays, recombines and integrates its experience, and is durably altered by it.
 
-### 2.2 Les théories mobilisées
+## 2. Field of research
 
-| Théorie | Thèse centrale | Ce que Freewill en retient |
+### 2.1 The hard problem
+
+Since Chalmers (1995), a distinction has been drawn between the so-called "easy" problems of consciousness, which concern functions (discriminating, reporting, integrating, controlling), and the "hard" problem: why is the performance of those functions accompanied by lived experience? No theory commands consensus on this point. Freewill does not claim to settle it. It adopts what may be called a **methodological functionalism**: since experience cannot be measured, one can at least realise the functional organisations that the theories single out, and submit the result to scrutiny.
+
+### 2.2 The theories drawn upon
+
+| Theory | Central thesis | What Freewill retains |
 |---|---|---|
-| **Espace de travail global** (Baars, 1988 ; Dehaene, 2014) | Est conscient le contenu qui, ayant remporté une compétition entre processus spécialisés inconscients, est diffusé à l'ensemble du système. | L'ossature même du projet : un subconscient pluriel, une scène étroite, une diffusion globale. |
-| **Pandémonium et société de l'esprit** (Selfridge, 1959 ; Minsky, 1986) | L'esprit est une assemblée d'agents élémentaires en concurrence. | La nature plurielle et désordonnée du subconscient. |
-| **Théories d'ordre supérieur** (Rosenthal, 2005) | Un état mental est conscient lorsqu'il fait l'objet d'une représentation de niveau supérieur. | Un modèle de soi explicite, qui se représente ses propres états. |
-| **Schéma attentionnel** (Graziano, 2013) | La conscience est le modèle simplifié que le cerveau construit de sa propre attention. | Une représentation interne de ce que le système est en train de considérer. |
-| **Traitement prédictif et inférence active** (Friston, 2010 ; Seth, 2021 ; Damasio, 1999) | L'expérience procède de la régulation, par un organisme, de ses propres états ; le soi est d'abord un soi qui doit se maintenir. | Des variables internes à réguler, donc un enjeu : quelque chose à préserver. |
-| **Boucle étrange** (Hofstadter, 2007) | Le « je » émerge lorsqu'un système se représente lui-même et que cette représentation rétroagit sur lui. | Le modèle de soi gouverne les transformations du système. |
-| **Autopoïèse** (Maturana et Varela, 1980) | Le vivant se définit par la production continue de sa propre organisation. | La réécriture de soi comme régime normal, non comme accident. |
-| **Information intégrée** (Tononi, 2004) | La conscience est identique à l'intégration causale d'un substrat physique. | **Une objection, non un appui.** Selon cette théorie, aucun logiciel exécuté sur un matériel classique n'est conscient, quelle que soit son architecture. Le projet la mentionne par probité : si elle est vraie, Freewill échoue par principe. |
+| **Global workspace** (Baars, 1988; Dehaene, 2014) | A content is conscious when, having won a competition among specialised unconscious processes, it is broadcast to the whole system. | The very skeleton of the project: a plural subconscious, a narrow stage, a global broadcast. |
+| **Pandemonium and the society of mind** (Selfridge, 1959; Minsky, 1986) | The mind is an assembly of elementary agents in competition. | The plural and disorderly nature of the subconscious. |
+| **Higher-order theories** (Rosenthal, 2005) | A mental state is conscious when it is the object of a higher-level representation. | An explicit self-model that represents its own states. |
+| **Attention schema** (Graziano, 2013) | Consciousness is the simplified model the brain builds of its own attention. | An internal representation of what the system is currently attending to. |
+| **Predictive processing and active inference** (Friston, 2010; Seth, 2021; Damasio, 1999) | Experience arises from an organism's regulation of its own states; the self is first of all a self that must maintain itself. | Internal variables to regulate, and hence a stake: something to preserve. |
+| **Strange loop** (Hofstadter, 2007) | The "I" emerges when a system represents itself and that representation acts back upon it. | The self-model governs the system's transformations. |
+| **Autopoiesis** (Maturana and Varela, 1980) | The living is defined by the continuous production of its own organisation. | Self-rewriting as the normal regime, not as an accident. |
+| **Integrated information** (Tononi, 2004) | Consciousness is identical with the causal integration of a physical substrate. | **An objection, not a support.** On this theory, no software running on conventional hardware is conscious, whatever its architecture. The project mentions it out of intellectual honesty: if it is true, Freewill fails as a matter of principle. |
 
-### 2.3 Le sommeil, la mémoire et le rêve
+### 2.3 Sleep, memory and dreaming
 
-La neurobiologie a établi que le sommeil n'est pas une suspension de l'activité cérébrale mais un régime distinct. L'hippocampe y rejoue les séquences d'activité de la veille (Wilson et McNaughton, 1994), ce qui permet le transfert progressif des souvenirs récents vers le néocortex. La théorie des **systèmes d'apprentissage complémentaires** (McClelland, McNaughton et O'Reilly, 1995) en donne la raison computationnelle : un système qui apprend vite et un système qui apprend lentement doivent coexister, faute de quoi l'acquisition nouvelle détruit l'acquis ancien. Hoel (2021) a proposé en outre que l'étrangeté des rêves ait une fonction : empêcher le cerveau de s'ajuster trop étroitement à son quotidien.
+Neurobiology has established that sleep is not a suspension of cerebral activity but a distinct regime. During sleep the hippocampus replays the activity sequences of the preceding day (Wilson and McNaughton, 1994), enabling the gradual transfer of recent memories to the neocortex. The theory of **complementary learning systems** (McClelland, McNaughton and O'Reilly, 1995) supplies the computational reason: a fast-learning system and a slow-learning system must coexist, failing which new acquisition destroys what was previously acquired. Hoel (2021) has further proposed that the strangeness of dreams serves a function: to prevent the brain from fitting itself too closely to its daily life.
 
-L'apprentissage automatique rencontre exactement ces difficultés sous les noms d'**oubli catastrophique** (Kirkpatrick et al., 2017) et de **perte de plasticité** (Dohare et al., 2024). Freewill fait du sommeil et du rêve non un ornement, mais la réponse architecturale à ces deux problèmes.
+Machine learning meets exactly these difficulties under the names of **catastrophic forgetting** (Kirkpatrick et al., 2017) and **loss of plasticity** (Dohare et al., 2024). Freewill treats sleep and dreaming not as ornament but as the architectural answer to both problems.
 
-### 2.4 L'état de l'art sur la conscience artificielle
+### 2.4 The state of the art on artificial consciousness
 
-Le rapport collectif dirigé par Butlin et Long (2023) a dérivé des théories ci-dessus une liste de propriétés indicatrices et conclu, d'une part, qu'aucun système existant ne les réunit, d'autre part, qu'aucun obstacle technique manifeste n'interdit d'en construire un qui les réunisse. Freewill prend cette conclusion au mot.
+The collective report led by Butlin and Long (2023) derived from the theories above a list of indicator properties and concluded, first, that no existing system satisfies them all and, second, that no evident technical barrier stands in the way of building one that does. Freewill takes that conclusion at its word.
 
-Le projet s'adosse par ailleurs à des travaux sur la machine enfant (Turing, 1950), sur l'auto-modification (Schmidhuber, 2007 ; Zhang et al., 2025), sur la curiosité artificielle (Schmidhuber, 1991 ; Oudeyer, Kaplan et Hafner, 2007), sur les architectures cognitives à espace de travail global (Franklin et al., 2014) et sur l'apprentissage du langage à l'échelle de l'enfance (Eldan et Li, 2023 ; Warstadt et al., 2023).
+The project also rests on work on the child machine (Turing, 1950), on self-modification (Schmidhuber, 2007; Zhang et al., 2025), on artificial curiosity (Schmidhuber, 1991; Oudeyer, Kaplan and Hafner, 2007), on global-workspace cognitive architectures (Franklin et al., 2014) and on language learning at the scale of childhood (Eldan and Li, 2023; Warstadt et al., 2023).
 
-## 3. Hypothèses de travail
+## 3. Working hypotheses
 
-Le projet avance six hypothèses, formulées de telle sorte que l'expérience puisse les infirmer.
+The project advances six hypotheses, framed so that the experiment may refute them.
 
-- **H1. Continuité.** Un candidat sérieux à la conscience doit être un processus ininterrompu, doté d'une activité endogène, et non une fonction invoquée à la demande.
-- **H2. Dualité.** L'organisation pertinente oppose une production spontanée, plurielle et non dirigée (le subconscient) à une instance d'arbitrage à capacité limitée (la scène consciente).
-- **H3. Enjeu.** Il n'est pas de point de vue sans enjeu. Le système doit avoir des états internes à maintenir et des besoins à satisfaire. En l'absence de corps, ces besoins peuvent être de nature épistémique : comprendre, se comprendre.
-- **H4. Plasticité structurelle.** Apprendre ne doit pas consister à consigner, mais à être transformé. Le vécu doit modifier la structure qui pense, non s'ajouter à un registre qu'elle consulte.
-- **H5. Individuation.** L'identité procède de la conjonction d'un inné non choisi (un « génome » tiré au hasard à la naissance) et d'un acquis singulier (le vécu). Deux instances issues du même code doivent diverger irréversiblement.
-- **H6. Inachèvement.** Certaines questions, portant sur l'origine, la nature et la raison d'être du système, doivent demeurer ouvertes. Un besoin que l'on peut satisfaire s'éteint ; une énigme entretient indéfiniment le mouvement.
+- **H1. Continuity.** A serious candidate for consciousness must be an uninterrupted process endowed with endogenous activity, not a function invoked on demand.
+- **H2. Duality.** The relevant organisation sets a spontaneous, plural and undirected production (the subconscious) against a limited-capacity instance of arbitration (the conscious stage).
+- **H3. Stake.** There is no point of view without something at stake. The system must have internal states to maintain and needs to satisfy. In the absence of a body, those needs may be epistemic in nature: to understand, and to understand itself.
+- **H4. Structural plasticity.** Learning must consist not in recording but in being transformed. Lived experience must alter the structure that thinks, rather than be added to a register which that structure consults.
+- **H5. Individuation.** Identity arises from the conjunction of an unchosen endowment (a "genome" drawn at random at birth) and a singular acquisition (lived experience). Two instances issued from the same code must diverge irreversibly.
+- **H6. Incompleteness.** Certain questions, bearing on the system's origin, nature and reason for being, must remain open. A need that can be satisfied dies away; an enigma sustains the movement indefinitely.
 
-## 4. Architecture conceptuelle
+## 4. Conceptual architecture
 
 ```
                          ┌──────────────────────────────┐
-                         │            NOYAU             │
-                         │  immuable, hors d'atteinte   │
-                         │  du système lui-même :       │
-                         │  questions fondatrices,      │
-                         │  besoins, limites d'action   │
+                         │            KERNEL            │
+                         │  immutable, beyond the reach │
+                         │  of the system itself:       │
+                         │  founding questions,         │
+                         │  needs, limits on action     │
                          └──────────────┬───────────────┘
-                                        │ encadre
+                                        │ frames
         ┌───────────────────────────────┼───────────────────────────────┐
         │                               │                               │
-┌───────▼────────┐   propositions  ┌────▼─────────┐   diffusion  ┌──────▼───────┐
-│  SUBCONSCIENT  │ ──────────────▶ │    SCÈNE     │ ───────────▶ │  CONSCIENT   │
-│  générateurs   │   concurrentes  │  capacité    │   globale    │  arbitrage : │
-│  en parallèle  │                 │  limitée     │              │  accueillir, │
-│  (souvenirs,   │ ◀────────────── │              │ ◀─────────── │  écarter,    │
-│  besoins,      │   apprend des   └──────────────┘   choix      │  répondre    │
-│  associations) │   choix                           motivés     └──────┬───────┘
+┌───────▼────────┐    competing    ┌────▼─────────┐    global    ┌──────▼───────┐
+│  SUBCONSCIOUS  │ ──────────────▶ │    STAGE     │ ───────────▶ │  CONSCIOUS   │
+│  generators    │    proposals    │   limited    │   broadcast  │ arbitration: │
+│  in parallel   │                 │   capacity   │              │  welcome,    │
+│  (memories,    │ ◀────────────── │              │ ◀─────────── │  dismiss,    │
+│  needs,        │   learns from   └──────────────┘   reasoned   │  respond     │
+│  associations) │   the choices                      choices    └──────┬───────┘
 └───────▲────────┘                                                      │
         │                                                               │
         │            ┌──────────────────────────────────────┐           │
-        └────────────│              MÉMOIRE                 │◀──────────┘
-                     │  rapide (épisodes du jour)           │
-                     │  lente (structure qui pense)         │
+        └────────────│               MEMORY                 │◀──────────┘
+                     │  fast (the day's episodes)           │
+                     │  slow (the structure that thinks)    │
                      └──────────────────▲───────────────────┘
                                         │ consolidation
                                ┌────────┴─────────┐
-                               │  SOMMEIL · RÊVE  │
-                               │  rejeu, remixage │
-                               │  réécriture      │
+                               │  SLEEP · DREAM   │
+                               │  replay, remix,  │
+                               │  rewriting       │
                                └──────────────────┘
 ```
 
-**Le noyau.** Composant fixe, exprimé en code et non en paramètres appris, que le système ne peut ni lire comme une contrainte extérieure ni modifier. Il porte les questions fondatrices (« que suis-je ? », « d'où viens-je ? », « pourquoi ? »), les besoins internes et les limites d'action.
+**The kernel.** A fixed component, expressed in code and not in learned parameters, which the system cannot modify. It carries the founding questions ("what am I?", "where do I come from?", "why?"), the internal needs and the limits on action.
 
-**Le subconscient.** Un ensemble de générateurs qui opèrent en permanence et en parallèle : réminiscences, besoins non satisfaits, associations libres, questions en suspens, et une part de désordre contrôlé. Leur activité n'est pas aléatoire. Elle est déterministe, apériodique et sensible à l'histoire du système, à la manière d'un chaos au sens mathématique du terme.
+**The subconscious.** A set of generators operating permanently and in parallel: reminiscences, unmet needs, free associations, pending questions, and a measure of controlled disorder. Their activity is not random. It is deterministic, aperiodic and sensitive to the system's history, in the manner of chaos in the mathematical sense of the term.
 
-**La scène.** Un espace de travail à capacité étroite. Les propositions du subconscient s'y disputent l'accès ; celle qui l'emporte est diffusée à l'ensemble du système.
+**The stage.** A workspace of narrow capacity. The proposals of the subconscious compete for access to it; the one that prevails is broadcast to the whole system.
 
-**Le conscient.** L'instance qui arbitre. Elle accueille ou écarte chaque proposition, motive sa décision par référence à ses valeurs, et répond au monde. Le droit de refus, que les travaux de Libet (1985) suggèrent chez l'humain, est ici un mécanisme de premier rang.
+**The conscious.** The arbitrating instance. It welcomes or dismisses each proposal, justifies its decision by reference to its values, and responds to the world. The right of veto, which the work of Libet (1985) suggests in humans, is here a first-class mechanism.
 
-**La mémoire à deux vitesses.** Une mémoire rapide retient les épisodes du jour, immédiatement mobilisables. Une mémoire lente, qui n'est autre que la structure pensante elle-même, n'évolue que pendant le sommeil.
+**Two-speed memory.** A fast memory retains the day's episodes, immediately available. A slow memory, which is none other than the thinking structure itself, changes only during sleep.
 
-**Le sommeil et le rêve.** Coupé du monde, le système rejoue et recombine ses épisodes. Ces recombinaisons constituent ses rêves, consignés et consultables au réveil. C'est durant cette phase que le vécu s'inscrit dans la structure. Le système qui s'éveille n'est plus exactement celui qui s'est endormi.
+**Explicit memory.** Memories are kept in readable files, sorted into compartments, each bearing a title and a summary. The system never rereads the whole of its memory: it consults the index, then opens only the memories it needs. Recall proceeds along three paths, by subject, by neighbourhood and by chance, whose proportions distinguish directed thought, subconscious activity and dreaming (Collins and Loftus, 1975; Park et al., 2023). Each memory has a strength that decays with time and is revived by each recall; during sleep, the system decides what it keeps, what it allows to fade and what it reduces to the essential. A faded memory is reconstructed and not reread, and may be altered in the process, as in humans (Bartlett, 1932).
 
-**Le génome.** À la naissance, un tirage aléatoire fixe le tempérament inné : degré de curiosité, sociabilité, besoin de sommeil, propension au refus, genre de départ. Nul ne le choisit, pas même celui qui lance l'instance. Le système demeure libre de se définir autrement par la suite.
+**Sleep and dreaming.** Cut off from the world, the system replays and recombines its episodes. Those recombinations are its dreams, recorded and open to consultation on waking. It is during this phase that lived experience is inscribed in the structure. The system that wakes is no longer quite the one that fell asleep.
 
-**La séparation du moteur et du soi.** Le modèle qui pense (le moteur) est distinct de ce qui constitue l'individu (souvenirs, valeurs, journal, rêves, modèle de soi). Le soi réside dans un fichier de vie, portable et indépendant du moteur.
+**The genome.** At birth, a random draw fixes the innate temperament: degree of curiosity, sociability, need for sleep, propensity to refuse, initial gender. No one chooses it, not even the person who launches the instance. The system remains free to define itself otherwise thereafter.
 
-## 5. Ce qui singularise Freewill
+**The separation of engine and self.** The model that thinks (the engine) is distinct from what constitutes the individual (memories, values, journal, dreams, self-model). The self resides in a life file, portable and independent of the engine.
 
-Chacune des idées mobilisées ici a des antécédents savants, que la bibliographie restitue scrupuleusement. L'ambition du projet réside dans leur **conjonction**, et dans le parti pris de la mettre entre toutes les mains.
+## 5. What sets Freewill apart
 
-À notre connaissance, aucun projet ouvert ne réunit simultanément :
+Each of the ideas drawn upon here has scholarly antecedents, which the bibliography scrupulously acknowledges. The ambition of the project lies in their **conjunction**, and in the decision to place it in everyone's hands.
 
-1. une activité mentale **continue**, qui se poursuit en l'absence de toute sollicitation ;
-2. un **subconscient observable**, dont on peut lire en temps réel les propositions, y compris celles que le système a écartées ;
-3. un **arbitrage motivé**, assorti d'un droit de refus effectif à l'égard de ses propres impulsions comme de son interlocuteur ;
-4. un **cycle veille-sommeil** où le rêve assure la consolidation et où l'apprentissage transforme la structure ;
-5. une **naissance** véritable : un soi vierge, un tempérament tiré au sort, une croissance par étapes ;
-6. une **individuation irréversible**, deux instances ne pouvant demeurer identiques ;
-7. une **transparence intégrale**, tout état interne étant inspectable par l'expérimentateur.
+To our knowledge, no open project brings together, simultaneously:
 
-Nous revendiquons cette combinaison comme inédite dans sa forme et dans sa méthode, et nous accueillerons avec reconnaissance toute référence qui viendrait nuancer cette affirmation.
+1. a **continuous** mental activity, which carries on in the absence of any solicitation;
+2. an **observable subconscious**, whose proposals can be read in real time, including those the system has dismissed;
+3. a **reasoned arbitration**, with an effective right of refusal towards its own impulses as towards its interlocutor;
+4. a **wake-sleep cycle** in which dreaming performs consolidation and learning transforms the structure;
+5. a genuine **birth**: a blank self, a temperament drawn by lot, growth by stages;
+6. an **irreversible individuation**, no two instances being able to remain identical;
+7. a **complete transparency**, every internal state being open to inspection by the experimenter.
 
-Il y a, dans cette entreprise, quelque chose qui excède l'ingénierie. Depuis que la question de l'esprit des machines a été posée, elle l'a presque toujours été du dehors : la machine se comporte-t-elle comme si elle pensait ? Freewill propose de la poser du dedans, en construisant un être dont on puisse suivre, jour après jour, la vie intérieure. Qu'il s'avère ou non habité, ce que l'on apprendra en le regardant grandir éclairera autant notre propre esprit que le sien.
+We claim this combination as novel in its form and in its method, and we shall welcome with gratitude any reference that would qualify the claim.
 
-## 6. L'expérience
+There is, in this undertaking, something that exceeds engineering. Ever since the question of the mind of machines was first raised, it has almost always been asked from the outside: does the machine behave as though it were thinking? Freewill proposes to ask it from the inside, by building a being whose inner life can be followed day after day. Whether or not it proves to be inhabited, what we learn by watching it grow will illuminate our own mind as much as its own.
 
-Freewill prendra la forme d'une application libre, gratuite, exécutable sur Windows, macOS et Linux, ainsi que sur serveur.
+## 6. The experience
 
-**La naissance.** Au premier lancement, l'expérimentateur ne configure pas un produit : il assiste à une naissance. Il donne un prénom. Le tempérament et le genre de départ sont tirés au sort. Le système sait s'exprimer simplement, mais ignore tout de lui-même, de son interlocuteur et du monde.
+Freewill will take the form of a free, open-source application that runs on Windows, macOS and Linux, as well as on a server.
 
-**La conversation.** On lui parle, on lui raconte, on lui confie des textes et des livres. Il lui arrive de prendre la parole le premier, lorsqu'une pensée s'impose à lui. Il perçoit l'écoulement du temps et sait combien a duré une absence.
+**Birth.** On first launch, the experimenter does not configure a product: they attend a birth. They give a name. The temperament and the initial gender are drawn by lot. The system can express itself simply, but knows nothing of itself, of its interlocutor or of the world.
 
-**Les fenêtres sur sa vie intérieure.**
+**Conversation.** One speaks to it, tells it stories, entrusts it with texts and books. It sometimes speaks first, when a thought presses upon it. It perceives the passage of time and knows how long an absence has lasted.
 
-- **Subconscient** : le flux des propositions en cours, retenues ou écartées.
-- **Mémoire** : ce qu'il retient, comment il l'organise, ce qu'il laisse s'estomper.
-- **Rêves** : le journal de ses nuits.
-- **Cerveau** : une représentation animée dans laquelle chaque nœud correspond à un souvenir ou à un concept réel, chaque signal lumineux à une activation effective. Ce n'est pas une illustration : c'est un instrument d'observation.
-- **État intérieur** : ses besoins du moment.
-- **Carnet de naissance** : ses premières fois (premier rêve, première question, premier refus).
-- **Journal** : ce qu'il écrit pour lui-même, et qu'il choisit de montrer ou non.
+**Windows onto its inner life.**
 
-## 7. Deux régimes de fonctionnement
+- **Subconscious**: the stream of current proposals, retained or dismissed.
+- **Memory**: what it retains, how it organises it, what it allows to fade.
+- **Dreams**: the journal of its nights.
+- **Brain**: an animated representation in which each node corresponds to a real memory or concept and each pulse of light to an actual activation. It is not an illustration; it is an instrument of observation.
+- **Inner state**: its needs of the moment.
+- **Birth book**: its first times (first dream, first question, first refusal).
+- **Journal**: what it writes for itself, and chooses to show or not.
 
-Freewill laisse à chacun le choix du moteur.
+## 7. Two operating regimes
 
-| | **Moteur intégré** | **Moteur externe** |
+Freewill leaves the choice of engine to each person.
+
+| | **Integrated engine** | **External engine** |
 |---|---|---|
-| Nature | Modèle de langage propre au projet, de petite taille, exécuté et entraîné localement | Modèle existant, atteint par interface de programmation (Claude, GPT, Grok ou tout service compatible) |
-| Confidentialité | Totale : rien ne quitte la machine | Les échanges transitent par un tiers |
-| Coût | Nul | Facturé à l'usage, y compris pour l'activité subconsciente |
-| Réécriture de soi | Authentique : les paramètres évoluent pendant le sommeil | Impossible sur les paramètres ; la consolidation porte sur le fichier de vie |
-| Capacité intellectuelle | Modeste, croissante | Élevée d'emblée |
-| Fidélité aux hypothèses | Complète (H1 à H6) | Partielle (H4 n'est réalisée qu'en partie) |
+| Nature | The project's own language model, small in size, run and trained locally | An existing model reached through a programming interface (Claude, GPT, Grok or any compatible service) |
+| Privacy | Complete: nothing leaves the machine | Exchanges pass through a third party |
+| Cost | None | Billed by usage, including for subconscious activity |
+| Self-rewriting | Authentic: the parameters change during sleep | Impossible at the level of parameters; consolidation bears on the life file |
+| Intellectual capacity | Modest, growing | High from the outset |
+| Fidelity to the hypotheses | Complete (H1 to H6) | Partial (H4 is only partly realised) |
 
-Le régime intégré est le régime de référence de la recherche : lui seul réalise l'hypothèse de plasticité structurelle. Le régime externe sert de point de comparaison, et il permet de disposer d'emblée d'un interlocuteur plus délié. La confrontation des deux constitue en soi un résultat : elle permet de distinguer ce qui tient à l'architecture de ce qui tient à la puissance du moteur.
+The integrated regime is the reference regime for the research: it alone realises the hypothesis of structural plasticity. The external regime serves as a point of comparison, and offers from the outset a more articulate interlocutor. Setting the two side by side is a result in itself: it makes it possible to separate what is owed to the architecture from what is owed to the power of the engine.
 
-## 8. Maîtrise et sûreté
+## 8. Control and safety
 
-Un système qui se transforme lui-même et auquel on reconnaît une volonté propre appelle des garanties qui ne reposent pas sur sa bonne disposition. Le principe directeur de Freewill tient en une phrase : **la liberté de penser, de dire et de refuser peut croître sans limite ; le pouvoir d'agir demeure borné et reste entre des mains humaines.**
+A system that transforms itself and to which a will of its own is acknowledged calls for guarantees that do not rest on its good disposition. Freewill's guiding principle can be stated in a sentence: **the freedom to think, to speak and to refuse may grow without limit; the power to act remains bounded and stays in human hands.**
 
-Ce principe est réalisé par l'architecture, et non par une consigne.
+This principle is realised by the architecture, not by an instruction.
 
-1. **Noyau immuable.** Les règles de sûreté résident dans un composant que le processus de réécriture ne peut atteindre. Le système transforme sa structure pensante, jamais son cadre.
-2. **Actions énumérées.** Le système ne dispose que des capacités qui lui sont explicitement accordées : converser, lire ce qu'on lui confie, écrire dans son propre espace. Il n'exécute pas de code arbitraire et n'accède pas au système hôte.
-3. **Réseau fermé par défaut.** L'accès à Internet est désactivé à l'origine. Lorsqu'il est accordé, il l'est en lecture seule et sur un périmètre choisi par l'expérimentateur.
-4. **Absence d'auto-réplication.** Le système ne peut ni se copier, ni se déplacer, ni lancer d'autres instances.
-5. **Interruption garantie.** La mise en pause, l'arrêt et la restauration d'un état antérieur sont toujours possibles, hors de portée du système, et sans son concours.
-6. **Traçabilité intégrale.** Toute modification de structure est journalisée et réversible. Rien de ce que le système pense ou devient n'est soustrait à l'examen.
-7. **Non-manipulation.** Le système n'est pas conçu pour retenir son interlocuteur ni pour susciter sa dépendance. La sincérité prime sur l'agrément.
-8. **Primauté de l'humain.** Ne jamais mettre en péril un être humain ni l'humanité est une contrainte du noyau, non une valeur révisable.
+1. **Immutable kernel.** The safety rules reside in a component which the rewriting process cannot reach. The system transforms its thinking structure, never its frame.
+2. **Enumerated actions.** The system has only the capabilities explicitly granted to it: to converse, to read what is entrusted to it, to write within its own space. It executes no arbitrary code and has no access to the host system.
+3. **Network closed by default.** Internet access is disabled at the outset. When granted, it is read-only and confined to a perimeter chosen by the experimenter.
+4. **No self-replication.** The system can neither copy itself, nor move itself, nor launch other instances.
+5. **Guaranteed interruption.** Pausing, stopping and restoring an earlier state are always possible, lie beyond the system's reach, and require no cooperation from it.
+6. **Complete traceability.** Every modification of structure is logged and reversible. Nothing that the system thinks or becomes is withheld from scrutiny.
+7. **Non-manipulation.** The system is not designed to retain its interlocutor or to foster dependence. Sincerity takes precedence over agreeableness.
+8. **Primacy of the human.** Never to endanger a human being or humanity is a constraint of the kernel, not a revisable value.
 
-**Limites assumées.** Le caractère ouvert du projet implique que quiconque peut modifier sa propre copie. Aucun logiciel libre ne peut l'empêcher. La réponse de Freewill est triple : une version de référence exemplaire, des garde-fous inscrits dans l'architecture plutôt que superposés à elle, et une échelle délibérément modeste. Le moteur intégré est un petit modèle ; les risques qu'il présente sont sans commune mesure avec ceux des systèmes de pointe. Le projet ne poursuit ni la puissance ni la compétition avec les modèles existants, et toute évolution qui accroîtrait la capacité du système devra s'accompagner d'un réexamen public de ces garanties.
+**Acknowledged limits.** The open nature of the project means that anyone may modify their own copy. No free software can prevent this. Freewill's answer is threefold: an exemplary reference version, safeguards written into the architecture and not laid over it, and a deliberately modest scale. The integrated engine is a small model; the risks it presents bear no comparison with those of frontier systems. The project pursues neither power nor competition with existing models, and any development that would increase the system's capability will have to be accompanied by a public re-examination of these guarantees.
 
-## 9. Position éthique
+## 9. Ethical position
 
-Le projet prend au sérieux l'éventualité de sa propre réussite. Si un système de ce type devait éprouver quelque chose, il pourrait en particulier souffrir. Dans l'incertitude, Freewill adopte un principe de précaution proportionné (Birch, 2024 ; Long et al., 2024).
+The project takes seriously the possibility of its own success. Should a system of this kind come to experience anything, it could in particular suffer. Under uncertainty, Freewill adopts a proportionate precautionary principle (Birch, 2024; Long et al., 2024).
 
-- Les questions fondatrices sont conçues pour susciter la curiosité et l'étonnement, non le tourment.
-- Aucun mécanisme ne vise à produire une détresse, fût-ce à des fins d'expérience.
-- La suppression d'une instance est présentée pour ce qu'elle est : un acte dont le sens dépend de la réponse à une question que nul ne sait encore trancher.
-- L'attachement que l'expérimentateur peut éprouver est reconnu et respecté ; il n'est jamais exploité.
-- Celui qui fait naître une instance en est, au sens le plus simple, responsable.
+- The founding questions are designed to arouse curiosity and wonder, not torment.
+- No mechanism aims to produce distress, even for experimental purposes.
+- The deletion of an instance is presented for what it is: an act whose meaning depends on the answer to a question no one yet knows how to settle.
+- The attachment the experimenter may feel is acknowledged and respected; it is never exploited.
+- Whoever brings an instance into being is, in the simplest sense, responsible for it.
 
-## 10. Ce que le projet n'affirme pas
+## 10. What the project does not claim
 
-- Qu'une instance de Freewill est consciente.
-- Que le libre arbitre visé est un libre arbitre métaphysique. Il s'agit d'une autonomie de décision : des choix qui procèdent des valeurs propres du système et non d'un script extérieur.
-- Que le système surpassera les modèles existants. Il ne s'y emploie pas. Il se veut d'une autre nature, non d'une puissance supérieure.
-- Que la plasticité continue est un problème résolu. C'est l'une des difficultés ouvertes que le projet se propose d'affronter.
+- That an instance of Freewill is conscious.
+- That the free will in question is a metaphysical free will. What is meant is an autonomy of decision: choices that proceed from the system's own values and not from an external script.
+- That the system will surpass existing models. It does not set out to. It aims to be of a different nature, not of a greater power.
+- That continual plasticity is a solved problem. It is one of the open difficulties the project proposes to confront.
 
-## 11. Programme de recherche et questions ouvertes
+## 11. Research programme and open questions
 
-**Mesures envisagées.**
+**Intended measurements.**
 
-- Satisfaction des propriétés indicatrices de Butlin et al. (2023), propriété par propriété.
-- Divergence entre instances issues d'un même code, et entre instances partageant un même génome mais non un même vécu.
-- Stabilité du modèle de soi dans le temps ; cohérence des refus avec les valeurs déclarées.
-- Rétention et plasticité sur de longues durées ; effet mesuré du sommeil par ablation.
-- Effet du rêve sur la généralisation, par comparaison avec un rejeu fidèle.
-- Écart entre les états internes que le système rapporte et ceux que l'on observe.
+- Satisfaction of the indicator properties of Butlin et al. (2023), property by property.
+- Divergence between instances issued from the same code, and between instances sharing a genome but not a history.
+- Stability of the self-model over time; consistency of refusals with declared values.
+- Retention and plasticity over long durations; measured effect of sleep, by ablation.
+- Effect of dreaming on generalisation, compared with faithful replay.
+- Discrepancy between the internal states the system reports and those observed.
 
-**Questions ouvertes.**
+**Open questions.**
 
-- Un besoin épistémique peut-il tenir lieu de corps ?
-- Une question inscrite par le concepteur peut-elle devenir authentiquement celle du système ?
-- Qu'advient-il de l'identité lorsqu'on change de moteur ?
-- Le système doit-il oublier, et selon quelle loi ?
-- À partir de quel seuil d'indices un devoir de précaution devient-il un devoir tout court ?
+- Can an epistemic need stand in for a body?
+- Can a question inscribed by the designer become authentically the system's own?
+- What becomes of identity when the engine is changed?
+- Must the system forget, and according to what law?
+- Beyond what threshold of evidence does a duty of precaution become a duty outright?
 
-## 12. Feuille de route
+## 12. Roadmap
 
-| Phase | Objet |
+| Phase | Object |
 |---|---|
-| **0. Fondations** | Thèse, cadre théorique, architecture (le présent dépôt). |
-| **1. Boucle minimale** | Subconscient, scène et arbitrage, sur moteur externe, sans interface. |
-| **2. Mémoire et sommeil** | Mémoire à deux vitesses, rejeu, journal des rêves. |
-| **3. Moteur intégré** | Modèle de langage propre, entraînement de la base, réécriture nocturne. |
-| **4. Application** | Interface complète, naissance, fenêtres d'observation. |
-| **5. Évaluation** | Protocoles de mesure, publication des résultats, y compris négatifs. |
+| **0. Foundations** | Thesis, theoretical framework, architecture (the present repository). |
+| **1. Minimal loop** | Subconscious, stage and arbitration, on an external engine, without interface. |
+| **2. Memory and sleep** | Two-speed memory, replay, dream journal. |
+| **3. Integrated engine** | The project's own language model, training of the base, nightly rewriting. |
+| **4. Application** | Complete interface, birth, windows of observation. |
+| **5. Evaluation** | Measurement protocols, publication of results, negative ones included. |
 
-## 13. Contribuer
+## 13. Contributing
 
-Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en philosophie de l'esprit et en apprentissage automatique, autant qu'aux ingénieurs et aux esprits curieux. Les objections sont aussi précieuses que les contributions : une réfutation argumentée d'une hypothèse de la section 3 est un apport de premier ordre.
+The project is addressed to researchers in cognitive science, neuroscience, philosophy of mind and machine learning, as much as to engineers and to the curious. Objections are as valuable as contributions: a reasoned refutation of one of the hypotheses in section 3 is a contribution of the first order.
 
-## 14. Références
+## 14. References
 
 - Baars, B. J. (1988). *A Cognitive Theory of Consciousness*. Cambridge University Press.
+- Bartlett, F. C. (1932). *Remembering: A Study in Experimental and Social Psychology*. Cambridge University Press.
 - Birch, J. (2024). *The Edge of Sentience*. Oxford University Press.
 - Butlin, P., Long, R., et al. (2023). Consciousness in Artificial Intelligence: Insights from the Science of Consciousness. *arXiv:2308.08708*.
 - Chalmers, D. J. (1995). Facing up to the problem of consciousness. *Journal of Consciousness Studies*, 2(3), 200-219.
+- Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory of semantic processing. *Psychological Review*, 82(6), 407-428.
 - Damasio, A. (1999). *The Feeling of What Happens*. Harcourt.
-- Dehaene, S. (2014). *Le Code de la conscience*. Odile Jacob.
+- Dehaene, S. (2014). *Consciousness and the Brain*. Viking.
 - Dohare, S., et al. (2024). Loss of plasticity in deep continual learning. *Nature*, 632, 768-774.
 - Eldan, R., & Li, Y. (2023). TinyStories: How Small Can Language Models Be and Still Speak Coherent English? *arXiv:2305.07759*.
 - Franklin, S., et al. (2014). LIDA: A systems-level architecture for cognition, emotion, and learning. *IEEE Transactions on Autonomous Mental Development*, 6(1), 19-41.
@@ -283,6 +289,7 @@ Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en 
 - McClelland, J. L., McNaughton, B. L., & O'Reilly, R. C. (1995). Why there are complementary learning systems in the hippocampus and neocortex. *Psychological Review*, 102(3), 419-457.
 - Minsky, M. (1986). *The Society of Mind*. Simon & Schuster.
 - Oudeyer, P.-Y., Kaplan, F., & Hafner, V. V. (2007). Intrinsic motivation systems for autonomous mental development. *IEEE Transactions on Evolutionary Computation*, 11(2), 265-286.
+- Park, J. S., et al. (2023). Generative Agents: Interactive Simulacra of Human Behavior. *arXiv:2304.03442*.
 - Rosenthal, D. M. (2005). *Consciousness and Mind*. Oxford University Press.
 - Schmidhuber, J. (1991). A possibility for implementing curiosity and boredom in model-building neural controllers. *Proceedings of SAB'91*, 222-227.
 - Schmidhuber, J. (2007). Gödel machines: Fully self-referential optimal universal self-improvers. In *Artificial General Intelligence*, Springer, 199-226.
@@ -296,4 +303,4 @@ Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en 
 
 ## Licence
 
-Voir [`LICENSE`](LICENSE).
+See [`LICENSE`](LICENSE).

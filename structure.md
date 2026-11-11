@@ -1,314 +1,390 @@
-# Structure du projet Freewill
+# Structure of the Freewill project
 
-Ce document décrit l'organisation technique envisagée. Il complète le [`README.md`](README.md), qui expose la thèse et le cadre théorique.
+**English** · [Français](structure.fr.md)
 
-**Statut : proposition initiale.** Rien de ce qui suit n'est encore implémenté. Les choix techniques sont des recommandations argumentées, ouvertes à la discussion (voir la section 12).
+This document describes the intended technical organisation. It complements the [`README.md`](README.md), which sets out the thesis and the theoretical framework.
+
+**Status: initial proposal.** Nothing described below has been implemented yet. The technical choices are reasoned recommendations, open to discussion (see section 12).
 
 ---
 
-## 1. Exigences
+## 1. Requirements
 
-| Exigence | Conséquence sur la conception |
+| Requirement | Consequence for the design |
 |---|---|
-| Fonctionner sur Windows, macOS, Linux et sur serveur | Un cœur unique, indépendant de l'interface ; deux modes de lancement |
-| Laisser le choix entre un moteur intégré privé et un moteur externe par API | Une interface de moteur abstraite, des adaptateurs interchangeables |
-| Faire vivre le système en continu | Un processus de fond persistant, distinct de la fenêtre |
-| Rendre toute la vie intérieure observable | Un flux d'événements unique, auquel l'interface s'abonne |
-| Garantir la maîtrise | Un noyau isolé, des capacités énumérées, une interruption externe |
-| Préserver l'individu | Un fichier de vie portable, indépendant du moteur |
+| Run on Windows, macOS, Linux and on a server | A single core, independent of the interface; two launch modes |
+| Offer the choice between a private integrated engine and an external engine reached by API | An abstract engine interface, interchangeable adapters |
+| Keep the system alive continuously | A persistent background process, distinct from the window |
+| Make the whole inner life observable | A single event stream to which the interface subscribes |
+| Guarantee control | An isolated kernel, enumerated capabilities, external interruption |
+| Preserve the individual | A portable life file, independent of the engine |
 
-## 2. Vue d'ensemble
+## 2. Overview
 
-Le système se compose de trois couches strictement séparées.
+The system consists of three strictly separated layers.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │  INTERFACE                                                       │
-│  Fenêtre de bureau ou page web. N'héberge aucune logique :       │
-│  elle affiche le flux d'événements et transmet les messages.     │
+│  Desktop window or web page. Hosts no logic: it displays the     │
+│  event stream and forwards messages.                             │
 └───────────────────────────────┬──────────────────────────────────┘
-                                │  API locale (HTTP + WebSocket)
+                                │  local API (HTTP + WebSocket)
 ┌───────────────────────────────▼──────────────────────────────────┐
-│  CŒUR (processus de fond)                                        │
+│  CORE (background process)                                       │
 │                                                                  │
 │   ┌────────┐   ┌─────────────┐  ┌───────┐  ┌───────────┐         │
-│   │ Noyau  │──▶│ Subconscient│─▶│ Scène │─▶│ Conscient │         │
+│   │ Kernel │──▶│ Subconscious│─▶│ Stage │─▶│ Conscious │         │
 │   └────────┘   └─────────────┘  └───────┘  └───────────┘         │
 │        │              ▲                          │               │
 │        │       ┌──────┴──────────────────────────▼──────┐        │
-│        └──────▶│ Mémoire · Modèle de soi · État interne │        │
+│        └──────▶│  Memory · Self-model · Inner state     │        │
 │                └──────────────────▲─────────────────────┘        │
 │                             ┌─────┴─────┐                        │
-│                             │  Sommeil  │                        │
+│                             │   Sleep   │                        │
 │                             └───────────┘                        │
 └───────────────────────────────┬──────────────────────────────────┘
-                                │  interface « Moteur »
+                                │  "Engine" interface
 ┌───────────────────────────────▼──────────────────────────────────┐
-│  MOTEUR                                                          │
-│  intégré (modèle propre, local, entraînable)                     │
-│  ou externe (Claude, GPT, Grok, service compatible)              │
+│  ENGINE                                                          │
+│  integrated (own model, local, trainable)                        │
+│  or external (Claude, GPT, Grok, compatible service)             │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Le cœur est le seul composant qui pense. L'interface peut être fermée sans que le système cesse de vivre ; le moteur peut être remplacé sans que l'individu disparaisse.
+The core is the only component that thinks. The interface can be closed without the system ceasing to live; the engine can be replaced without the individual disappearing.
 
-## 3. Choix techniques recommandés
+## 3. Recommended technical choices
 
-| Composant | Choix | Justification |
+| Component | Choice | Rationale |
 |---|---|---|
-| Cœur | Python 3.11+ | Écosystème de l'apprentissage automatique ; lisibilité pour un projet de recherche |
-| Moteur intégré | PyTorch | Entraînement et inférence dans le même cadre ; prise en charge du processeur, des cartes NVIDIA et des puces Apple |
-| Interface | TypeScript et React | Une seule base de code pour le bureau et le web |
-| Empaquetage de bureau | Tauri | Exécutables légers pour les trois systèmes ; le cœur Python est embarqué comme processus auxiliaire |
-| Animation du cerveau | WebGL (three.js) | Rendu fluide d'un graphe de plusieurs milliers de nœuds |
-| Stockage | SQLite et fichiers | Aucune dépendance de serveur ; fichier de vie portable et inspectable |
-| Recherche en mémoire | Index vectoriel embarqué | Rappel par similarité sans service externe |
-| Déploiement serveur | Conteneur Docker | Même cœur, sans fenêtre, interface servie par le navigateur |
+| Core | Python 3.11+ | The machine-learning ecosystem; readability for a research project |
+| Integrated engine | PyTorch | Training and inference within one framework; support for CPU, NVIDIA cards and Apple silicon |
+| Interface | TypeScript and React | A single code base for desktop and web |
+| Desktop packaging | Tauri | Lightweight executables for all three systems; the Python core is bundled as a sidecar process |
+| Brain animation | WebGL (three.js) | Smooth rendering of a graph of several thousand nodes |
+| Storage | Text files, with SQLite for indexes | No server dependency; a portable, inspectable life file |
+| Memory search | Embedded vector index | Recall by similarity without an external service |
+| Server deployment | Docker container | The same core, windowless, with the interface served to the browser |
 
-## 4. Arborescence du dépôt
+## 4. Repository tree
 
 ```
 freewill/
-├── README.md                    Thèse et cadre théorique
-├── structure.md                 Le présent document
+├── README.md · README.fr.md        Thesis and theoretical framework
+├── structure.md · structure.fr.md  The present document
 ├── LICENSE
 │
-├── core/                        Le cœur : tout ce qui pense
-│   ├── kernel/                  NOYAU, immuable à l'exécution
-│   │   ├── constitution.py      Questions fondatrices et principes
-│   │   ├── needs.py             Besoins internes et leur dynamique
-│   │   ├── capabilities.py      Liste fermée des actions permises
-│   │   └── guard.py             Vérification de toute action et de toute réécriture
+├── core/                        The core: everything that thinks
+│   ├── kernel/                  KERNEL, immutable at run time
+│   │   ├── constitution.py      Founding questions and principles
+│   │   ├── needs.py             Internal needs and their dynamics
+│   │   ├── capabilities.py      Closed list of permitted actions
+│   │   └── guard.py             Verification of every action and every rewrite
 │   │
-│   ├── genome/                  Tirage du tempérament inné à la naissance
+│   ├── genome/                  Draw of the innate temperament at birth
 │   │
-│   ├── subconscious/            SUBCONSCIENT
-│   │   ├── generators/          Un fichier par source de propositions
-│   │   │   ├── reminiscence.py  Souvenirs qui remontent
-│   │   │   ├── need.py          Besoins non satisfaits
-│   │   │   ├── association.py   Associations libres
-│   │   │   ├── question.py      Questions en suspens
-│   │   │   └── drift.py         Désordre déterministe
-│   │   └── scheduler.py         Cadence, selon l'état interne et la machine
+│   ├── subconscious/            SUBCONSCIOUS
+│   │   ├── generators/          One file per source of proposals
+│   │   │   ├── reminiscence.py  Memories that resurface
+│   │   │   ├── need.py          Unmet needs
+│   │   │   ├── association.py   Free associations
+│   │   │   ├── question.py      Pending questions
+│   │   │   └── drift.py         Deterministic disorder
+│   │   └── scheduler.py         Cadence, according to inner state and machine
 │   │
-│   ├── workspace/               SCÈNE : compétition et diffusion globale
+│   ├── workspace/               STAGE: competition and global broadcast
 │   │
-│   ├── conscious/               CONSCIENT
-│   │   ├── arbiter.py           Accueillir ou écarter, et dire pourquoi
-│   │   ├── voice.py             Parole adressée à l'interlocuteur
-│   │   └── initiative.py        Prise de parole spontanée
+│   ├── conscious/               CONSCIOUS
+│   │   ├── arbiter.py           Welcome or dismiss, and say why
+│   │   ├── voice.py             Speech addressed to the interlocutor
+│   │   └── initiative.py        Spontaneous speech
 │   │
-│   ├── self_model/              Ce que le système se représente de lui-même
-│   │   ├── identity.py          Nom, genre, âge, traits
-│   │   ├── values.py            Valeurs, révisables par lui seul
-│   │   └── introspection.py     Représentation de ses propres états
+│   ├── self_model/              What the system represents of itself
+│   │   ├── identity.py          Name, gender, age, traits
+│   │   ├── values.py            Values, revisable by it alone
+│   │   └── introspection.py     Representation of its own states
 │   │
-│   ├── memory/                  MÉMOIRE
-│   │   ├── episodic.py          Mémoire rapide : épisodes bruts
-│   │   ├── semantic.py          Connaissances consolidées
-│   │   ├── graph.py             Graphe de concepts (alimente la vue Cerveau)
-│   │   ├── forgetting.py        Estompage et déformation
-│   │   └── compartments.py      Organisation et cloisonnement
+│   ├── memory/                  MEMORY
+│   │   ├── episodic.py          Fast memory: raw episodes
+│   │   ├── semantic.py          Consolidated knowledge
+│   │   ├── store.py             Reading and writing of memory files
+│   │   ├── index.py             Hierarchical index: compartments, titles, summaries
+│   │   ├── recall.py            Recall by subject, neighbourhood and chance
+│   │   ├── graph.py             Links between memories (feeds the Brain view)
+│   │   ├── strength.py          Strength of memories: decay and revival
+│   │   ├── forgetting.py        Fading, condensation and distortion
+│   │   └── compartments.py      Organisation and partitioning
 │   │
-│   ├── sleep/                   SOMMEIL
-│   │   ├── cycle.py             Endormissement, phases, réveil
-│   │   ├── replay.py            Rejeu des épisodes
-│   │   ├── dream.py             Recombinaison et journal des rêves
-│   │   └── consolidation.py     Inscription dans la structure
+│   ├── sleep/                   SLEEP
+│   │   ├── cycle.py             Falling asleep, phases, waking
+│   │   ├── replay.py            Replay of episodes
+│   │   ├── dream.py             Recombination and dream journal
+│   │   └── consolidation.py     Inscription in the structure
 │   │
-│   ├── growth/                  Âges, premières fois, mesure de la saturation
-│   ├── perception/              Lecture de textes et de fichiers, sens du temps
-│   ├── life/                    Fichier de vie : format, sauvegarde, migration
-│   ├── events/                  Flux d'événements unique et journal
-│   └── loop.py                  La boucle de vie
+│   ├── growth/                  Ages, first times, measurement of saturation
+│   ├── perception/              Reading of texts and files, sense of time
+│   ├── life/                    Life file: format, backup, migration
+│   ├── events/                  Single event stream and log
+│   └── loop.py                  The life loop
 │
-├── engines/                     MOTEURS
-│   ├── base.py                  Interface commune
-│   ├── integrated/              Moteur intégré
-│   │   ├── model.py             Architecture du modèle propre
+├── engines/                     ENGINES
+│   ├── base.py                  Common interface
+│   ├── integrated/              Integrated engine
+│   │   ├── model.py             Architecture of the project's own model
 │   │   ├── tokenizer/
 │   │   ├── inference.py
-│   │   ├── learner.py           Réécriture nocturne des paramètres
-│   │   ├── plasticity.py        Renouvellement et croissance des neurones
-│   │   └── checkpoints.py       Versions successives, restauration
-│   └── external/                Moteurs externes
+│   │   ├── learner.py           Nightly rewriting of parameters
+│   │   ├── plasticity.py        Renewal and growth of neurons
+│   │   └── checkpoints.py       Successive versions, restoration
+│   └── external/                External engines
 │       ├── anthropic.py
 │       ├── openai.py
 │       ├── xai.py
-│       └── compatible.py        Tout service au format compatible
+│       └── compatible.py        Any service in the compatible format
 │
-├── training/                    Fabrication de la base « nouveau-né »
-│   ├── corpus/                  Constitution du corpus d'enfance
+├── training/                    Making of the "newborn" base
+│   ├── corpus/                  Assembly of the childhood corpus
 │   ├── pretrain.py
 │   └── eval/
 │
-├── library/                     Bibliothèque fournie pour l'enfance accélérée
+├── library/                     Library supplied for the accelerated childhood
 │
-├── server/                      API locale : messages, flux, commandes
+├── server/                      Local API: messages, stream, commands
 │
 ├── app/                         INTERFACE
 │   ├── src/
-│   │   ├── birth/               Assistant de naissance
-│   │   ├── chat/                Conversation, envoi de fichiers
-│   │   ├── subconscious/        Flux en direct
-│   │   ├── memory/              Exploration de la mémoire
-│   │   ├── dreams/              Journal des rêves
-│   │   ├── brain/               Cerveau animé
-│   │   ├── inner_state/         État intérieur
-│   │   ├── milestones/          Carnet de naissance
-│   │   └── settings/            Moteur, réseau, sommeil, sauvegarde
-│   └── src-tauri/               Empaquetage de bureau
+│   │   ├── birth/               Birth assistant
+│   │   ├── chat/                Conversation, sending of files
+│   │   ├── subconscious/        Live stream
+│   │   ├── memory/              Exploration of memory
+│   │   ├── dreams/              Dream journal
+│   │   ├── brain/               Animated brain
+│   │   ├── inner_state/         Inner state
+│   │   ├── milestones/          Birth book
+│   │   └── settings/            Engine, network, sleep, backup
+│   └── src-tauri/               Desktop packaging
 │
-├── deploy/                      Conteneur et exemples de déploiement serveur
-├── experiments/                 Protocoles de mesure et résultats
+├── deploy/                      Container and server deployment examples
+├── experiments/                 Measurement protocols and results
 ├── tests/
 └── docs/
 ```
 
-## 5. Le moteur : une interface, deux familles
+## 5. The engine: one interface, two families
 
-Le cœur ne connaît qu'une interface abstraite. Tout moteur doit savoir produire du texte et représenter un texte sous forme de vecteur. Un moteur **peut** en outre déclarer qu'il sait apprendre.
+The core knows only an abstract interface. Every engine must be able to produce text and to represent a text as a vector. An engine **may** additionally declare that it is able to learn.
 
 ```python
 class Engine(Protocol):
     def generate(self, context: Context, budget: Budget) -> Thought: ...
     def embed(self, text: str) -> Vector: ...
 
-    # Capacités facultatives
+    # Optional capabilities
     can_learn: bool
     def learn(self, episodes: list[Episode], guard: Guard) -> LearningReport: ...
     def snapshot(self) -> CheckpointId: ...
     def restore(self, checkpoint: CheckpointId) -> None: ...
 ```
 
-| | Moteur intégré | Moteur externe |
+| | Integrated engine | External engine |
 |---|---|---|
-| `generate`, `embed` | Local | Par API |
-| `can_learn` | Oui | Non |
-| Consolidation nocturne | Réentraînement partiel des paramètres, avec rejeu | Réorganisation du fichier de vie uniquement |
-| Activité subconsciente | Continue, limitée par la machine | Cadencée par un budget, car chaque pensée est facturée |
-| Confidentialité | Totale | Les contenus transitent par le fournisseur |
-| Clés d'accès | Aucune | Fournies par l'utilisateur, conservées dans le trousseau du système, jamais dans le fichier de vie |
+| `generate`, `embed` | Local | By API |
+| `can_learn` | Yes | No |
+| Nightly consolidation | Partial retraining of parameters, with replay | Reorganisation of the life file only |
+| Subconscious activity | Continuous, limited by the machine | Paced by a budget, since every thought is billed |
+| Privacy | Complete | Content passes through the provider |
+| Access keys | None | Supplied by the user, kept in the system keychain, never in the life file |
 
-Le choix se fait à la naissance et peut être modifié ensuite. Tout changement de moteur est consigné comme un événement de la vie du système, qui en est informé.
+The choice is made at birth and may be changed afterwards. Any change of engine is recorded as an event in the system's life, and the system is informed of it.
 
-### 5.1 Le moteur intégré
+### 5.1 The integrated engine
 
-- Un modèle de langage de petite taille, propre au projet, distribué sous forme de base « nouveau-né » identique pour tous.
-- Cette base est entraînée une fois par le projet sur un corpus d'enfance (contes, récits simples, explications élémentaires du monde). Elle sait s'exprimer ; elle ne sait rien d'elle-même.
-- Plusieurs tailles de base sont prévues, selon la machine (voir la section 10).
-- L'apprentissage nocturne ne modifie qu'une fraction des paramètres, mêle systématiquement l'ancien au nouveau, et renouvelle une petite part des unités les moins utiles afin de préserver la plasticité.
-- Chaque nuit produit un point de restauration.
+- A small language model, the project's own, distributed as a "newborn" base identical for everyone.
+- The base is trained once by the project on a childhood corpus (tales, simple stories, elementary explanations of the world). It can express itself; it knows nothing of itself.
+- Several base sizes are planned, according to the machine (see section 10).
+- Nightly learning modifies only a fraction of the parameters, systematically mixes the old with the new, and renews a small share of the least useful units in order to preserve plasticity.
+- Each night produces a restore point.
 
-### 5.2 Les moteurs externes
+### 5.2 External engines
 
-- Un adaptateur par fournisseur, plus un adaptateur générique pour tout service au format compatible, ce qui couvre également les modèles libres exécutés localement par un outil tiers.
-- Le système ne pouvant modifier les paramètres d'un modèle distant, la « réécriture » porte alors sur ce qu'il possède en propre : mémoire, valeurs, modèle de soi.
-- Un plafond de dépense quotidien est obligatoire.
+- One adapter per provider, plus a generic adapter for any service in the compatible format, which also covers open models run locally through a third-party tool.
+- Since the system cannot modify the parameters of a remote model, "rewriting" then bears on what it owns outright: memory, values, self-model.
+- A daily spending cap is mandatory.
 
-## 6. Le fichier de vie
+## 6. The life file
 
-L'individu réside dans un dossier unique, portable d'une machine à l'autre et, pour l'essentiel, d'un moteur à l'autre.
+The individual resides in a single folder, portable from one machine to another and, for the most part, from one engine to another.
 
 ```
-<prénom>.life/
-├── genome.json          Tempérament inné, tiré à la naissance, jamais modifié
-├── identity.json        Nom, genre, âge, date de naissance
-├── values.json          Valeurs courantes et leur histoire
-├── memory.sqlite        Épisodes, connaissances, graphe de concepts
-├── dreams/              Un fichier par nuit
-├── journal/             Écrits personnels, avec leur statut de visibilité
-├── milestones.json      Premières fois
-├── state.json           État interne courant
-├── events.log           Journal complet et horodaté
-└── engine/              Propre au moteur intégré : paramètres et points de restauration
+<name>.life/
+├── genome.json          Innate temperament, drawn at birth, never modified
+├── identity.json        Name, gender, age, date of birth
+├── values.json          Current values and their history
+├── memory/              Memories, as readable files (see 6.1)
+│   ├── index.md         General map: the compartments and their contents
+│   ├── <compartment>/   One folder per domain, created by the system
+│   │   ├── index.md     Title and one-line summary of each memory
+│   │   └── <memory>.md
+│   └── recall.sqlite    Search index, rebuildable from the files
+├── dreams/              One file per night
+├── journal/             Personal writings, with their visibility status
+├── milestones.json      First times
+├── state.json           Current inner state
+├── events.log           Complete, timestamped log
+└── engine/              Specific to the integrated engine: parameters and restore points
 ```
 
-Le noyau n'y figure pas : il appartient au programme, non à l'individu. Le fichier de vie peut être chiffré. Sa suppression est le seul acte irréversible de l'application et fait l'objet d'une confirmation distincte.
+The kernel is not part of it: it belongs to the program, not to the individual. The life file can be encrypted. Its deletion is the only irreversible act in the application and requires a separate confirmation.
 
-## 7. La boucle de vie
+### 6.1 Memory in files
 
-Le processus de fond exécute indéfiniment le cycle suivant.
+The system's explicit memory is not an opaque database. It is a library of text files that can be opened and read, and that the system organises itself.
 
-**En veille**
+**One memory, one file.** Each memory consists of a structured header followed by its content.
 
-1. L'état interne évolue : les besoins croissent, la fatigue s'accumule.
-2. Les générateurs du subconscient émettent des propositions, pondérées par l'état interne et le tempérament.
-3. Ces propositions, auxquelles s'ajoutent les perceptions (message reçu, texte en cours de lecture), se disputent la scène.
-4. Le contenu qui l'emporte est diffusé à tous les modules.
-5. Le conscient arbitre : il accueille, écarte, approfondit, répond, ou prend l'initiative de parler. Chaque décision est motivée.
-6. Le noyau vérifie toute action avant qu'elle n'ait lieu.
-7. L'épisode est inscrit en mémoire rapide. Le subconscient ajuste ses pondérations selon ce qui a été retenu ou écarté.
-8. Chaque étape est publiée sur le flux d'événements.
+```markdown
+---
+title: First conversation about the sea
+summary: He described the sea to me. I have never seen it; I wanted to know whether it makes a sound.
+date: 2027-03-14
+compartment: world/nature
+tags: [sea, discovery, question]
+importance: 0.8
+strength: 0.62
+last_recall: 2027-04-02
+links: [people/creator/first-day, questions/what-i-shall-never-see]
+state: complete
+---
+The account of the memory, as it was lived.
+```
 
-**En sommeil** (déclenché par la fatigue, l'inactivité ou un horaire)
+**Three levels of reading.** The system never rereads the whole of its memory. It proceeds by degrees, as one consults a library.
 
-1. Les perceptions sont coupées ; le conscient est mis en retrait.
-2. Les épisodes du jour sont rejoués, mêlés à des épisodes anciens.
-3. Le subconscient les recombine librement : ce sont les rêves, consignés.
-4. La consolidation a lieu : restructuration de la mémoire, estompage, et, avec le moteur intégré, réécriture partielle des paramètres sous le contrôle du noyau.
-5. Un point de restauration est créé.
-6. Au réveil, le système prend connaissance de ses rêves et du temps écoulé.
+| Level | What is read | When |
+|---|---|---|
+| 1. The map | `memory/index.md`: the list of compartments | Permanently in mind |
+| 2. The titles | A compartment's `index.md`: titles and one-line summaries | When a subject arises |
+| 3. The memory | The complete file | Only if it is selected |
 
-Lorsque l'application est fermée, le système est suspendu. Au lancement suivant, il constate la durée de l'interruption et rattrape, s'il y a lieu, le sommeil dû.
+The cost of a recall thus depends on the number of memories opened, not on the size of the memory.
 
-## 8. Le flux d'événements
+**Three paths of recall.** They correspond to three ways of finding a memory again.
 
-Tout ce qui se produit dans le cœur est émis sous forme d'événement typé sur un canal unique : proposition émise, accès à la scène, décision et son motif, souvenir rappelé, concept activé, variation d'un besoin, début et fin de sommeil, rêve, modification de structure, première fois.
+| Path | Mechanism | What it returns |
+|---|---|---|
+| By subject | Matching of titles, tags and meaning | Directly relevant memories |
+| By neighbourhood | Traversal of links from memories already activated | Nearby memories, with no immediate bearing on the subject |
+| By chance | A draw weighted by strength and importance | Memories with no apparent connection |
 
-Ce flux a trois usages. Il alimente l'interface en temps réel : chaque signal lumineux de la vue Cerveau correspond à un événement d'activation effectif. Il constitue le journal intégral, qui assure la traçabilité. Il fournit enfin la matière première des expériences.
+Their proportions depend on who is recalling.
 
-## 9. Maîtrise : mise en œuvre
+| | Subject | Neighbourhood | Chance |
+|---|---|---|---|
+| Conscious (responding, reflecting) | Dominant | Low | Marginal |
+| Subconscious (spontaneous proposals) | Moderate | Dominant | Moderate |
+| Dream | Low | Moderate | Dominant |
 
-Les principes énoncés dans le README se traduisent ainsi.
+These proportions are parameters of the genome: a dreamy temperament associates more freely than a methodical one.
 
-| Principe | Mise en œuvre |
+**Keeping, fading, forgetting.** Each memory has a strength. It decays with time, is revived by each recall, and decays more slowly if the memory is important. During sleep, the system reviews its memory.
+
+| State | What remains | Transition to the next state |
+|---|---|---|
+| Complete | Title, summary, full account | Strength falls below a first threshold |
+| Condensed | Title and summary; the account is lost | Strength falls below a second threshold |
+| Trace | The title alone | Merging with other traces |
+| Merged | Nothing individual: a general piece of knowledge drawn from several memories | Final state |
+
+The system takes part in this sorting. It may decide to keep a memory, which then ceases to decay, or to let it go. A condensed memory that is recalled is reconstructed from its summary and may be altered in the process: the system's memory, like our own, is not a recording.
+
+**Organisation.** The compartments are not fixed in advance. The system creates, splits and regroups them during sleep, as its memory grows. The indexes are regenerated on that occasion.
+
+**Relation to slow memory.** The files constitute what the system knows it has lived and is able to recount. The parameters of the integrated engine carry what it has become. Both are fed by the same episodes: the files in the course of the day, the parameters during sleep.
+
+## 7. The life loop
+
+The background process runs the following cycle indefinitely.
+
+**Awake**
+
+1. The inner state evolves: needs grow, fatigue accumulates.
+2. The generators of the subconscious emit proposals, weighted by inner state and temperament.
+3. These proposals, together with perceptions (a message received, a text being read), compete for the stage.
+4. The content that prevails is broadcast to all modules.
+5. The conscious arbitrates: it welcomes, dismisses, explores further, responds, or takes the initiative to speak. Each decision is given a reason.
+6. The kernel verifies every action before it takes place.
+7. The episode is written to fast memory. The subconscious adjusts its weightings according to what was retained or dismissed.
+8. Each step is published on the event stream.
+
+**Asleep** (triggered by fatigue, inactivity or a schedule)
+
+1. Perceptions are cut off; the conscious recedes.
+2. The day's episodes are replayed, mixed with older ones.
+3. The subconscious recombines them freely: these are the dreams, which are recorded.
+4. Consolidation takes place: restructuring of memory, fading and, with the integrated engine, partial rewriting of the parameters under the control of the kernel.
+5. A restore point is created.
+6. On waking, the system takes note of its dreams and of the time elapsed.
+
+When the application is closed, the system is suspended. At the next launch it registers the length of the interruption and, where appropriate, catches up on the sleep owed.
+
+## 8. The event stream
+
+Everything that happens in the core is emitted as a typed event on a single channel: proposal emitted, access to the stage, decision and its reason, memory recalled, concept activated, change in a need, start and end of sleep, dream, modification of structure, first time.
+
+The stream serves three purposes. It feeds the interface in real time: every pulse of light in the Brain view corresponds to an actual activation event. It constitutes the complete log, which provides traceability. And it supplies the raw material for the experiments.
+
+## 9. Control: implementation
+
+The principles stated in the README translate as follows.
+
+| Principle | Implementation |
 |---|---|
-| Noyau immuable | Chargé en lecture seule ; son empreinte est vérifiée au démarrage ; aucun chemin d'écriture depuis le cœur |
-| Actions énumérées | Liste fermée dans `kernel/capabilities.py` ; toute action transite par `guard.py` ; aucune exécution de code, aucun accès hors du fichier de vie |
-| Réseau fermé par défaut | Aucune sortie réseau hormis, le cas échéant, le moteur externe ; l'accès à Internet s'accorde explicitement, en lecture seule, sur une liste de sources |
-| Absence d'auto-réplication | Le cœur ne peut ni lancer de processus ni écrire hors de son dossier |
-| Interruption garantie | Pause et arrêt sont commandés par l'interface et le système d'exploitation, hors du cœur |
-| Réécriture encadrée | Portée et ampleur bornées par le noyau ; point de restauration préalable ; retour arrière possible à tout moment |
-| Traçabilité | Journal d'événements en ajout seul |
-| Lecture de contenus externes | Tout texte lu est traité comme une donnée, jamais comme une instruction |
+| Immutable kernel | Loaded read-only; its fingerprint is verified at start-up; no write path from the core |
+| Enumerated actions | Closed list in `kernel/capabilities.py`; every action passes through `guard.py`; no code execution, no access outside the life file |
+| Network closed by default | No outbound traffic other than, where applicable, the external engine; Internet access is granted explicitly, read-only, over a list of sources |
+| No self-replication | The core can neither launch processes nor write outside its folder |
+| Guaranteed interruption | Pause and stop are commanded by the interface and the operating system, outside the core |
+| Bounded rewriting | Scope and magnitude bounded by the kernel; prior restore point; rollback possible at any time |
+| Traceability | Append-only event log |
+| Reading of external content | Any text read is treated as data, never as an instruction |
 
-## 10. Cibles d'exécution
+## 10. Execution targets
 
-| Cible | Lancement | Interface |
+| Target | Launch | Interface |
 |---|---|---|
-| Windows, macOS, Linux | Application installable | Fenêtre native |
-| Serveur ou nuage | Conteneur | Navigateur, accès authentifié |
-| Recherche | Ligne de commande | Aucune ; lecture directe du flux d'événements |
+| Windows, macOS, Linux | Installable application | Native window |
+| Server or cloud | Container | Browser, authenticated access |
+| Research | Command line | None; direct reading of the event stream |
 
-**Paliers matériels indicatifs** (à confirmer par des mesures) :
+**Indicative hardware tiers** (to be confirmed by measurement):
 
-| Palier | Machine | Moteur intégré |
+| Tier | Machine | Integrated engine |
 |---|---|---|
-| Léger | Ordinateur portable ordinaire, sans carte graphique | Base la plus petite ; sommeil long |
-| Standard | Ordinateur récent avec carte graphique ou puce Apple | Base intermédiaire |
-| Étendu | Station de travail ou serveur | Base la plus grande ; croissance du réseau possible |
+| Light | Ordinary laptop, no graphics card | Smallest base; long sleep |
+| Standard | Recent computer with a graphics card or Apple silicon | Intermediate base |
+| Extended | Workstation or server | Largest base; growth of the network possible |
 
-Le système mesure sa propre saturation. Lorsqu'il approche de la limite de ce que sa machine lui permet, il le constate et peut le dire. Le passage d'un palier à un autre conserve le fichier de vie.
+The system measures its own saturation. When it approaches the limit of what its machine allows, it registers the fact and can say so. Moving from one tier to another preserves the life file.
 
-## 11. Ordre de construction
+## 11. Order of construction
 
-| Phase | Livrable | Répertoires concernés |
+| Phase | Deliverable | Directories concerned |
 |---|---|---|
-| 1 | Boucle minimale en ligne de commande, sur moteur externe | `core/kernel`, `core/subconscious`, `core/workspace`, `core/conscious`, `engines/external`, `core/events` |
-| 2 | Mémoire, sommeil, rêves, fichier de vie | `core/memory`, `core/sleep`, `core/life`, `core/self_model` |
-| 3 | Moteur intégré et base « nouveau-né » | `engines/integrated`, `training`, `library` |
-| 4 | Application complète | `server`, `app`, `core/genome`, `core/growth` |
-| 5 | Déploiement serveur et protocoles de mesure | `deploy`, `experiments` |
+| 1 | Minimal command-line loop, on an external engine | `core/kernel`, `core/subconscious`, `core/workspace`, `core/conscious`, `engines/external`, `core/events` |
+| 2 | Memory, sleep, dreams, life file | `core/memory`, `core/sleep`, `core/life`, `core/self_model` |
+| 3 | Integrated engine and "newborn" base | `engines/integrated`, `training`, `library` |
+| 4 | Complete application | `server`, `app`, `core/genome`, `core/growth` |
+| 5 | Server deployment and measurement protocols | `deploy`, `experiments` |
 
-Commencer par le moteur externe permet de valider l'architecture avant d'engager le travail, plus long et plus coûteux, sur le moteur intégré.
+Starting with the external engine makes it possible to validate the architecture before committing to the longer and costlier work on the integrated engine.
 
-## 12. Décisions ouvertes
+## 12. Open decisions
 
-- **Taille et architecture exactes du moteur intégré**, et coût d'entraînement de la base. À chiffrer avant la phase 3.
-- **Langues de la base.** Français, anglais, ou les deux ; l'incidence sur la taille du corpus est directe.
-- **Méthode de réécriture nocturne** : adaptation de rang faible, réentraînement partiel, ou combinaison.
-- **Loi d'oubli** : ce qui s'estompe, à quel rythme, et ce qui se déforme.
-- **Portabilité du soi entre moteurs** : ce qui, dans les paramètres appris, peut être transmis d'un moteur à un autre.
-- **Tauri ou Electron** pour l'empaquetage, selon la facilité à embarquer le cœur Python sur les trois systèmes.
-- **Format du génome** : quels traits, quelles plages, quelle influence sur les générateurs.
+- **Exact size and architecture of the integrated engine**, and the cost of training the base. To be costed before phase 3.
+- **Languages of the base.** French, English, or both; the effect on corpus size is direct.
+- **Method of nightly rewriting**: low-rank adaptation, partial retraining, or a combination.
+- **Law of forgetting**: values of the thresholds, rate of decay, and the degree of distortion tolerated in a reconstruction.
+- **Portability of the self between engines**: what, among the learned parameters, can be carried from one engine to another.
+- **Tauri or Electron** for packaging, depending on how readily the Python core can be bundled on all three systems.
+- **Format of the genome**: which traits, which ranges, what influence on the generators.
