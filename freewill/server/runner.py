@@ -88,6 +88,9 @@ class Runner:
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=30)
+        close = getattr(self.engine, "close", None)
+        if close:
+            close()
 
     def hear(self, text: str, attachments: list[dict] | None = None) -> None:
         self._incoming.put((text, attachments or []))

@@ -10,7 +10,10 @@
     "file": "qwen2.5-0.5b-instruct-q4_k_m.gguf",
     "mmproj": null,
     "ram_gb": 2,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 491400032,
+    "sha256": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   },
   {
     "id": "qwen2.5-1.5b",
@@ -23,7 +26,10 @@
     "file": "qwen2.5-1.5b-instruct-q4_k_m.gguf",
     "mmproj": null,
     "ram_gb": 4,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 1117320736,
+    "sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   },
   {
     "id": "smollm2-1.7b",
@@ -36,7 +42,10 @@
     "file": "smollm2-1.7b-instruct-q4_k_m.gguf",
     "mmproj": null,
     "ram_gb": 4,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 1055609536,
+    "sha256": "decd2598bc2c8ed08c19adc3c8fdd461ee19ed5708679d1c54ef54a5a30d4f33",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   },
   {
     "id": "smolvlm2-2.2b",
@@ -49,7 +58,10 @@
     "file": "SmolVLM2-2.2B-Instruct-Q4_K_M.gguf",
     "mmproj": "mmproj-SmolVLM2-2.2B-Instruct-Q8_0.gguf",
     "ram_gb": 6,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 1112602656,
+    "sha256": "0cf76814555b8665149075b74ab6b5c1d428ea1d3d01c1918c12012e8d7c9f58",
+    "mmproj_size": 592523200,
+    "mmproj_sha256": "ae07ea1facd07dd3230c4483b63e8cda96c6944ad2481f33d531f79e892dd024"
   },
   {
     "id": "phi-3-mini",
@@ -62,7 +74,10 @@
     "file": "Phi-3-mini-4k-instruct-q4.gguf",
     "mmproj": null,
     "ram_gb": 6,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 2393231072,
+    "sha256": "8a83c7fb9049a9b2e92266fa7ad04933bb53aa1e85136b7b30f1b8000ff2edef",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   },
   {
     "id": "gemma-3-4b",
@@ -75,7 +90,10 @@
     "file": "gemma-3-4b-it-Q4_K_M.gguf",
     "mmproj": "mmproj-model-f16.gguf",
     "ram_gb": 8,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 2489757856,
+    "sha256": "882e8d2db44dc554fb0ea5077cb7e4bc49e7342a1f0da57901c0802ea21a0863",
+    "mmproj_size": 851251104,
+    "mmproj_sha256": "8c0fb064b019a6972856aaae2c7e4792858af3ca4561be2dbf649123ba6c40cb"
   },
   {
     "id": "mistral-7b",
@@ -88,7 +106,10 @@
     "file": "Mistral-7B-Instruct-v0.3-Q4_K_M.gguf",
     "mmproj": null,
     "ram_gb": 10,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 4372812000,
+    "sha256": "1270d22c0fbb3d092fb725d4d96c457b7b687a5f5a715abe1e818da303e562b6",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   },
   {
     "id": "qwen2.5-7b",
@@ -101,6 +122,9 @@
     "file": "Qwen2.5-7B-Instruct-Q4_K_M.gguf",
     "mmproj": null,
     "ram_gb": 10,
-    "size": 0, "sha256": "", "mmproj_size": 0, "mmproj_sha256": ""
+    "size": 4683074240,
+    "sha256": "65b8fcd92af6b4fefa935c625d1ac27ea29dcb6ee14589c55a8f115ceaaa1423",
+    "mmproj_size": 0,
+    "mmproj_sha256": ""
   }
 ]

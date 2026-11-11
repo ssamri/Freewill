@@ -24,6 +24,8 @@ jobs:
       - name: The embedded runtime available upstream
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release view --repo ggml-org/llama.cpp --json tagName,assets --jq '.tagName, (.assets[] | "\(.name) \(.size)")'
+        run: |
+          gh api "repos/ggml-org/llama.cpp/releases?per_page=6" --jq '.[] | "== \(.tag_name) prerelease=\(.prerelease) \(.published_at)", (.assets[] | "   \(.name) \(.size)")' | grep -v -i "cuda\|vulkan\|sycl\|hip\|opencl\|xcframework\|android\|s390\|kleidi\|openvino" | head -80
+          gh release download --repo ggml-org/llama.cpp --pattern nightly-tag.txt --output - || true
       - name: Check every model against its source
         run: python tools/catalogue.py
