@@ -1,0 +1,22 @@
+[
+  {"name": "llama.cpp", "role": {"en": "Runs the embedded models on this computer", "fr": "Fait tourner les modèles embarqués sur cet ordinateur"},
+   "author": "Georgi Gerganov, ggml-org and contributors", "licence": "MIT", "url": "https://github.com/ggml-org/llama.cpp"},
+  {"name": "Hugging Face Hub", "role": {"en": "Where the embedded models are downloaded from", "fr": "D'où sont téléchargés les modèles embarqués"},
+   "author": "Hugging Face", "licence": "", "url": "https://huggingface.co"},
+  {"name": "pywebview", "role": {"en": "Shows the interface in a native window", "fr": "Affiche l'interface dans une fenêtre native"},
+   "author": "Roman Sirokov and contributors", "licence": "BSD-3-Clause", "url": "https://github.com/r0x0r/pywebview"},
+  {"name": "Microsoft Edge WebView2", "role": {"en": "Renders the interface on Windows", "fr": "Dessine l'interface sous Windows"},
+   "author": "Microsoft", "licence": "", "url": "https://developer.microsoft.com/microsoft-edge/webview2/"},
+  {"name": "keyring", "role": {"en": "Keeps access keys in the system's credential store", "fr": "Conserve les clés d'accès dans le trousseau du système"},
+   "author": "Jason R. Coombs and contributors", "licence": "MIT", "url": "https://github.com/jaraco/keyring"},
+  {"name": "pypdf", "role": {"en": "Reads the text of PDF files", "fr": "Lit le texte des fichiers PDF"},
+   "author": "pypdf contributors", "licence": "BSD-3-Clause", "url": "https://github.com/py-pdf/pypdf"},
+  {"name": "Anthropic Python SDK", "role": {"en": "Talks to Claude when that engine is chosen", "fr": "Dialogue avec Claude lorsque ce moteur est choisi"},
+   "author": "Anthropic", "licence": "MIT", "url": "https://github.com/anthropics/anthropic-sdk-python"},
+  {"name": "Python", "role": {"en": "The language the core is written in", "fr": "Le langage dans lequel le cœur est écrit"},
+   "author": "Python Software Foundation", "licence": "PSF-2.0", "url": "https://www.python.org"},
+  {"name": "PyInstaller", "role": {"en": "Packages the application", "fr": "Empaquette l'application"},
+   "author": "PyInstaller Development Team", "licence": "GPL-2.0 with a bootloader exception", "url": "https://pyinstaller.org"},
+  {"name": "Inno Setup", "role": {"en": "Builds the Windows installer", "fr": "Fabrique l'installateur Windows"},
+   "author": "Jordan Russell and Martijn Laan", "licence": "Inno Setup License", "url": "https://jrsoftware.org/isinfo.php"}
+]

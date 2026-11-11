@@ -23,11 +23,13 @@ HISTORY = 400  # events kept in memory for an interface that connects late
 
 
 class Runner:
-    def __init__(self, life_path: Path, *, tempo: float = 20.0, thoughts_per_hour: int = 120) -> None:
+    def __init__(self, life_path: Path, *, tempo: float = 20.0, thoughts_per_hour: int = 120,
+                 engine_options: dict | None = None) -> None:
         self.life = Life(life_path)
         self.tempo = tempo
         self.thoughts_per_hour = thoughts_per_hour
-        self.engine = make_engine(self.life.identity.get("engine", {}))  # may raise EngineError
+        # may raise EngineError
+        self.engine = make_engine({**self.life.identity.get("engine", {}), **(engine_options or {})})
 
         self._events: deque[dict] = deque(maxlen=HISTORY)
         self._seq = 0

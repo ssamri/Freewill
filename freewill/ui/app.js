@@ -62,6 +62,7 @@
     attach: '<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.8 1.8 0 0 1-2.5-2.5l7.4-7.4"/>',
     file: '<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    sources: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H11v15H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M19 5.5A1.5 1.5 0 0 0 17.5 4H13v15h4.5a1.5 1.5 0 0 1 1.5 1.5z"/>',
   };
   function icon(name) {
     const span = document.createElement("span");
@@ -106,6 +107,69 @@
   const brandMark = (style) => h("div", { class: "brand", style },
     h("i", { class: "brand-mark" }), h("span", {}, "Freewill"), h("span", { class: "tag neutral exp" }, t("exp")));
 
+  // ---------- sources and embedded models ----------
+
+  // A link the application shows: opened in the person's own browser, by the service,
+  // which only accepts the addresses it has itself put on screen.
+  function link(url, label) {
+    return h("button", { class: "linkish", title: url, onclick: (e) => { e.stopPropagation(); api("/api/open", { url }).catch(() => {}); } }, label);
+  }
+  function gb(bytes) { return (bytes / 1e9).toLocaleString(S.lang, { maximumFractionDigits: 1 }) + " " + t("models.gb"); }
+  const DOWNLOADING = (m) => m.progress && (m.progress.state === "downloading" || m.progress.state === "verifying");
+
+  // The catalogue of models the application can run by itself: the person picks one,
+  // downloads it, and sees who made it and under which licence.
+  function modelPicker(selected, onSelect, inUse) {
+    const box = h("div", { class: "models" }, h("p", { class: "hint" }, "…"));
+    let data = null, timer = null;
+    async function load() {
+      try { data = await api("/api/models"); } catch (_) { /* keep what is shown */ }
+      draw();
+    }
+    async function act(path, id) {
+      try { const out = await api(path, { id }); if (out.models) data.models = out.models; }
+      catch (e) { data.error = t("errors.generic", { message: e.message }); }
+      if (path.endsWith("delete") && selected === id) { selected = ""; onSelect(""); }
+      await load();
+    }
+    function row(m) {
+      const p = m.progress || {}, busy = DOWNLOADING(m), on = selected === m.id;
+      const right = m.installed
+        ? [h("button", { class: "btn small" + (on ? " primary" : ""), "aria-pressed": String(on),
+            onclick: () => { selected = m.id; onSelect(m.id); draw(); } }, on ? t("models.chosen") : t("models.choose")),
+           inUse === m.id ? null : h("button", { class: "icon-btn", title: t("models.delete"), "aria-label": t("models.delete") + " " + m.name,
+            onclick: () => act("/api/models/delete", m.id) }, icon("close"))]
+        : busy
+          ? [h("span", { class: "small muted" }, p.state === "verifying" ? t("models.verifying") : pct(p.done / Math.max(1, p.total))),
+             h("button", { class: "btn small", onclick: () => act("/api/models/cancel", m.id) }, t("models.cancel"))]
+          : h("button", { class: "btn small", disabled: !data.runtime && null, onclick: () => act("/api/models/download", m.id) },
+              (p.state === "error" || p.state === "cancelled") && p.done ? t("models.resume") : t("models.download"));
+      return h("div", { class: "model" + (on ? " on" : "") },
+        h("div", { class: "model-main" },
+          h("div", { class: "model-head" }, h("b", {}, m.name), h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)),
+            m.sees ? h("span", { class: "tag" }, t("models.sees")) : null,
+            m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null),
+          h("div", { class: "small muted" }, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb })),
+          h("div", { class: "model-src" }, h("span", {}, m.author), link(m.licence_url, m.licence), link(m.source_url, t("models.source"))),
+          busy ? bar(p.done / Math.max(1, p.total)) : null,
+          p.state === "error" ? h("div", { class: "error", role: "alert" }, p.error) : null),
+        h("div", { class: "model-act" }, right));
+    }
+    function draw() {
+      clearTimeout(timer);
+      if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
+      box.replaceChildren(
+        data.runtime ? null : h("p", { class: "error", role: "alert" }, t("models.no_runtime")),
+        data.error ? h("p", { class: "error", role: "alert" }, data.error) : null,
+        ...data.models.map(row),
+        h("p", { class: "hint" }, t("models.hint")));
+      data.error = "";
+      if (data.models.some(DOWNLOADING) && box.isConnected) timer = setTimeout(load, 900);
+    }
+    load();
+    return box;
+  }
+
   // ---------- terms of use and licence, accepted before anything else ----------
 
   function showGate(consent) {
@@ -148,7 +212,7 @@
     let info = { lives: [], keys: {} };
     try { info = await api("/api/lives"); } catch (_) { /* shown empty */ }
     S.keys = info.keys || {};
-    const W = { step: 0, name: "", you: "", lang: S.lang, kind: "local", model: "", key: "", error: "", busy: false, born: null };
+    const W = { step: 0, name: "", you: "", lang: S.lang, kind: "embedded", model: "", key: "", error: "", busy: false, born: null };
 
     function draw() {
       const card = h("div", { class: "welcome-card glass" });
@@ -190,13 +254,14 @@
         setTimeout(() => name.focus(), 0);
       } else if (W.step === 2) {
         card.append(steps, h("h1", {}, t("welcome.s3")), h("p", {}, t("welcome.s3_lead")));
-        ["own", "local", "anthropic", "openai", "xai", "simulated"].forEach((kind) => {
+        ["embedded", "local", "anthropic", "openai", "xai", "simulated", "own"].forEach((kind) => {
           const [title, text] = tr("welcome.engines")[kind];
           card.append(h("button", { class: "choice" + (W.kind === kind ? " on" : ""), disabled: kind === "own",
-            "aria-pressed": String(W.kind === kind), onclick: () => { W.kind = kind; W.error = ""; draw(); } },
+            "aria-pressed": String(W.kind === kind), onclick: () => { W.kind = kind; W.model = ""; W.error = ""; draw(); } },
             h("div", {}, h("b", {}, title), h("span", {}, text))));
+          if (kind === "embedded" && W.kind === "embedded") card.append(modelPicker(W.model, (id) => { W.model = id; }));
         });
-        if (W.kind !== "simulated") {
+        if (W.kind !== "simulated" && W.kind !== "embedded") {
           const needsKey = W.kind !== "local";
           card.append(h("div", { class: "row", style: "margin-top:14px" },
             h("div", { class: "field" }, h("label", { for: "w-model" }, t("welcome.model")),
@@ -225,6 +290,7 @@
     }
 
     async function birth() {
+      if (W.kind === "embedded" && !W.model) { W.error = t("models.pick_first"); return draw(); }
       W.busy = true; W.error = ""; draw();
       try {
         const engine = { kind: W.kind };
@@ -414,7 +480,7 @@
 
   // ---------- shell ----------
 
-  const NAV = ["chat", "subconscious", "memory", "brain", "state", "milestones", "dreams", "settings"];
+  const NAV = ["chat", "subconscious", "memory", "brain", "state", "milestones", "dreams", "sources", "settings"];
   let ui = {}, brain = null, view = null;
 
   function drawShell() {
@@ -774,6 +840,30 @@
       } };
     },
 
+    sources() {
+      const box = h("div", { class: "sources" }, h("p", { class: "hint" }, "…"));
+      ui.view.append(box);
+      api("/api/credits").then((data) => {
+        const item = (name, role, author, licence, licenceUrl, url, extra) => h("div", { class: "card source" },
+          h("div", { class: "model-head" }, h("b", {}, name), extra || null),
+          role ? h("div", { class: "small muted" }, role) : null,
+          h("div", { class: "model-src" }, h("span", {}, author),
+            licence ? (licenceUrl ? link(licenceUrl, licence) : h("span", {}, licence)) : null, link(url, t("models.source"))));
+        box.replaceChildren(
+          h("p", { class: "lead" }, t("src.lead")),
+          h("div", { class: "section-title" }, t("src.models")),
+          h("p", { class: "hint", style: "margin-bottom:10px" }, t("src.models_hint")),
+          ...data.models.map((m) => item(m.name, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb }), m.author, m.licence, m.licence_url, m.source_url,
+            [h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)), m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null])),
+          h("div", { class: "section-title", style: "margin-top:26px" }, t("src.software")),
+          ...data.software.map((s) => item(s.name, s.role[S.lang] || s.role.en, s.author, s.licence, null, s.url)),
+          h("div", { class: "section-title", style: "margin-top:26px" }, t("src.research")),
+          h("div", { class: "card source" }, h("p", { class: "small muted" }, t("src.research_text")),
+            h("div", { class: "model-src" }, link(data.project + "#readme", t("src.readme")), link(data.project, t("src.project")))));
+      }).catch((e) => box.replaceChildren(h("p", { class: "error" }, t("errors.generic", { message: e.message }))));
+      return {};
+    },
+
     settings() {
       const snap = S.snap, kind = snap.engine.kind;
       const saved = h("span", { class: "small muted", role: "status" });
@@ -785,6 +875,38 @@
       const keyInput = h("input", { id: "s-key", type: "password", autocomplete: "off" });
       const keyState = h("span", { class: "hint" }, S.keys[kind] ? t("set.key_set") : t("set.key_none"));
       const takesKey = ["anthropic", "openai", "xai", "compatible"].includes(kind);
+      // Another engine for the same being: its life file, and so itself, does not change.
+      const changer = h("div", { class: "changer" });
+      const C = { open: false, kind, model: snap.engine.model || "", key: "", error: "", busy: false };
+      function drawChanger() {
+        if (!C.open) return changer.replaceChildren(h("button", { class: "btn", style: "margin-bottom:14px", onclick: () => { C.open = true; drawChanger(); } }, t("set.change")));
+        const kinds = ["embedded", "local", "anthropic", "openai", "xai", "simulated"];
+        const needsKey = ["anthropic", "openai", "xai"].includes(C.kind);
+        changer.replaceChildren(
+          h("p", { class: "hint", style: "margin-bottom:10px" }, t("set.change_hint", { name: snap.name })),
+          h("div", { class: "field" }, h("label", { for: "c-kind" }, t("set.engine")),
+            select("c-kind", C.kind, kinds.map((k) => [k, tr("welcome.engines")[k][0]]), (v) => { C.kind = v; C.model = ""; C.error = ""; drawChanger(); })),
+          C.kind === "embedded" ? modelPicker(C.model, (id) => { C.model = id; }, kind === "embedded" ? snap.engine.model : null) : null,
+          C.kind !== "embedded" && C.kind !== "simulated" ? h("div", { class: "field" }, h("label", { for: "c-model" }, t("welcome.model")),
+            h("input", { id: "c-model", value: C.model, autocomplete: "off", spellcheck: "false", oninput: (e) => { C.model = e.target.value; } })) : null,
+          needsKey ? h("div", { class: "field" }, h("label", { for: "c-key" }, t("set.key")),
+            h("input", { id: "c-key", type: "password", autocomplete: "off", placeholder: S.keys[C.kind] ? "••••••••" : "", oninput: (e) => { C.key = e.target.value; } }),
+            h("span", { class: "hint" }, S.keys[C.kind] ? t("set.key_set") : t("set.key_hint"))) : null,
+          C.error ? h("div", { class: "error", role: "alert" }, C.error) : null,
+          h("div", { class: "actions", style: "margin:12px 0 16px" },
+            h("button", { class: "btn", onclick: () => { C.open = false; C.error = ""; drawChanger(); } }, t("welcome.back")),
+            h("button", { class: "btn primary", disabled: C.busy, onclick: async () => {
+              if (C.kind === "embedded" && !C.model) { C.error = t("models.pick_first"); return drawChanger(); }
+              C.busy = true; drawChanger();
+              const engine = { kind: C.kind };
+              if (C.model.trim()) engine.model = C.model.trim();
+              try {
+                const next = await api("/api/engine", { engine, api_key: C.key.trim() || undefined });
+                enter(next);
+              } catch (e) { C.busy = false; C.error = t("errors.generic", { message: e.message }); drawChanger(); }
+            } }, t("set.apply"))));
+      }
+      drawChanger();
       ui.view.append(h("div", { class: "grid-2" },
         h("section", { class: "card" }, h("div", { class: "section-title" }, t("set.appearance")),
           h("div", { class: "field" }, h("label", { for: "s-theme" }, t("set.theme")),
@@ -800,6 +922,7 @@
           h("p", { class: "hint" }, t("set.rhythm_hint")), saved),
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.engine")),
           h("p", { style: "margin-bottom:12px" }, snap.engine.name || kind),
+          changer,
           takesKey ? [h("div", { class: "field" }, h("label", { for: "s-key" }, t("set.key")), keyInput, keyState),
             h("button", { class: "btn", onclick: async () => {
               if (!keyInput.value.trim()) return;

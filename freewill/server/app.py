@@ -16,19 +16,23 @@ import re
 import secrets
 import sys
 import threading
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from freewill import __version__, keys
+from freewill import __version__, keys, models
 from freewill.core.library import LibraryError
 from freewill.core.life import Life
 from freewill.core.perception import extract_text
 from freewill.engines.base import EngineError, make_engine
+from freewill.engines.embedded import find_runtime
+from freewill.paths import data_dir
 from freewill.server.runner import Runner
 
 UI_DIR = Path(__file__).resolve().parent.parent / "ui"
-ENGINE_KINDS = ("local", "anthropic", "openai", "xai", "compatible", "simulated")
+ENGINE_KINDS = ("embedded", "local", "anthropic", "openai", "xai", "compatible", "simulated")
+PROJECT_URL = "https://github.com/ssamri/Freewill"
 # Raise this number whenever the terms of use change: everyone is asked again.
 TERMS_VERSION = 1
 MAX_BODY_BYTES = 48_000_000
@@ -38,12 +42,7 @@ NAME_PATTERN = re.compile(r"^[^\W\d_][\w '\-]{0,39}$", re.UNICODE)
 
 
 def default_lives_dir() -> Path:
-    if sys.platform == "win32":
-        base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
-        return base / "Freewill" / "lives"
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "Freewill" / "lives"
-    return Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share") / "freewill" / "lives"
+    return data_dir() / "lives"
 
 
 class ApiError(Exception):
@@ -62,6 +61,64 @@ class App:
         self.runner: Runner | None = None
         self._lock = threading.Lock()
         self._consent_path = self.lives_dir.parent / "consent.json"
+        self.models = models.ModelStore(self.lives_dir.parent / "models")
+
+    # -- engines and sources -----------------------------------------------------
+
+    def _engine_options(self) -> dict:
+        return {"models_dir": str(self.models.root)}
+
+    def _engine_config(self, given: dict) -> dict:
+        """Check an engine description coming from the interface, and keep only what is known."""
+        kind = given.get("kind", "simulated")
+        if kind not in ENGINE_KINDS:
+            raise ApiError(400, "unknown engine")
+        engine = {"kind": kind}
+        for field in ("model", "base_url"):
+            value = str(given.get(field) or "").strip()
+            if value:
+                engine[field] = value
+        try:
+            make_engine({**engine, **self._engine_options()})  # fail now, not at the first thought
+        except EngineError as error:
+            raise ApiError(400, str(error)) from error
+        return engine
+
+    def model(self, model_id) -> dict:
+        model = models.find(str(model_id))
+        if model is None:
+            raise ApiError(404, "no such model")
+        return model
+
+    def credits(self) -> dict:
+        software = json.loads((UI_DIR.parent / "credits.json").read_text(encoding="utf-8"))
+        return {"software": software, "models": self.models.listing(), "project": PROJECT_URL}
+
+    def open_link(self, url: str) -> None:
+        """Open, in the person's browser, one of the links the application itself shows."""
+        credits = self.credits()
+        allowed = {PROJECT_URL, PROJECT_URL + "#readme", PROJECT_URL + "/releases"}
+        allowed |= {entry["url"] for entry in credits["software"]}
+        allowed |= {model[key] for model in credits["models"] for key in ("source_url", "licence_url")}
+        if url not in allowed:
+            raise ApiError(400, "this link is not one the application shows")
+        webbrowser.open(url)
+
+    def change_engine(self, body: dict) -> dict:
+        """Give the awake being another engine. Its life file, and so itself, is unchanged."""
+        runner = self.require_runner()
+        kind = (body.get("engine") or {}).get("kind")
+        if body.get("api_key"):
+            self.store_key(kind, str(body["api_key"]))
+        engine = self._engine_config(body.get("engine") or {})
+        name = runner.life.name
+        with self._lock:
+            runner.stop()
+            self.runner = None
+            life = Life(runner.life.path)
+            life.identity["engine"] = engine
+            life.save()
+        return self.wake(name)
 
     # -- consent ---------------------------------------------------------------
 
@@ -124,20 +181,10 @@ class App:
         path = self._path_for(name)
         if path.exists():
             raise ApiError(409, "a being with this name already exists")
-        kind = body.get("engine", {}).get("kind", "simulated")
-        if kind not in ENGINE_KINDS:
-            raise ApiError(400, "unknown engine")
-        engine = {"kind": kind}
-        for field in ("model", "base_url"):
-            value = str(body.get("engine", {}).get(field) or "").strip()
-            if value:
-                engine[field] = value
+        given = body.get("engine") if isinstance(body.get("engine"), dict) else {}
         if body.get("api_key"):
-            self.store_key(kind, str(body["api_key"]))
-        try:
-            make_engine(engine)  # fail before the birth, not at the first thought
-        except EngineError as error:
-            raise ApiError(400, str(error)) from error
+            self.store_key(given.get("kind"), str(body["api_key"]))
+        engine = self._engine_config(given)
         language = body.get("language") if body.get("language") in ("fr", "en") else "en"
         interlocutor = str(body.get("interlocutor") or "").strip()[:40] or None
         Life.birth(self.lives_dir, name, language=language, engine=engine, interlocutor=interlocutor)
@@ -155,7 +202,7 @@ class App:
                 self.runner.stop()
                 self.runner = None
             try:
-                runner = Runner(path)
+                runner = Runner(path, engine_options=self._engine_options())
             except EngineError as error:
                 raise ApiError(400, str(error)) from error
             runner.start()
@@ -301,6 +348,10 @@ def make_handler(app: App):
         def _api_get(self, path: str, query: dict) -> None:
             if path == "/api/consent":
                 return self._json({**app.consent(), "licence": app.licence_text()})
+            if path == "/api/models":
+                return self._json({"models": app.models.listing(), "runtime": find_runtime() is not None})
+            if path == "/api/credits":
+                return self._json(app.credits())
             if path == "/api/dreams":
                 return self._json({"dreams": app.require_runner().life.dreams.all()})
             if path == "/api/lives":
@@ -330,6 +381,27 @@ def make_handler(app: App):
         def _api_post(self, path: str, body: dict) -> None:
             if path == "/api/consent":
                 return self._json(app.accept(body))
+            if path == "/api/models/download":
+                try:
+                    app.models.start_download(app.model(body.get("id")))
+                except models.DownloadError as error:
+                    raise ApiError(400, str(error)) from error
+                return self._json({"models": app.models.listing()})
+            if path == "/api/models/cancel":
+                app.models.cancel(app.model(body.get("id"))["id"])
+                return self._json({"ok": True})
+            if path == "/api/models/delete":
+                model = app.model(body.get("id"))
+                engine = app.runner.life.identity.get("engine", {}) if app.runner else {}
+                if engine.get("kind") == "embedded" and engine.get("model") == model["id"]:
+                    raise ApiError(409, "the being that is awake thinks with this model")
+                app.models.delete(model)
+                return self._json({"models": app.models.listing()})
+            if path == "/api/engine":
+                return self._json(app.change_engine(body))
+            if path == "/api/open":
+                app.open_link(str(body.get("url", "")))
+                return self._json({"ok": True})
             if path == "/api/sleep":
                 app.require_runner().sleep()
                 return self._json({"ok": True})
