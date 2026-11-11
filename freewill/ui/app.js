@@ -63,6 +63,7 @@
     file: '<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     sources: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H11v15H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M19 5.5A1.5 1.5 0 0 0 17.5 4H13v15h4.5a1.5 1.5 0 0 1 1.5 1.5z"/>',
+    lab: '<path d="M9.5 3.5h5M10.5 3.5v6L5 19a1.4 1.4 0 0 0 1.2 2h11.6A1.4 1.4 0 0 0 19 19l-5.5-9.5v-6"/><path d="M7.6 15h8.8" opacity=".55"/>',
     affect: '<path d="M3 17c3 0 3-10 6-10s3 12 6 12 3-7 6-7"/><path d="M3 21h18" opacity=".45"/>',
   };
   function icon(name) {
@@ -484,7 +485,7 @@
 
   // ---------- shell ----------
 
-  const NAV = ["chat", "subconscious", "memory", "brain", "state", "affect", "milestones", "dreams", "sources", "settings"];
+  const NAV = ["chat", "subconscious", "memory", "brain", "state", "affect", "milestones", "dreams", "lab", "sources", "settings"];
   let ui = {}, brain = null, view = null;
 
   function drawShell() {
@@ -498,6 +499,7 @@
     ui.engine = h("div", { class: "engine-badge" });
     ui.title = h("h1", {});
     ui.tickerText = h("span", { class: "ticker-text" });
+    ui.gauges = h("div", { class: "gauges" });
     ui.banner = h("div", { class: "banner", role: "status", hidden: true });
     ui.view = h("div", { class: "view" });
     root.replaceChildren(h("div", { class: "shell" },
@@ -508,7 +510,7 @@
         h("div", { class: "sidebar-foot" }, ui.engine,
           h("button", { class: "icon-btn", title: t("theme"), "aria-label": t("theme"), onclick: toggleTheme }, icon("theme")))),
       h("main", { class: "main glass" },
-        h("header", { class: "main-head" }, ui.title, h("div", { class: "ticker" }, ui.tickerText)),
+        h("header", { class: "main-head" }, ui.title, ui.gauges, h("div", { class: "ticker" }, ui.tickerText)),
         ui.banner, ui.view)));
     go(S.view);
   }
@@ -536,7 +538,7 @@
       if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     ui.title.textContent = t("nav." + id);
-    ui.view.className = "view" + (["chat", "memory", "brain"].includes(id) ? " flush" : "");
+    ui.view.className = "view" + (["chat", "memory", "brain"].includes(id) ? " flush" : "") + (id === "lab" ? " wide" : "");
     ui.view.replaceChildren();
     ui.view.ondragover = ui.view.ondragleave = ui.view.ondrop = null;
     ui.view.classList.remove("dropping");
@@ -549,7 +551,7 @@
     if (!snap || !ui.view) return;
     ui.name.textContent = snap.name;
     ui.age.textContent = t("born_ago", { age: snap.age });
-    ui.engine.textContent = snap.engine.name || snap.engine.kind || "";
+    ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
     ui.engine.title = ui.engine.textContent;
     ui.tickerText.textContent = S.ticker;
     ui.banner.hidden = !snap.paused;
@@ -557,12 +559,14 @@
     const last = S.moments[S.moments.length - 1];
     ui.orb.classList.toggle("resting", S.asleep);
     if (brain) brain.setAsleep(S.asleep);
+    if (window.FWLab) window.FWLab.gauges(ui.gauges, snap);
     if (view && view.update) view.update();
   }
 
   // ---------- views ----------
 
   const VIEWS = {
+    lab() { return window.FWLab ? window.FWLab.view(ui.view) : {}; },
     chat() {
       const MAX = 6;
       const scroll = h("div", { class: "chat-scroll", role: "log", "aria-live": "polite" });
@@ -1031,9 +1035,16 @@
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.being")),
           h("button", { class: "btn", onclick: async () => { S.run++; try { await api("/api/rest", {}); } catch (_) { /* already resting */ } showWelcome(); } },
             t("set.rest")))));
+      const research = h("div", { class: "research-settings" });
+      ui.view.append(research);
+      if (window.FWLab) window.FWLab.settings(research);
       return {};
     },
   };
+
+  // What the Research Lab's own file builds on.
+  window.FW = { S, h, t, tr, api, bar, pct, icon, link, store, go: (id) => go(id), refresh: () => refresh(),
+                absorbSnap: (snap) => { S.snap = snap; refresh(); } };
 
   // ---------- start ----------
 

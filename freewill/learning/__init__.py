@@ -42,7 +42,10 @@ def capabilities(models_dir: Path | None = None) -> dict:
         except Exception:
             gpu = None
     memory = _memory_gb()
-    disk = round(shutil.disk_usage(models_dir or Path.home()).free / 1e9, 1)
+    folder = Path(models_dir or Path.home())
+    while not folder.exists() and folder != folder.parent:
+        folder = folder.parent
+    disk = round(shutil.disk_usage(folder).free / 1e9, 1)
     reasons = []
     if not (torch and peft):
         reasons.append("no_torch")

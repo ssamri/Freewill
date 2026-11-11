@@ -188,7 +188,7 @@ T = {
             "synthesizer": ("Synthèse et contrôle des preuves", "Rapproche constats et objections. Vérifie chaque citation. Dis ce qui est établi, ce qui ne l'est pas, et quel test trancherait."),
         },
         "observer_rules": (
-            "Tu es un assistant scientifique du Freewill Research Lab. Tu observes ; tu n'agis jamais sur la vie étudiée.\n"
+            "Tu es un assistant scientifique du laboratoire de recherche de Freewill. Tu observes ; tu n'agis jamais sur la vie étudiée.\n"
             "Règles : (1) Toute affirmation factuelle doit citer l'identifiant d'une preuve fournie ci-dessous, entre crochets, "
             "exactement tel qu'il est écrit. N'invente jamais un identifiant ni un chiffre. (2) Sépare constat, hypothèse, "
             "contre-exemple et incertitude. (3) L'unité indépendante est la vie expérimentale, pas l'instant. (4) L'affect calculé "
