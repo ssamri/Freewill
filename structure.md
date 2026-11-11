@@ -61,13 +61,15 @@ The core is the only component that thinks. The interface can be closed without 
 | Core | Python 3.11+ | The machine-learning ecosystem; readability for a research project |
 | Integrated engine | PyTorch | Training and inference within one framework; support for CPU, NVIDIA cards and Apple silicon |
 | Interface | TypeScript and React | A single code base for desktop and web |
-| Desktop packaging | Tauri | Lightweight executables for all three systems; the Python core is bundled as a sidecar process |
+| Desktop packaging | pywebview, PyInstaller, Inno Setup | The interface is shown in the system's own web view (WebView2 on Windows); a single Python process, no second toolchain |
 | Brain animation | WebGL (three.js) | Smooth rendering of a graph of several thousand nodes |
 | Storage | Text files, with SQLite for indexes | No server dependency; a portable, inspectable life file |
 | Memory search | Embedded vector index | Recall by similarity without an external service |
 | Server deployment | Docker container | The same core, windowless, with the interface served to the browser |
 
 ## 4. Repository tree
+
+> **State of the code.** What exists today lives in a single Python package, `freewill/`: `core/` (kernel, genome, memory in files, subconscious, stage, conscious, life loop), `engines/` (Claude, OpenAI-compatible services, a local model through Ollama, a simulated engine), `server/` (the local service, bound to the loopback address and protected by a session token), `ui/` (the interface, in plain HTML, CSS and JavaScript, with no build step) and `desktop.py` (the native window). `packaging/windows/` holds what builds the Windows installer. The first interface was written without React or three.js so that it could ship without a build chain; the tree below remains the target, and the integrated engine, sleep and dreams are not yet built.
 
 ```
 freewill/
@@ -386,5 +388,4 @@ Starting with the external engine makes it possible to validate the architecture
 - **Method of nightly rewriting**: low-rank adaptation, partial retraining, or a combination.
 - **Law of forgetting**: values of the thresholds, rate of decay, and the degree of distortion tolerated in a reconstruction.
 - **Portability of the self between engines**: what, among the learned parameters, can be carried from one engine to another.
-- **Tauri or Electron** for packaging, depending on how readily the Python core can be bundled on all three systems.
 - **Format of the genome**: which traits, which ranges, what influence on the generators.

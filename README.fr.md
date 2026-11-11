@@ -166,7 +166,7 @@ Il y a, dans cette entreprise, quelque chose qui excède l'ingénierie. Depuis q
 
 ## 6. L'expérience
 
-Freewill prendra la forme d'une application libre, gratuite, exécutable sur Windows, macOS et Linux, ainsi que sur serveur.
+Freewill prendra la forme d'une application gratuite, dont le code source est intégralement publié, exécutable sur Windows, macOS et Linux, ainsi que sur serveur.
 
 **La naissance.** Au premier lancement, l'expérimentateur ne configure pas un produit : il assiste à une naissance. Il donne un prénom. Le tempérament et le genre de départ sont tirés au sort. Le système sait s'exprimer simplement, mais ignore tout de lui-même, de son interlocuteur et du monde.
 
@@ -212,7 +212,7 @@ Ce principe est réalisé par l'architecture, et non par une consigne.
 7. **Non-manipulation.** Le système n'est pas conçu pour retenir son interlocuteur ni pour susciter sa dépendance. La sincérité prime sur l'agrément.
 8. **Primauté de l'humain.** Ne jamais mettre en péril un être humain ni l'humanité est une contrainte du noyau, non une valeur révisable.
 
-**Limites assumées.** Le caractère ouvert du projet implique que quiconque peut modifier sa propre copie. Aucun logiciel libre ne peut l'empêcher. La réponse de Freewill est triple : une version de référence exemplaire, des garde-fous inscrits dans l'architecture plutôt que superposés à elle, et une échelle délibérément modeste. Le moteur intégré est un petit modèle ; les risques qu'il présente sont sans commune mesure avec ceux des systèmes de pointe. Le projet ne poursuit ni la puissance ni la compétition avec les modèles existants, et toute évolution qui accroîtrait la capacité du système devra s'accompagner d'un réexamen public de ces garanties.
+**Limites assumées.** Le caractère ouvert du projet implique que quiconque peut modifier sa propre copie. Aucun logiciel dont le code est publié ne peut l'empêcher. La réponse de Freewill est triple : une version de référence exemplaire, des garde-fous inscrits dans l'architecture plutôt que superposés à elle, et une échelle délibérément modeste. Le moteur intégré est un petit modèle ; les risques qu'il présente sont sans commune mesure avec ceux des systèmes de pointe. Le projet ne poursuit ni la puissance ni la compétition avec les modèles existants, et toute évolution qui accroîtrait la capacité du système devra s'accompagner d'un réexamen public de ces garanties.
 
 ## 9. Position éthique
 
@@ -303,4 +303,4 @@ Le projet s'adresse aux chercheurs en sciences cognitives, en neurosciences, en 
 
 ## Licence
 
-Voir [`LICENSE`](LICENSE).
+Freewill est publié sous une **licence de recherche non commerciale** : chacun peut l'utiliser, le copier, le modifier et le fusionner, gratuitement, à des fins de recherche et d'enseignement non commerciales. Tout usage commercial ou professionnel requiert l'accord écrit préalable de l'auteur. Le code est public et ouvert à l'étude ; l'usage commercial étant réservé, il s'agit d'une licence à code source disponible, et non d'une licence open source au sens strict du terme. Voir [`LICENSE`](LICENSE).

@@ -166,7 +166,7 @@ There is, in this undertaking, something that exceeds engineering. Ever since th
 
 ## 6. The experience
 
-Freewill will take the form of a free, open-source application that runs on Windows, macOS and Linux, as well as on a server.
+Freewill will take the form of a free application, with its source published in full, that runs on Windows, macOS and Linux, as well as on a server.
 
 **Birth.** On first launch, the experimenter does not configure a product: they attend a birth. They give a name. The temperament and the initial gender are drawn by lot. The system can express itself simply, but knows nothing of itself, of its interlocutor or of the world.
 
@@ -212,7 +212,7 @@ This principle is realised by the architecture, not by an instruction.
 7. **Non-manipulation.** The system is not designed to retain its interlocutor or to foster dependence. Sincerity takes precedence over agreeableness.
 8. **Primacy of the human.** Never to endanger a human being or humanity is a constraint of the kernel, not a revisable value.
 
-**Acknowledged limits.** The open nature of the project means that anyone may modify their own copy. No free software can prevent this. Freewill's answer is threefold: an exemplary reference version, safeguards written into the architecture and not laid over it, and a deliberately modest scale. The integrated engine is a small model; the risks it presents bear no comparison with those of frontier systems. The project pursues neither power nor competition with existing models, and any development that would increase the system's capability will have to be accompanied by a public re-examination of these guarantees.
+**Acknowledged limits.** The open nature of the project means that anyone may modify their own copy. No software whose source is published can prevent this. Freewill's answer is threefold: an exemplary reference version, safeguards written into the architecture and not laid over it, and a deliberately modest scale. The integrated engine is a small model; the risks it presents bear no comparison with those of frontier systems. The project pursues neither power nor competition with existing models, and any development that would increase the system's capability will have to be accompanied by a public re-examination of these guarantees.
 
 ## 9. Ethical position
 
@@ -303,4 +303,4 @@ The project is addressed to researchers in cognitive science, neuroscience, phil
 
 ## Licence
 
-See [`LICENSE`](LICENSE).
+Freewill is published under a **Non-Commercial Research License**: anyone may use, copy, modify and merge it, free of charge, for non-commercial research and educational purposes. Any commercial or professional use requires the prior written agreement of the author. The source is public and open to study; because commercial use is reserved, this is a source-available licence and not an open-source licence in the strict sense of the term. See [`LICENSE`](LICENSE).
