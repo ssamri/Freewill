@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, urlparse
 
 from freewill import __version__, keys, models
 from freewill.core.library import LibraryError
+from freewill.core.affect import AffectError
 from freewill.core.life import Life
 from freewill.core.perception import extract_text
 from freewill.engines.base import EngineError, make_engine
@@ -187,7 +188,8 @@ class App:
         engine = self._engine_config(given)
         language = body.get("language") if body.get("language") in ("fr", "en") else "en"
         interlocutor = str(body.get("interlocutor") or "").strip()[:40] or None
-        Life.birth(self.lives_dir, name, language=language, engine=engine, interlocutor=interlocutor)
+        Life.birth(self.lives_dir, name, language=language, engine=engine, interlocutor=interlocutor,
+                   affect=body.get("affect") is True)
         return self.wake(name)
 
     def wake(self, name: str) -> dict:
@@ -364,6 +366,11 @@ def make_handler(app: App):
                 since = int((query.get("since") or ["0"])[0])
                 runner = app.require_runner()
                 return self._json({"events": runner.events_since(since), "snapshot": runner.snapshot})
+            if path == "/api/affect":
+                try:
+                    return self._json(app.require_runner().affect())
+                except TimeoutError as error:
+                    raise ApiError(503, str(error)) from error
             if path == "/api/memory":
                 store = app.require_runner().life.memory
                 return self._json({"memories": [
@@ -419,6 +426,18 @@ def make_handler(app: App):
                 runner = app.require_runner()
                 runner.configure(tempo=body.get("tempo"), thoughts_per_hour=body.get("thoughts_per_hour"))
                 return self._json(runner.snapshot)
+            if path == "/api/affect":
+                enabled, config = body.get("enabled"), body.get("config")
+                if enabled is not None and not isinstance(enabled, bool):
+                    raise ApiError(400, "enabled must be true or false")
+                if config is not None and not isinstance(config, dict):
+                    raise ApiError(400, "config must be an object")
+                try:
+                    return self._json(app.require_runner().set_affect(enabled, config))
+                except AffectError as error:
+                    raise ApiError(400, str(error)) from error
+                except TimeoutError as error:
+                    raise ApiError(503, str(error)) from error
             if path == "/api/key":
                 app.store_key(str(body.get("kind", "")), str(body.get("key", "")))
                 return self._json({"keys": app.key_status()})

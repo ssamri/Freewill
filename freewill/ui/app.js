@@ -18,7 +18,7 @@
     snap: null, seq: 0, run: 0,
     chat: [], moments: [], current: null, ticker: "",
     memories: [], memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-    dreams: null, asleep: false,
+    dreams: null, asleep: false, affect: null, affectStale: true,
     keys: {},
   };
 
@@ -63,6 +63,7 @@
     file: '<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
     sources: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H11v15H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M19 5.5A1.5 1.5 0 0 0 17.5 4H13v15h4.5a1.5 1.5 0 0 1 1.5 1.5z"/>',
+    affect: '<path d="M3 17c3 0 3-10 6-10s3 12 6 12 3-7 6-7"/><path d="M3 21h18" opacity=".45"/>',
   };
   function icon(name) {
     const span = document.createElement("span");
@@ -313,7 +314,7 @@
   function enter(snap) {
     Object.assign(S, { snap, seq: 0, chat: [], moments: [], current: null, ticker: "", memories: [],
                        memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-                       dreams: null, asleep: false, view: "chat" });
+                       dreams: null, asleep: false, affect: null, affectStale: true, view: "chat" });
     const run = ++S.run;
     drawShell();
     loadMemories();
@@ -395,6 +396,9 @@
         S.moments.push({ kind: "note", time: event.time, past, text: t("sub.woke", { d: d.dreams || 0, n: d.faded || 0 }) });
         S.current = null;
         return true;
+      case "affect_transition": case "affect_consolidation": case "affect_mode":
+        S.affectStale = true;  // H7: the computed state moved; the view reloads it
+        break;
       case "kernel_refusal": case "engine_error": case "engine_refusal":
         if (m) m.extras.push(d.message);
         break;
@@ -480,7 +484,7 @@
 
   // ---------- shell ----------
 
-  const NAV = ["chat", "subconscious", "memory", "brain", "state", "milestones", "dreams", "sources", "settings"];
+  const NAV = ["chat", "subconscious", "memory", "brain", "state", "affect", "milestones", "dreams", "sources", "settings"];
   let ui = {}, brain = null, view = null;
 
   function drawShell() {
@@ -743,6 +747,9 @@
             h("b", {}, t("mem.strength")), h("span", {}, pct(it.strength)),
             h("b", {}, t("mem.importance")), h("span", {}, pct(it.importance)),
             it.tags && it.tags.length ? [h("b", {}, t("mem.tags")), h("span", {}, it.tags.join(", "))] : null,
+            it.affect && typeof it.affect.v === "number" ? [h("b", {}, t("mem.trace")), h("span", { title: t("mem.trace_hint") },
+              t("aff.dims.valence") + " " + (it.affect.v >= 0 ? "+" : "−") + Math.abs(it.affect.v).toFixed(2) + " · " +
+              t("aff.dims.arousal") + " " + Number(it.affect.a || 0).toFixed(2) + (it.affect.key ? " · " + it.affect.key : ""))] : null,
             it.links && it.links.length ? [h("b", {}, t("mem.links")), h("span", { class: "linkrow" }, it.links.filter((id) => titles.has(id)).map((id) =>
               h("button", { class: "chip in link", onclick: () => open(id) }, titles.get(id))))] : null));
       }
@@ -798,6 +805,97 @@
             weights.map(([k, v]) => h("div", { class: "meter" }, h("span", {}, sourceLabel(k)), bar((v - 0.5)), h("span", {}, "× " + v.toFixed(2)))),
             h("p", { class: "hint", style: "margin-top:8px" }, t("state.weights_hint"))) : null));
       } };
+    },
+
+    // H7. An observation panel for a computed state: numbers, curves, causes. Nothing here
+    // says or suggests that anything is felt.
+    affect() {
+      const box = h("div", { class: "affect" });
+      ui.view.append(box);
+      let loading = false, last = 0, error = "";
+      const DIMS = ["valence", "arousal", "uncertainty", "control", "coherence", "regulatory_load", "social_context"];
+      const CURVES = [["valence", "var(--accent)"], ["arousal", "var(--good)"], ["uncertainty", "var(--warn, #c98a1b)"]];
+      const unit = (name, v) => (name === "valence" ? (v + 1) / 2 : v);
+      const signed = (name, v) => (name === "valence" ? (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) : v.toFixed(2));
+      async function load() {
+        if (loading) return;
+        loading = true; S.affectStale = false; last = Date.now();
+        try { S.affect = await api("/api/affect"); error = ""; } catch (e) { error = e.message; S.affectStale = true; }
+        loading = false; draw();
+      }
+      async function toggle(enabled) {
+        try { S.affect = await api("/api/affect", { enabled }); error = ""; } catch (e) { error = e.message; }
+        draw();
+      }
+      function chart(history) {
+        const W = 640, H = 150, n = history.length, wrap = h("div", { class: "affect-chart", role: "img", "aria-label": t("aff.curves_alt") });
+        if (n < 2) { wrap.append(h("p", { class: "hint" }, t("aff.no_history"))); return wrap; }
+        const x = (i) => (i / (n - 1)) * W, y = (u) => H - 6 - u * (H - 12);
+        const lines = CURVES.map(([name, color]) => '<polyline fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linejoin="round" points="' +
+          history.map((p, i) => x(i).toFixed(1) + "," + y(unit(name, Number(p[name]) || 0)).toFixed(1)).join(" ") + '"/>').join("");
+        // Numbers only: nothing coming from the being or the person is put in this markup.
+        wrap.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+          '<line x1="0" x2="' + W + '" y1="' + y(0.5) + '" y2="' + y(0.5) + '" stroke="currentColor" opacity=".18" stroke-dasharray="3 4"/>' + lines + "</svg>";
+        wrap.append(h("div", { class: "affect-legend" }, CURVES.map(([name, color]) =>
+          h("span", {}, h("i", { style: "background:" + color }), t("aff.dims." + name)))));
+        return wrap;
+      }
+      function draw() {
+        const a = S.affect;
+        if (!a) return box.replaceChildren(h("p", { class: "hint" }, error ? t("errors.generic", { message: error }) : "…"));
+        const head = h("section", { class: "card affect-head" },
+          h("div", { style: "flex:1;min-width:0" },
+            h("div", { class: "section-title" }, t("aff.title")),
+            h("p", {}, t("aff.caveat")),
+            h("p", { class: "hint", style: "margin-top:8px" }, a.enabled ? t("aff.on_hint", { name: S.snap.name }) : t("aff.off_hint", { name: S.snap.name }))),
+          h("button", { class: "switch" + (a.enabled ? " on" : ""), role: "switch", "aria-checked": String(a.enabled),
+            "aria-label": t("aff.switch"), onclick: () => toggle(!a.enabled) }, h("i", {}), h("span", {}, a.enabled ? t("aff.on") : t("aff.off"))));
+        if (!a.enabled && !a.exists) return box.replaceChildren(...[head, error ? h("p", { class: "error" }, error) : null].filter(Boolean));
+        const v = a.state.values, traced = S.memories.filter((m) => m.affect && typeof m.affect.v === "number");
+        const cons = a.last_consolidation;
+        box.replaceChildren(...[head,
+          error ? h("p", { class: "error", role: "alert" }, error) : null,
+          a.recovered ? h("p", { class: "error", role: "alert" }, t("aff.recovered_" + a.recovered)) : null,
+          h("div", { class: "grid-2" },
+            h("section", { class: "card" }, h("div", { class: "section-title" }, t("aff.levels")),
+              DIMS.map((name) => h("div", { class: "meter affect-meter", title: t("aff.help." + name) },
+                h("span", {}, t("aff.dims." + name)),
+                h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * unit(name, v[name])) + "%" }),
+                  h("b", { class: "setpoint", style: "left:" + Math.round(100 * unit(name, a.setpoints[name])) + "%", title: t("aff.rest") })),
+                h("span", {}, signed(name, v[name])))),
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.levels_hint"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.curves")), chart(a.history)),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.triggers")),
+              a.recent.length ? a.recent.slice().reverse().slice(0, 8).map((r) => h("div", { class: "trigger" },
+                h("div", { class: "moment-head" }, h("span", { class: "tag neutral" }, r.key), h("span", { class: "small muted" }, t("aff.kinds." + r.kind)),
+                  h("span", { class: "small faint" }, "Δ " + Number(r.delta).toFixed(2)), h("time", {}, clock(r.time))),
+                h("ul", { class: "causes" }, r.causes.map((c) => h("li", {}, c)))))
+                : h("p", { class: "muted" }, t("aff.no_triggers"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.learned")),
+              a.associations.length ? a.associations.map((x) => h("div", { class: "meter affect-meter" },
+                h("span", { title: x.key }, x.key), h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * unit("valence", x.valence)) + "%" }),
+                  h("b", { class: "setpoint", style: "left:50%" })), h("span", {}, signed("valence", x.valence) + " · " + x.n)))
+                : h("p", { class: "muted" }, t("aff.no_learned")),
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.learned_hint", { n: a.episodes }))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.sleep")),
+              cons ? [h("div", { class: "kv", style: "margin-top:0" },
+                  h("b", {}, t("aff.when")), h("span", {}, day(cons.time)),
+                  h("b", {}, t("aff.episodes")), h("span", {}, cons.episodes + " · " + cons.contexts + " " + t("aff.contexts")),
+                  cons.skipped ? [h("b", {}, t("aff.gap")), h("span", {}, t("aff.skipped"))]
+                    : [h("b", {}, t("aff.gap")), h("span", {}, Number(cons.error_before).toFixed(3) + " → " + Number(cons.error_after).toFixed(3))],
+                  h("b", {}, t("aff.dims.valence")), h("span", {}, signed("valence", cons.state_before.valence) + " → " + signed("valence", cons.state_after.valence)),
+                  h("b", {}, t("aff.dims.regulatory_load")), h("span", {}, cons.state_before.regulatory_load.toFixed(2) + " → " + cons.state_after.regulatory_load.toFixed(2))),
+                h("p", { class: "hint", style: "margin-top:10px" }, t("aff.sleep_hint"))]
+                : h("p", { class: "muted" }, t("aff.no_sleep"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.memory")),
+              h("p", {}, t("aff.memory_text", { n: traced.length, of: S.memories.length })),
+              traced.length ? h("div", { class: "linkrow", style: "margin-top:10px" }, traced.slice(-8).reverse().map((m) =>
+                h("button", { class: "chip in link", title: t("aff.dims.valence") + " " + signed("valence", m.affect.v),
+                  onclick: () => { S.memId = m.id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory"); } }, m.title))) : null,
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.rules", { rules: a.rules }))))].filter(Boolean));
+      }
+      draw();
+      return { update() { if (S.affectStale && Date.now() - last > 900) load(); } };
     },
 
     milestones() {

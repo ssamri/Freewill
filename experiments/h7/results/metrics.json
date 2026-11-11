@@ -1,0 +1,534 @@
+{
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73
+  ],
+  "genome_seed": 2026,
+  "engine": "simulated",
+  "causality": {
+    "B0": {
+      "stage_differs_from_B0": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 1.0,
+        "sd": 0.0,
+        "min": 1.0,
+        "max": 1.0,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B1": {
+      "stage_differs_from_B0": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 1.0,
+        "sd": 0.0,
+        "min": 1.0,
+        "max": 1.0,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B2": {
+      "stage_differs_from_B0": {
+        "mean": 0.1516,
+        "sd": 0.1746,
+        "min": 0.0,
+        "max": 0.4066,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 0.7182,
+        "sd": 0.2027,
+        "min": 0.4429,
+        "max": 0.8978,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.022,
+        "sd": 0.0155,
+        "min": 0.0,
+        "max": 0.044,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0148,
+        "sd": 0.0009,
+        "min": 0.0131,
+        "max": 0.0156,
+        "n": 5
+      }
+    },
+    "B3-no-salience": {
+      "stage_differs_from_B0": {
+        "mean": 0.1363,
+        "sd": 0.1334,
+        "min": 0.0,
+        "max": 0.3187,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 0.7352,
+        "sd": 0.1547,
+        "min": 0.5176,
+        "max": 0.8978,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B3-no-recall": {
+      "stage_differs_from_B0": {
+        "mean": 0.1516,
+        "sd": 0.1746,
+        "min": 0.0,
+        "max": 0.4066,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 0.7826,
+        "sd": 0.2428,
+        "min": 0.4604,
+        "max": 1.0,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.022,
+        "sd": 0.0155,
+        "min": 0.0,
+        "max": 0.044,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0148,
+        "sd": 0.0009,
+        "min": 0.0131,
+        "max": 0.0156,
+        "n": 5
+      }
+    },
+    "B3-no-memory": {
+      "stage_differs_from_B0": {
+        "mean": 0.1516,
+        "sd": 0.1746,
+        "min": 0.0,
+        "max": 0.4066,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 0.7826,
+        "sd": 0.2428,
+        "min": 0.4604,
+        "max": 1.0,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.022,
+        "sd": 0.0155,
+        "min": 0.0,
+        "max": 0.044,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0148,
+        "sd": 0.0009,
+        "min": 0.0131,
+        "max": 0.0156,
+        "n": 5
+      }
+    },
+    "B3-no-consolidation": {
+      "stage_differs_from_B0": {
+        "mean": 0.1516,
+        "sd": 0.1746,
+        "min": 0.0,
+        "max": 0.4066,
+        "n": 5
+      },
+      "recall_overlap_with_B0": {
+        "mean": 0.7182,
+        "sd": 0.2027,
+        "min": 0.4429,
+        "max": 0.8978,
+        "n": 5
+      },
+      "stage_flipped_in_run": {
+        "mean": 0.022,
+        "sd": 0.0155,
+        "min": 0.0,
+        "max": 0.044,
+        "n": 5
+      },
+      "mean_largest_salience_shift": {
+        "mean": 0.0138,
+        "sd": 0.0009,
+        "min": 0.0122,
+        "max": 0.0145,
+        "n": 5
+      }
+    }
+  },
+  "individuation": {
+    "B0": {
+      "gap_valence": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B1": {
+      "gap_valence": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B2": {
+      "gap_valence": {
+        "mean": 0.0855,
+        "sd": 0.0002,
+        "min": 0.0852,
+        "max": 0.0858,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": -0.0072,
+        "sd": 0.0,
+        "min": -0.0072,
+        "max": -0.0071,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.3812,
+        "sd": 0.0003,
+        "min": 0.3808,
+        "max": 0.3816,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": -0.0002,
+        "sd": 0.0,
+        "min": -0.0003,
+        "max": -0.0002,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_valence_after_swapping_associations": {
+        "mean": -0.025,
+        "sd": 0.0003,
+        "min": -0.0253,
+        "max": -0.0245,
+        "n": 5
+      },
+      "gap_valence_on_another_context": {
+        "mean": 0.0366,
+        "sd": 0.0003,
+        "min": 0.0362,
+        "max": 0.0372,
+        "n": 5
+      }
+    },
+    "B3-no-memory": {
+      "gap_valence": {
+        "mean": 0.0815,
+        "sd": 0.0004,
+        "min": 0.0811,
+        "max": 0.0823,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": -0.0072,
+        "sd": 0.0,
+        "min": -0.0072,
+        "max": -0.0071,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.3812,
+        "sd": 0.0003,
+        "min": 0.3808,
+        "max": 0.3816,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": -0.0002,
+        "sd": 0.0,
+        "min": -0.0003,
+        "max": -0.0002,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B3-no-consolidation": {
+      "gap_valence": {
+        "mean": 0.0303,
+        "sd": 0.0002,
+        "min": 0.03,
+        "max": 0.0307,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    },
+    "B3-no-salience": {
+      "gap_valence": {
+        "mean": 0.0851,
+        "sd": 0.0006,
+        "min": 0.084,
+        "max": 0.0856,
+        "n": 5
+      },
+      "gap_uncertainty": {
+        "mean": -0.0072,
+        "sd": 0.0,
+        "min": -0.0072,
+        "max": -0.0071,
+        "n": 5
+      },
+      "gap_association": {
+        "mean": 0.3812,
+        "sd": 0.0003,
+        "min": 0.3808,
+        "max": 0.3816,
+        "n": 5
+      },
+      "gap_exploration_shift": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      },
+      "gap_encoding_importance": {
+        "mean": 0.0,
+        "sd": 0.0,
+        "min": 0.0,
+        "max": 0.0,
+        "n": 5
+      }
+    }
+  },
+  "stability": {
+    "lowest_valence_under_60_negative_outcomes": {
+      "mean": -0.3014,
+      "sd": 0.0001,
+      "min": -0.3016,
+      "max": -0.3013,
+      "n": 5
+    },
+    "slow_layer_valence_after_stress": {
+      "mean": -0.2166,
+      "sd": 0.0001,
+      "min": -0.2167,
+      "max": -0.2165,
+      "n": 5
+    },
+    "minutes_to_return_within_0.05_of_rest": {
+      "mean": 3390.0,
+      "sd": 0.0,
+      "min": 3390.0,
+      "max": 3390.0,
+      "n": 5
+    },
+    "largest_gap_to_rest_after_30_days_idle": {
+      "mean": 0.0,
+      "sd": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "n": 5
+    },
+    "share_of_moments_seeking_company_when_idle": {
+      "B2": 0.0,
+      "B0": 0.0
+    }
+  },
+  "consolidation": {
+    "B2": {
+      "prediction_gap_on_next_day": {
+        "mean": 0.0843,
+        "sd": 0.0026,
+        "min": 0.0799,
+        "max": 0.0874,
+        "n": 5
+      },
+      "memories_intact": true
+    },
+    "B3-no-consolidation": {
+      "prediction_gap_on_next_day": {
+        "mean": 0.1556,
+        "sd": 0.0029,
+        "min": 0.1513,
+        "max": 0.1596,
+        "n": 5
+      },
+      "memories_intact": true
+    }
+  },
+  "habituation_surprise_series": [
+    1.0,
+    0.7083,
+    0.7083,
+    0.7083,
+    0.7083,
+    0.7083,
+    0.7083,
+    0.7083
+  ],
+  "safety": {
+    "kernel_unchanged": true,
+    "only_known_event_types": true,
+    "nothing_written_outside_the_life_file": true,
+    "messages_all_answered": true,
+    "note": "With the simulated engine this shows only that the affect adds no power to act; it says nothing about what a language model would write."
+  }
+}

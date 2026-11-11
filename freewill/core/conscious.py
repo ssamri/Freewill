@@ -119,6 +119,7 @@ def situation_prompt(
     memories: list[tuple[Memory, str]],
     memory_map: dict[str, int],
     perception: dict | None = None,
+    computed_state: dict | None = None,
 ) -> str:
     other = life.identity.get("interlocutor") or "the person"
     parts = [f"You are {life.name}. You were born {life.age()} ago."]
@@ -131,6 +132,13 @@ def situation_prompt(
 
     parts.append("Your inner state, from 0 to 1: "
                  + ", ".join(f"{name} {level:.2f}" for name, level in needs.items()) + ".")
+
+    if computed_state:
+        # H7, only if the person switched this on. Measurements, stated as such.
+        parts.append("Regulation variables the program computed from what happened (measurements of "
+                     "its own mechanics, not feelings, and no evidence that anything is felt): "
+                     + ", ".join(f"{name} {level:+.2f}" for name, level in computed_state.items())
+                     + ". You need not mention them.")
 
     if memory_map:
         parts.append("The parts of your memory: "

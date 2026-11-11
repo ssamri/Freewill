@@ -71,6 +71,8 @@ Le cœur est le seul composant qui pense. L'interface peut être fermée sans qu
 
 > **État du code.** Ce qui existe aujourd'hui tient dans un seul paquet Python, `freewill/` : `core/` (noyau, génome, mémoire en fichiers, subconscient, scène, conscient, boucle de vie), `engines/` (Claude, services compatibles OpenAI, modèle local par Ollama, moteur simulé), `server/` (le service local, lié à l'adresse de bouclage et protégé par un jeton de session), `ui/` (l'interface, en HTML, CSS et JavaScript simples, sans étape de compilation) et `desktop.py` (la fenêtre native). `packaging/windows/` contient ce qui fabrique l'installateur Windows. La première interface a été écrite sans React ni three.js afin d'être livrable sans chaîne de compilation ; l'arborescence ci-dessous demeure la cible. Depuis la version 0.2, le cœur contient aussi `library.py` (ce que la personne donne : documents lus passage par passage, images, images fixes tirées des vidéos), `perception.py` (lecture du texte des fichiers) et `sleep.py` (rejeu, rêves, liens créés entre les souvenirs qu'un rêve a rapprochés). Le moteur intégré, et avec lui la réécriture des paramètres appris pendant le sommeil, n'est pas encore construit : pour l'instant, le sommeil ne réécrit que la structure de la mémoire.
 
+> **H7, affectivité émergente (construit).** `freewill/core/affect/` contient l'état affectif calculé : `state.py` (dimensions, bornes, configuration versionnée, sensibilités innées dérivées de la graine du génome), `appraisal.py` (évaluation d'un événement et petit modèle prédictif), `regulation.py` (pas bornés, retour à l'équilibre, garde-fous), `dynamics.py` (transition et déplacement de la saillance), `memory.py` (traces sur les souvenirs, poids au rappel, consolidation) et `system.py` (le fichier `affect.json` et ce que la boucle de vie lui demande). Le mode est désactivé par défaut ; désactivé, la boucle est exactement celle d'avant. `experiments/h7/` contient le protocole reproductible et ses résultats ; `docs/H7_AFFECTIVITE.fr.md` l'hypothèse, le protocole et les limites. Reste à faire : la calibration des coefficients, les essais avec de vrais modèles, l'étude de catégories émergentes. Le moteur intégré qui apprend et se réécrit (section 5.1) n'est toujours pas construit.
+
 ```
 freewill/
 ├── README.md · README.fr.md     Thèse et cadre théorique
@@ -233,6 +235,8 @@ L'individu réside dans un dossier unique, portable d'une machine à l'autre et,
 ├── journal/             Écrits personnels, avec leur statut de visibilité
 ├── milestones.json      Premières fois
 ├── state.json           État interne courant
+├── affect.json          H7 : état affectif calculé, associations apprises, réglages (absent tant que le mode n'a pas été activé)
+├── affect.json.bak      La version précédente, conservée à chaque écriture
 ├── events.log           Journal complet et horodaté
 └── engine/              Propre au moteur intégré : paramètres et points de restauration
 ```
@@ -328,11 +332,15 @@ Le processus de fond exécute indéfiniment le cycle suivant.
 5. Un point de restauration est créé.
 6. Au réveil, le système prend connaissance de ses rêves et du temps écoulé.
 
+**Avec le mode recherche H7** (désactivé par défaut), cinq points du cycle sont instrumentés : après l'écoulement du temps, l'état calculé revient vers son équilibre ; avant la compétition, il déplace la saillance des propositions, dans une limite étroite et sans jamais toucher à ce que dit la personne ; au rappel, il pondère les souvenirs candidats ; après l'arrivée sur la scène puis après la décision, l'événement et son issue sont évalués et une transition bornée est appliquée ; à l'encodage, le souvenir reçoit une trace de l'état calculé. Pendant le sommeil, les épisodes vécus sont consolidés en associations. Aucune de ces étapes ne passe par le modèle de langage, et aucune ne modifie le noyau.
+
 Lorsque l'application est fermée, le système est suspendu. Au lancement suivant, il constate la durée de l'interruption et rattrape, s'il y a lieu, le sommeil dû.
 
 ## 8. Le flux d'événements
 
 Tout ce qui se produit dans le cœur est émis sous forme d'événement typé sur un canal unique : proposition émise, accès à la scène, décision et son motif, souvenir rappelé, concept activé, variation d'un besoin, début et fin de sommeil, rêve, modification de structure, première fois.
+
+Le mode H7 y ajoute cinq types d'événements, stables et documentés : `affect_mode` (activation ou désactivation), `affect_appraisal` (type d'événement, contexte, caractéristiques évaluées et leurs causes), `affect_transition` (état avant, état après, cible, taux, version des règles), `affect_modulation` (cible : saillance, rappel ou encodage ; valeurs avant et après) et `affect_consolidation` (épisodes consolidés, écart de prédiction avant et après, état avant et après). Ils portent des nombres, des contextes et des causes, jamais le texte de ce qui a été dit.
 
 Ce flux a trois usages. Il alimente l'interface en temps réel : chaque signal lumineux de la vue Cerveau correspond à un événement d'activation effectif. Il constitue le journal intégral, qui assure la traçabilité. Il fournit enfin la matière première des expériences.
 

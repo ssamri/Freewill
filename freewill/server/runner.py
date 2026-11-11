@@ -19,7 +19,7 @@ from freewill.core.life import Life
 from freewill.core.loop import Being
 from freewill.engines.base import EngineError, make_engine
 
-HISTORY = 400  # events kept in memory for an interface that connects late
+HISTORY = 1500  # events kept in memory for an interface that connects late
 
 
 class Runner:
@@ -38,6 +38,7 @@ class Runner:
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._living = threading.Lock()  # held while a moment is being lived
         self.paused_reason: str | None = None
         self._sleep_now = False
         self.snapshot: dict = {}
@@ -103,6 +104,31 @@ class Runner:
         self._sleep_now = True
         self._wake.set()
 
+    # -- H7: the computed affective state -------------------------------------------
+
+    def affect(self) -> dict:
+        """The computed state, its history and what produced it. A measurement, not a feeling."""
+        if not self._living.acquire(timeout=5):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            return json.loads(json.dumps(self.being.affect.public()))
+        finally:
+            self._living.release()
+
+    def set_affect(self, enabled: bool | None = None, config: dict | None = None) -> dict:
+        """Switch the research mode, or change its bounded settings, between two moments."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            if config:
+                self.being.affect.configure(config)
+            if enabled is not None and enabled != self.being.affect.enabled:
+                self.being.set_affect(enabled)
+            self._refresh_snapshot()
+            return json.loads(json.dumps(self.being.affect.public()))
+        finally:
+            self._living.release()
+
     def configure(self, *, tempo: float | None = None, thoughts_per_hour: int | None = None) -> None:
         if tempo is not None:
             self.tempo = max(2.0, min(3600.0, float(tempo)))
@@ -144,7 +170,9 @@ class Runner:
                 next_thought = now + 5
                 continue
             try:
-                if self.being.tick() is not None:
+                with self._living:
+                    lived = self.being.tick()
+                if lived is not None:
                     thought_times.append(now)
                 backoff = 0.0
             except EngineError as error:
@@ -185,6 +213,7 @@ class Runner:
             "dreams": len(life.dreams.ids()),
             "library": [life.library.public(item) for item in life.library.items()],
             "weights": dict(being.subconscious.weights),
+            "affect": being.affect.summary(),
             "tempo": self.tempo,
             "thoughts_per_hour": self.thoughts_per_hour,
             "paused": self.paused_reason,

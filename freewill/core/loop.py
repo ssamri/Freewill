@@ -11,6 +11,8 @@ import random
 from collections import deque
 from datetime import datetime, timezone
 
+from freewill.core.affect import AffectError, AffectSystem, Observation, read_trace, stage_key
+from freewill.core.affect.appraisal import valid_key
 from freewill.core.conscious import Conscious, Decision
 from freewill.core.events import EventStream
 from freewill.core.kernel import Action, Guard, KernelViolation
@@ -52,9 +54,12 @@ class Being:
         *,
         events: EventStream | None = None,
         rng: random.Random | None = None,
+        clock=None,
     ) -> None:
         self.life = life
         self.engine = engine
+        # Where the time comes from. Experiments pass their own clock to be reproducible.
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.events = events or EventStream(life.path / "events.log")
         self.rng = rng or random.Random()
         self.guard = Guard()
@@ -77,10 +82,14 @@ class Being:
         self.active: deque[str] = deque(state.get("active", []), maxlen=6)
         # What was just on stage. A mind does not dwell on the same thing forever.
         self.staged: deque[str] = deque(maxlen=4)
-        self._last_tick = datetime.now(timezone.utc)
+        self._last_tick = self.clock()
         self._pending: list[Proposal] = []
         self.t = _T.get(life.language, _T["en"])
         self.sleep_requested = False
+        # H7: computed affective state. Off unless the life has it switched on; when off,
+        # none of the branches below is taken and the loop is exactly the earlier one.
+        self.affect = AffectSystem.load(life.path, life.genome.seed, self.events.emit)
+        self._context = "source:none"
 
         # Sense of time: notice how long the suspension lasted.
         last_seen = state.get("last_seen")
@@ -92,19 +101,34 @@ class Being:
                 self._pending.append(Proposal("return", template.format(duration=duration), 0.7))
                 self.needs.grow(min(away / 60, 600), curiosity=life.genome.curiosity,
                                 sociability=life.genome.sociability)
+                if self.affect.enabled:
+                    self.affect.elapse(away / 60)
         self.events.emit("awake", name=life.name, engine=engine.name,
                          kernel=self.guard.fingerprint[:12])
 
     # -- perception ------------------------------------------------------------
 
-    def hear(self, text: str, attachments: tuple[dict, ...] | list[dict] = ()) -> None:
+    def hear(self, text: str, attachments: tuple[dict, ...] | list[dict] = (),
+             appraisal: dict | None = None) -> None:
         """Something is said or given to the being. It will reach the stage, or not at once.
 
-        `attachments` are items already placed in its library.
+        `attachments` are items already placed in its library. `appraisal` is an optional
+        classification of the event for experiments (H7): a context `key` and an `outcome`
+        between -1 and 1. It is validated and bounded, and it goes through the same
+        regulation as everything else: it cannot set the computed state.
         """
         text = text.strip()
         if text or attachments:
-            self.inbox.append({"text": text, "waited": 0,
+            given = {}
+            if appraisal:
+                try:
+                    if appraisal.get("key") is not None:
+                        given["key"] = valid_key(appraisal["key"])
+                    if appraisal.get("outcome") is not None:
+                        given["outcome"] = Observation("outcome", "x", outcome=appraisal["outcome"]).outcome
+                except AffectError:
+                    given = {}
+            self.inbox.append({"text": text, "waited": 0, "appraisal": given,
                                "attachments": [item["id"] for item in attachments]})
             self.events.emit("heard", text=text,
                              attachments=[self.life.library.public(item) for item in attachments])
@@ -144,11 +168,14 @@ class Being:
     def tick(self) -> Decision | None:
         """Live one moment. Returns the decision taken, or None if none was."""
         self.guard.verify_kernel()
-        now = datetime.now(timezone.utc)
+        now = self.clock()
         minutes = (now - self._last_tick).total_seconds() / 60
         self._last_tick = now
         genome = self.life.genome
         self.needs.grow(minutes, curiosity=genome.curiosity, sociability=genome.sociability)
+        affect = self.affect if self.affect.enabled else None
+        if affect:  # time passed: the computed state returns towards equilibrium
+            affect.elapse(minutes)
 
         if self.needs.fatigue >= 1.0 or self.sleep_requested:
             self.sleep_requested = False
@@ -177,6 +204,8 @@ class Being:
                                       0.95 + 0.2 * message["waited"]))
 
         self._habituate(proposals)
+        if affect:  # causal effect 1: the computed state shifts salience, within a small cap
+            affect.modulate(proposals, self._trace_of)
         competition = compete(proposals)
         winner = competition.winner
         self.staged.append(winner.text)
@@ -202,10 +231,22 @@ class Being:
             if winner.source == "reading" and reading:
                 perception, images, _names = self._perceive([reading[0]["id"]])
 
+        # Causal effect 2: the computed state weighs the candidates of recall.
+        bias = affect.recall_bias() if affect else None
         memories = recall(self.life.memory, winner.text, CONSCIOUS, k=3, rng=self.rng,
-                          active=tuple(self.active))
+                          active=tuple(self.active), bias=bias)
         for memory, path in memories:
             self.events.emit("recall", id=memory.id, title=memory.title, path=path)
+
+        hint = (message or {}).get("appraisal") or {}
+        before = self.needs.to_dict()
+        if affect:  # the event that reached the stage is appraised, with what was recalled
+            self._context = hint.get("key") or stage_key(
+                winner.source, winner.text, bool(message and message.get("attachments")))
+            affect.observe(Observation(
+                "stage", self._context, text=winner.text, relevance=self._relevance(winner.source),
+                social=is_message, fatigue=self.needs.fatigue, waiting=len(self.inbox),
+                traces=affect.recalled(memories, bias)), now)
 
         try:
             decision = self.conscious.decide(
@@ -217,8 +258,13 @@ class Being:
                 memory_map=self.life.memory.map(),
                 perception=perception,
                 images=images,
+                computed_state=(affect.state.vector() if affect and affect.config.expose_to_engine else None),
             )
         except EngineError as error:
+            if affect:
+                affect.observe(Observation("error", self._context, success=False,
+                                           fatigue=self.needs.fatigue, waiting=len(self.inbox) + 1), now)
+                affect.commit(now)
             if is_message:  # do not lose what was said
                 self.dialogue.pop()
                 self.inbox.appendleft({**message, "waited": 0})
@@ -236,9 +282,39 @@ class Being:
             if winner.source == "reading" and decision.accepted:
                 self.needs.satisfy("curiosity", 0.3)
 
-        self._apply(winner, decision, memories)
+        refused = self._apply(winner, decision, memories)
+        if affect:  # what followed is appraised: was it welcomed, did it relieve a need
+            after = self.needs.to_dict()
+            relief = sum(max(0.0, before[name] - after[name]) for name in ("curiosity", "wonder", "company"))
+            affect.observe(Observation(
+                "refusal" if refused else "outcome", self._context, relief=min(1.0, relief),
+                accepted=decision.accepted, success=not refused, social=is_message or bool(decision.say),
+                outcome=hint.get("outcome"), fatigue=self.needs.fatigue, waiting=len(self.inbox)), now)
         self._save(now)
         return decision
+
+    def _relevance(self, source: str) -> float:
+        """How much a content touches a current need: the level of the need it speaks to."""
+        needs = self.needs
+        if source == "message":
+            return needs.company
+        if source.startswith("need:"):
+            return getattr(needs, source[5:], 0.3)
+        if source == "question":
+            return needs.wonder
+        if source == "reading":
+            return needs.curiosity
+        return 0.5 if source in ("return", "dream") else 0.3
+
+    def _trace_of(self, memory_id: str) -> dict | None:
+        try:
+            return read_trace(self.life.memory._load(memory_id, with_body=False))
+        except (OSError, ValueError, TypeError, KernelViolation):
+            return None
+
+    def set_affect(self, enabled: bool) -> None:
+        """Switch the H7 research mode on or off while the being lives. See AffectSystem.set_enabled."""
+        self.affect.set_enabled(enabled, self.clock())
 
     def _habituate(self, proposals: list[Proposal]) -> None:
         """Dampen what was on stage a moment ago, so attention moves on."""
@@ -252,8 +328,10 @@ class Being:
 
     # -- effects ---------------------------------------------------------------
 
-    def _apply(self, winner: Proposal, decision: Decision, memories) -> None:
+    def _apply(self, winner: Proposal, decision: Decision, memories) -> bool:
+        """Carry out the decision. Returns True if the kernel refused one of its effects."""
         life, is_message = self.life, winner.source == "message"
+        refused = False
         try:
             self.guard.check(Action.THINK if decision.accepted else Action.DISMISS)
             self.events.emit("decision", accepted=decision.accepted, reason=decision.reason,
@@ -298,14 +376,17 @@ class Being:
                 if is_message:
                     body = f"{winner.text}\n\n{body}" if decision.thought else winner.text
                 self.guard.check(Action.REMEMBER, body + decision.memory_summary)
-                memory = life.memory.add(Memory(
+                memory = Memory(
                     title=decision.memory_title[:120],
                     summary=decision.memory_summary[:300],
                     compartment=decision.memory_compartment,
                     body=body,
                     importance=0.7 if is_message else 0.5,
                     links=list(dict.fromkeys(self.active))[-3:],
-                ))
+                )
+                if self.affect.enabled:  # the trace of the computed state, and its weight on importance
+                    self.affect.encode(memory, self._context)
+                memory = life.memory.add(memory)
                 self.active.append(memory.id)
                 self.events.emit("remember", id=memory.id, title=memory.title)
                 if life.mark("first_memory"):
@@ -322,9 +403,11 @@ class Being:
                     self.events.emit("milestone", name="first_value")
         except KernelViolation as violation:
             self.events.emit("kernel_refusal", message=str(violation))
+            refused = True
 
         self.needs.after_thought(life.genome.sleep_need)
         life.state["thoughts"] = life.state.get("thoughts", 0) + 1
+        return refused
 
     def _sleep(self, now: datetime) -> None:
         """Sleep: replay and dream, link what the dreams brought together, let the rest fade."""
@@ -339,7 +422,9 @@ class Being:
         for _ in range(nights):
             cue = self.rng.choice(list(self.recent_thoughts)) if self.recent_thoughts else ""
             # Replay: the memories drawn tonight are strengthened by being relived.
-            memories = recall(store, cue, mix, k=min(3, count), rng=self.rng, active=tuple(self.active))
+            # With H7 on, memories carrying a negative trace are not favoured in replay.
+            memories = recall(store, cue, mix, k=min(3, count), rng=self.rng, active=tuple(self.active),
+                              bias=self.affect.recall_bias() if self.affect.enabled else None)
             if not memories:
                 break
             hint = {"kind": "dream", "language": life.language,
@@ -383,6 +468,8 @@ class Being:
                 faded += 1
             store.save(full)
         self.needs.fatigue = 0.0
+        if self.affect.enabled:  # consolidation of what was lived; trains no model
+            self.affect.sleep(now)
         self.events.emit("rest", faded=faded, dreams=dreams)
         self._save(now)
 
@@ -398,3 +485,5 @@ class Being:
             "last_seen": now.isoformat(timespec="seconds"),
         })
         self.life.save()
+        if self.affect.enabled:
+            self.affect.commit(now)

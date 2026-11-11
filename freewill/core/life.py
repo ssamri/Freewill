@@ -48,6 +48,7 @@ class Life:
         engine: dict | None = None,
         interlocutor: str | None = None,
         seed: int | None = None,
+        affect: bool = False,
     ) -> "Life":
         """Bring a new individual into being. Its temperament is drawn by lot."""
         path = Path(directory) / f"{name}.life"
@@ -75,6 +76,9 @@ class Life:
         write("values.json", [])
         write("milestones.json", {})
         write("state.json", {"needs": Needs().to_dict(), "thoughts": 0, "last_seen": _now()})
+        if affect:  # H7 research mode, off unless asked for
+            from freewill.core.affect import AffectSystem
+            AffectSystem.load(path, genome.seed).set_enabled(True)
         return cls(path)
 
     # -- persistence ---------------------------------------------------------

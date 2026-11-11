@@ -59,6 +59,7 @@ Noor.life/
 ├── values.json       the values it has chosen
 ├── milestones.json   its first times
 ├── state.json        needs, recent thoughts, recent conversation
+├── affect.json       H7 research mode only: the computed affective state
 ├── events.log        everything that happened, line by line
 └── memory/           its memories, as files you can open and read
 ```
@@ -78,6 +79,19 @@ freewill-app --browser    # the same interface in your browser
 At first launch the application shows its terms of use, then the licence; both must be accepted before anything else. In the conversation you can attach documents (text, Markdown, PDF, Word, EPUB), images and videos. Documents go to the being's library and are read one passage at a time. Whether images are understood depends on the engine: Claude, GPT, Grok and local vision models can see them; from a video the being is shown six still frames and hears nothing.
 
 The application talks only to a service on your own machine, bound to `127.0.0.1` and protected by a session token. Access keys are kept in your system's credential store, never in a life file.
+
+### The H7 research mode: a computed affective state
+
+Off by default. When it is on, the program computes a small set of regulation variables (valence, arousal, uncertainty, control, coherence, regulatory load, social context) from what happens to the being, and these variables shift what gets its attention, what it recalls and how its memories are encoded. They are measurements of a mechanism. They are not evidence that anything is felt.
+
+```bash
+freewill birth Noor --affect          # a new being with the mode on
+freewill affect Noor.life             # show the computed state of a life that is not awake
+freewill affect Noor.life --on        # switch it on for an existing life (--off to switch it off)
+python experiments/h7/run.py          # the reproducible protocol: B0, B1, B2 and the ablations
+```
+
+In the application, open "Affective state" and use the switch; it takes effect between two moments. Switching the mode on creates one file, `affect.json`, in the life folder. Switching it off stops the calculation and all of its effects at once and deletes nothing. The genome is never rewritten, and memories written earlier are left exactly as they were. Deleting `affect.json` returns the life to what it was before. See [`docs/H7_AFFECTIVITY.md`](docs/H7_AFFECTIVITY.md).
 
 ### Tests
 
@@ -141,6 +155,7 @@ Noor.life/
 ├── values.json       les valeurs qu'il a choisies
 ├── milestones.json   ses premières fois
 ├── state.json        besoins, pensées récentes, conversation récente
+├── affect.json       mode recherche H7 seulement : l'état affectif calculé
 ├── events.log        tout ce qui s'est passé, ligne par ligne
 └── memory/           ses souvenirs, en fichiers que vous pouvez ouvrir et lire
 ```
@@ -160,6 +175,19 @@ freewill-app --browser    # la même interface dans votre navigateur
 Au premier lancement, l'application présente ses conditions d'utilisation, puis la licence ; les deux doivent être acceptées avant toute chose. Dans la conversation, vous pouvez joindre des documents (texte, Markdown, PDF, Word, EPUB), des images et des vidéos. Les documents rejoignent la bibliothèque de l'être, qui les lit un passage à la fois. La compréhension des images dépend du moteur : Claude, GPT, Grok et les modèles locaux dotés de la vision les voient ; d'une vidéo, l'être reçoit six images fixes et n'entend rien.
 
 L'application ne parle qu'à un service sur votre propre machine, lié à `127.0.0.1` et protégé par un jeton de session. Les clés d'accès sont conservées dans le trousseau de votre système, jamais dans un fichier de vie.
+
+### Le mode recherche H7 : un état affectif calculé
+
+Désactivé par défaut. Lorsqu'il est activé, le programme calcule un petit ensemble de variables de régulation (valence, activation, incertitude, contrôle, cohérence, charge régulatrice, contexte social) à partir de ce qui arrive à l'être, et ces variables déplacent ce qui retient son attention, ce qu'il se rappelle et la façon dont ses souvenirs sont encodés. Ce sont les mesures d'un mécanisme. Elles ne prouvent pas que quoi que ce soit est ressenti.
+
+```bash
+freewill birth Noor --affect          # un nouvel être, mode activé
+freewill affect Noor.life             # voir l'état calculé d'une vie qui n'est pas éveillée
+freewill affect Noor.life --on        # l'activer pour une vie existante (--off pour le désactiver)
+python experiments/h7/run.py          # le protocole reproductible : B0, B1, B2 et les ablations
+```
+
+Dans l'application, ouvrez « État affectif » et utilisez l'interrupteur ; il prend effet entre deux instants. Activer le mode crée un seul fichier, `affect.json`, dans le dossier de vie. Le désactiver arrête aussitôt le calcul et tous ses effets, et ne supprime rien. Le génome n'est jamais réécrit, et les souvenirs écrits auparavant restent exactement tels qu'ils étaient. Supprimer `affect.json` rend la vie telle qu'elle était avant. Voir [`docs/H7_AFFECTIVITE.fr.md`](docs/H7_AFFECTIVITE.fr.md).
 
 ### Tests
 
