@@ -106,6 +106,16 @@
     const d = new Date(iso);
     return isNaN(d) ? "" : d.toLocaleString(S.lang, { dateStyle: "long", timeStyle: "short" });
   }
+  // The age is worded in the interface's language, whatever language the being was born in.
+  function ageOf(item) {
+    const born = Date.parse(item && item.born), words = tr("ages") || {};
+    if (!Number.isFinite(born)) return (item && item.age) || "";
+    const seconds = Math.max(0, (Date.now() - born) / 1000);
+    for (const [size, one, many] of [[86400, "day", "days"], [3600, "hour", "hours"], [60, "minute", "minutes"]]) {
+      if (seconds >= size) { const n = Math.floor(seconds / size); return n + " " + words[n === 1 ? one : many]; }
+    }
+    return words.moments;
+  }
   function sourceLabel(source) { return (tr("sources") || {})[source] || source; }
   function pct(x) { return Math.round(100 * Math.max(0, Math.min(1, x))) + " %"; }
   function bar(x) { return h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * Math.max(0, Math.min(1, x))) + "%" })); }
@@ -235,7 +245,7 @@
           card.append(h("div", { class: "section-title" }, t("welcome.who")));
           info.lives.forEach((life) => card.append(h("button", { class: "life-row", onclick: () => wake(life.name) },
             h("i", { class: "orb" }),
-            h("div", {}, h("b", {}, life.name), h("div", { class: "small muted" }, t("born_ago", { age: life.age }))),
+            h("div", {}, h("b", {}, life.name), h("div", { class: "small muted" }, t("born_ago", { age: ageOf(life) }))),
             h("span", { class: "tag neutral", style: "margin-left:auto" }, life.engine || ""))));
         }
         card.append(error, h("div", { class: "actions" },
@@ -586,7 +596,7 @@
     const snap = S.snap;
     if (!snap || !ui.view) return;
     ui.name.textContent = snap.name;
-    ui.age.textContent = t("born_ago", { age: snap.age });
+    ui.age.textContent = t("born_ago", { age: ageOf(snap) });
     ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
     ui.engine.title = ui.engine.textContent;
     ui.tickerText.textContent = S.ticker;

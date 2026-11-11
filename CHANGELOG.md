@@ -18,11 +18,14 @@ The Research Lab, and the first things a life can train. Nothing in this version
 - In the application: the Research Lab, a "Learning" page, the research settings, gauges in the top bar, export of traces.
 - English is the default language of the interface; French is chosen in the settings. A test fails if the two catalogues differ in keys, share an untranslated sentence or contain words of the other language.
 - `docs/research/IMPLEMENTATION_STATUS.md`: what exists, what was tested, what is missing.
+- The Brain view in 3D: memories and their saved links inside an illustrative brain outline, a core of translucent petals, an activity and inspection panel fed by the event log, and controls (rotate, motion, freeze view, reset). Three.js is shipped inside the package; there is a fallback without WebGL. See `docs/brain-view.md`.
+- A new icon for the application, the installer and the interface.
 
 **Changed**
 
 - Memories are dated by the being's own clock, so that time in an experiment is the experiment's time.
-- The file that lists a life's library is written atomically.
+- The file that lists a life's library is written atomically, and so are memory files and their indexes.
+- Recall events carry the strength and state already saved; the service reports the current mode (thinking, sleeping, waiting, paused, hourly limit, retrying).
 - `QUICKSTART.md` is now in English only; the French text is in `QUICKSTART.fr.md`.
 
 **Known limits**

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/freewill-icon.png" alt="Freewill" width="140"></p>
+
 # Freewill (expérimental)
 
 [English](README.md) · **Français**
@@ -187,7 +189,7 @@ Freewill prendra la forme d'une application gratuite, dont le code source est in
 - **Subconscient** : le flux des propositions en cours, retenues ou écartées.
 - **Mémoire** : ce qu'il retient, comment il l'organise, ce qu'il laisse s'estomper.
 - **Rêves** : le journal de ses nuits.
-- **Cerveau** : une représentation animée dans laquelle chaque nœud correspond à un souvenir ou à un concept réel, chaque signal lumineux à une activation effective. Ce n'est pas une illustration : c'est un instrument d'observation.
+- **Cerveau** : une représentation animée dans laquelle chaque nœud correspond à un souvenir ou à un concept réel, chaque signal lumineux à une activation effective. Ce n'est pas une illustration : c'est un instrument d'observation. Depuis la version 1.0, elle est dessinée en 3D : les souvenirs et leurs liens enregistrés dans une silhouette de cerveau illustrative, autour d'un noyau de pétales translucides, avec un panneau d'activité alimenté par le journal d'événements (voir [`docs/brain-view.fr.md`](docs/brain-view.fr.md)).
 - **État intérieur** : ses besoins du moment.
 - **Carnet de naissance** : ses premières fois (premier rêve, première question, premier refus).
 - **Journal** : ce qu'il écrit pour lui-même, et qu'il choisit de montrer ou non.

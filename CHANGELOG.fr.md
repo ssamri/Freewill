@@ -18,11 +18,14 @@ Le laboratoire de recherche, et les premières choses qu'une vie peut entraîner
 - Dans l'application : le laboratoire, une page « Apprentissage », les réglages de recherche, des jauges dans la barre du haut, l'export des traces.
 - L'anglais est la langue par défaut de l'interface ; le français se choisit dans les réglages. Un test échoue si les deux catalogues n'ont pas les mêmes clés, partagent une phrase non traduite ou contiennent des mots de l'autre langue.
 - `docs/research/IMPLEMENTATION_STATUS.fr.md` : ce qui existe, ce qui a été testé, ce qui manque.
+- La vue Cerveau en 3D : les souvenirs et leurs liens enregistrés dans une silhouette de cerveau illustrative, un noyau de pétales translucides, un panneau d'activité et d'inspection alimenté par le journal d'événements, et des commandes (rotation, mouvement, figer la vue, recentrer). Three.js est livré dans le paquet ; un rendu de secours existe sans WebGL. Voir `docs/brain-view.fr.md`.
+- Une nouvelle icône pour l'application, l'installateur et l'interface.
 
 **Modifié**
 
 - Les souvenirs sont datés par l'horloge propre de l'être, pour que le temps d'une expérience soit celui de l'expérience.
-- Le fichier qui liste la bibliothèque d'une vie est écrit de façon atomique.
+- Le fichier qui liste la bibliothèque d'une vie est écrit de façon atomique, de même que les fichiers de souvenirs et leurs index.
+- Les événements de rappel transmettent la force et l'état déjà enregistrés ; le service indique le mode en cours (pensée, sommeil, attente, pause, limite horaire, nouvel essai).
 - `QUICKSTART.md` est désormais en anglais seulement ; le texte français est dans `QUICKSTART.fr.md`.
 
 **Limites connues**

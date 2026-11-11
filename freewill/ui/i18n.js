@@ -5,6 +5,7 @@ window.I18N = {
            state: "Inner state", milestones: "Birth book", dreams: "Dreams", settings: "Settings" },
     soon: "soon", exp: "experimental",
     born_ago: "born {age} ago",
+    ages: { day: "day", days: "days", hour: "hour", hours: "hours", minute: "minute", minutes: "minutes", moments: "a few moments" },
     on_stage: "on stage",
     theme: "Switch between light and dark",
     paused: "Thinking is paused: {reason}. It will try again when you write.",
@@ -33,7 +34,7 @@ window.I18N = {
            states: { complete: "complete", condensed: "condensed", trace: "trace" } },
     brain: {
       title: "Memory & attention", observation: "Live observation", activity: "Activity & inspection", recorded: "From the event log", core: "Core",
-      legend: "The zones represent Freewill's functions, and compartments organise its memories. Memory connections come from saved links. Light follows actual events; node size reflects memory strength. The brain-shaped mesh is an illustration, not a scan or the engine's neural network.",
+      legend: "The zones represent Freewill's functions, and compartments organise its memories. Memory connections come from saved links. Light follows actual events; node size reflects memory strength. The brain-shaped mesh is an illustration, not a scan or the engine's neural network. The petals of the core are decorative; only their brightness follows the self's activity.",
       empty: "No memories yet. New points appear when {name} chooses what to keep.", self: "self",
       hint: "Drag to orbit · scroll to zoom · select a zone · click a memory to read it",
       asleep: "asleep", awake: "awake", memories: "memories", links: "Links", memory_links: "memory links", thoughts: "thoughts", stage: "on stage",
@@ -145,6 +146,7 @@ window.I18N = {
            state: "État intérieur", milestones: "Carnet de naissance", dreams: "Rêves", settings: "Réglages" },
     soon: "bientôt", exp: "expérimental",
     born_ago: "né il y a {age}",
+    ages: { day: "jour", days: "jours", hour: "heure", hours: "heures", minute: "minute", minutes: "minutes", moments: "quelques instants" },
     on_stage: "sur scène",
     theme: "Passer du clair au sombre",
     paused: "La pensée est en pause : {reason}. Elle reprendra quand vous écrirez.",
@@ -173,7 +175,7 @@ window.I18N = {
            states: { complete: "complet", condensed: "condensé", trace: "trace" } },
     brain: {
       title: "Mémoire et attention", observation: "Observation en direct", activity: "Activité et inspection", recorded: "Depuis le journal réel", core: "Noyau",
-      legend: "Les zones représentent les fonctions de Freewill, les compartiments organisent ses souvenirs. Les connexions entre souvenirs proviennent de liens enregistrés. La lumière suit les événements réels ; la taille reflète la force des souvenirs. La forme du cerveau est une illustration, pas un examen médical ni le réseau neuronal du moteur.",
+      legend: "Les zones représentent les fonctions de Freewill, les compartiments organisent ses souvenirs. Les connexions entre souvenirs proviennent de liens enregistrés. La lumière suit les événements réels ; la taille reflète la force des souvenirs. La forme du cerveau est une illustration, pas un examen médical ni le réseau neuronal du moteur. Les pétales du noyau sont décoratifs ; seule leur luminosité suit l'activité du soi.",
       empty: "Aucun souvenir encore. De nouveaux points apparaissent quand {name} choisit ce qu'il garde.", self: "soi",
       hint: "Glisser pour tourner · molette pour zoomer · sélectionner une zone · cliquer un souvenir pour le lire",
       asleep: "endormi", awake: "éveillé", memories: "souvenirs", links: "Liens", memory_links: "liens de mémoire", thoughts: "pensées", stage: "sur scène",

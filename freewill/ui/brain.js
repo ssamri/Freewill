@@ -206,6 +206,8 @@
     varying float vKind;
     void main() {
       if(vVisible<0.5) discard;
+      // The self is drawn by the petal mesh; its point stays for selection only.
+      if(vKind>1.5&&vKind<2.5) discard;
       float r=length(gl_PointCoord-0.5)*2.0;
       if(r>1.0) discard;
       vec3 base=mix(vColor,vColor*0.48,uLightTheme);
@@ -231,6 +233,111 @@
       }
     }
   `;
+
+  // The core is drawn as translucent petals rather than a flat disc. Its shape
+  // is decorative; only its brightness answers real events (decisions, sleep).
+  const CORE_VERTEX = `
+    uniform float uCoreTime;
+    attribute vec2 aPetal;
+    varying vec2 vPetal;
+    varying vec3 vNormalView;
+    varying vec3 vToEye;
+    void main() {
+      vPetal = aPetal;
+      // A slow breath along each petal; amplitude is zero when motion is off.
+      vec3 p = position + normal * sin(uCoreTime * 0.9 + aPetal.x * 3.2) * 0.012 * aPetal.x;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      vNormalView = normalize(normalMatrix * normal);
+      vToEye = normalize(-mv.xyz);
+      gl_Position = projectionMatrix * mv;
+    }
+  `;
+  const CORE_FRAGMENT = `
+    uniform float uCoreEnergy;
+    uniform float uLightTheme;
+    uniform float uCoreDim;
+    varying vec2 vPetal;
+    varying vec3 vNormalView;
+    varying vec3 vToEye;
+    void main() {
+      float u = vPetal.x, v = abs(vPetal.y);
+      float facing = abs(dot(normalize(vNormalView), normalize(vToEye)));
+      float rim = pow(1.0 - facing, 1.7);
+      float edge = smoothstep(0.87, 1.0, v) + smoothstep(0.95, 1.0, u) * 0.6;
+      vec3 rose = vec3(1.0, 0.50, 0.78), violet = vec3(0.52, 0.30, 1.0);
+      vec3 blue = vec3(0.22, 0.36, 1.0), cyan = vec3(0.30, 0.90, 1.0);
+      vec3 color = mix(rose, violet, smoothstep(0.02, 0.42, u));
+      color = mix(color, blue, smoothstep(0.38, 0.86, u) * 0.75);
+      color = mix(color, cyan, clamp(edge * 0.85 + rim * 0.55 * smoothstep(0.25, 1.0, u), 0.0, 1.0));
+      color = mix(color, vec3(1.0, 0.86, 0.92), edge * (1.0 - smoothstep(0.0, 0.5, u)) * 0.7);
+      float alpha = (0.20 + rim * 0.46 + edge * 0.70) * smoothstep(0.0, 0.07, u);
+      float lift = 1.0 + min(1.5, uCoreEnergy) * 0.45;
+      // On a pale background additive light vanishes: use denser, deeper petals.
+      color = mix(color * lift, mix(color * 0.80, color * 0.62, edge) * (1.0 + min(1.5, uCoreEnergy) * 0.2), uLightTheme);
+      alpha *= mix(1.0, 1.7, uLightTheme) * uCoreDim;
+      gl_FragColor = vec4(color, clamp(alpha, 0.0, 0.96));
+    }
+  `;
+  const HEART_VERTEX = `
+    uniform float uPixelRatio;
+    uniform float uCoreEnergy;
+    void main() {
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = min(220.0, 78.0 * uPixelRatio * (3.2 / -mv.z) * (1.0 + min(1.5, uCoreEnergy) * 0.22));
+    }
+  `;
+  const HEART_FRAGMENT = `
+    uniform float uCoreEnergy;
+    uniform float uLightTheme;
+    uniform float uCoreDim;
+    void main() {
+      float r = length(gl_PointCoord - 0.5) * 2.0;
+      if (r > 1.0) discard;
+      float glow = exp(-r * r * 7.0), hot = exp(-r * r * 42.0);
+      vec3 color = mix(vec3(1.0, 0.42, 0.72), vec3(1.0, 0.95, 0.90), hot);
+      color = mix(color, mix(vec3(0.93, 0.30, 0.62), vec3(1.0, 0.80, 0.86), hot), uLightTheme);
+      float alpha = (glow * mix(0.50, 0.85, uLightTheme) + hot * 0.9) * (0.75 + min(1.5, uCoreEnergy) * 0.35) * uCoreDim;
+      gl_FragColor = vec4(color, clamp(alpha, 0.0, 1.0));
+    }
+  `;
+  // Six outer and three inner petals, each a curved, twisted ribbon.
+  function buildPetals() {
+    const rng = random(77123), US = 30, VS = 12;
+    const position = [], petal = [], index = [];
+    const add = (k, count, inner) => {
+      const phase = k / count * Math.PI * 2 + (inner ? 0.5 : 0) + (rng() - 0.5) * 0.22;
+      const length = inner ? 0.52 + rng() * 0.10 : 0.90 + rng() * 0.22;
+      const width = inner ? 0.24 : 0.40 + rng() * 0.08;
+      const lift = inner ? 0.85 + rng() * 0.2 : 0.16 + (k % 2) * 0.36 + rng() * 0.14;
+      const swirl = 0.62 + rng() * 0.25, twist = (inner ? 0.5 : 0.65) + rng() * 0.35, cup = 0.55 + rng() * 0.35;
+      const base = position.length / 3;
+      for (let i = 0; i <= US; i++) for (let j = 0; j <= VS; j++) {
+        const u = i / US, v = j / VS * 2 - 1;
+        // A broad, rounded lobe: narrow at the heart, widest past the middle.
+        const half = width * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.62)), 0.5) * (0.42 + 0.58 * u);
+        const angle = phase + swirl * u, reach = length * u;
+        const elevation = lift * (1 - 0.55 * u);
+        const radial = [Math.cos(angle), Math.sin(angle), 0], tangent = [-Math.sin(angle), Math.cos(angle), 0];
+        const roll = twist * (u - 0.25), side = v * half;
+        const across = [tangent[0] * Math.cos(roll), tangent[1] * Math.cos(roll), Math.sin(roll)];
+        const hollow = cup * side * side;
+        position.push(
+          radial[0] * reach * Math.cos(elevation) + across[0] * side,
+          radial[1] * reach * Math.cos(elevation) + across[1] * side,
+          reach * Math.sin(elevation) + across[2] * side + hollow - 0.06);
+        petal.push(u, v);
+      }
+      for (let i = 0; i < US; i++) for (let j = 0; j < VS; j++) {
+        const a = base + i * (VS + 1) + j, b = a + VS + 1;
+        index.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    };
+    for (let k = 0; k < 6; k++) add(k, 6, false);
+    for (let k = 0; k < 3; k++) add(k, 3, true);
+    return { position: new Float32Array(position), petal: new Float32Array(petal), index };
+  }
+  let petalCache;
 
   function fallback(canvas, tip, labels, options) {
     if (!window.BrainCanvas) throw new Error("Brain renderer is unavailable");
@@ -275,11 +382,12 @@
       this.uniforms={
         uTime:{value:0},uPixelRatio:{value:this.renderer.getPixelRatio()},uAmbient:{value:0.76},
         uBaseColor:{value:new THREE.Color(0.10,0.56,0.76)},uLineOpacity:{value:0.19},uNodeOpacity:{value:1},uLightTheme:{value:0},
+        uCoreTime:{value:0},uCoreEnergy:{value:0},uCoreDim:{value:1},
         uWaveOrigin:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector4(0,0,0,-1000))},
         uWaveColor:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector4())},
         uWaveShape:{value:Array.from({length:MAX_WAVES},()=>new THREE.Vector2(1,1))},
       };
-      this.buildTissue(); this.buildFixed(); this.buildSignalPool(); this.rebuildNodes();
+      this.buildTissue(); this.buildFixed(); this.buildCore(); this.buildSignalPool(); this.rebuildNodes();
       this.labelLayer=document.createElement("div"); this.labelLayer.className="brain-world-labels";
       Object.assign(this.labelLayer.style,{position:"absolute",inset:"0",pointerEvents:"none",overflow:"hidden"});
       this.labelLayer.setAttribute("aria-hidden","true"); canvas.parentElement.appendChild(this.labelLayer);
@@ -327,6 +435,21 @@
       const f=this.geometry();this.attribute(f,"position",new Float32Array(tissue.fibres),3);
       this.tissueLines=new THREE.LineSegments(f,this.material({vertexShader:FIBRE_VERTEX,fragmentShader:FIBRE_FRAGMENT}));
       this.scene.add(this.tissueLines);
+    }
+    buildCore() {
+      const THREE=this.THREE,shape=petalCache||(petalCache=buildPetals()),g=this.geometry();
+      this.attribute(g,"position",shape.position,3);this.attribute(g,"aPetal",shape.petal,2);
+      g.setIndex(shape.index);g.computeVertexNormals();
+      this.coreMaterial=this.material({vertexShader:CORE_VERTEX,fragmentShader:CORE_FRAGMENT,side:THREE.DoubleSide});
+      this.corePetals=new THREE.Mesh(g,this.coreMaterial);this.corePetals.renderOrder=5;
+      const h=this.geometry();this.attribute(h,"position",new Float32Array([0,0,0.02]),3);
+      this.heartMaterial=this.material({vertexShader:HEART_VERTEX,fragmentShader:HEART_FRAGMENT});
+      this.coreHeart=new THREE.Points(h,this.heartMaterial);this.coreHeart.renderOrder=5;this.coreHeart.frustumCulled=false;
+      this.core=new THREE.Group();this.core.add(this.corePetals,this.coreHeart);
+      this.core.position.set(...this.nodes.get("@self").p);this.core.scale.setScalar(0.27);
+      // Open towards the initial camera, slightly tilted, as a flower seen from above.
+      this.core.lookAt(this.camera.position.clone().add(new THREE.Vector3(0.4,1.1,0)));
+      this.coreSpin=0;this.scene.add(this.core);
     }
     buildFixed() {
       this.nodes.set("@self",{id:"@self",kind:"self",title:this.labels.self||"Self",p:[0,0.08,0],color:SELF_COLOR,size:116,flare:-100});
@@ -548,6 +671,7 @@
         object.material.blending=this.dark?THREE.AdditiveBlending:THREE.NormalBlending;object.material.needsUpdate=true;
       }
       this.graphMaterial.blending=this.dark?THREE.AdditiveBlending:THREE.NormalBlending;this.graphMaterial.needsUpdate=true;
+      for(const m of [this.coreMaterial,this.heartMaterial]){m.blending=this.dark?THREE.AdditiveBlending:THREE.NormalBlending;m.needsUpdate=true;}
     }
     info(node) {
       const data={kind:node.kind,id:node.id,title:node.title};
@@ -581,8 +705,10 @@
       const core=items.find(item=>item.node.kind==="self");
       if(core&&core.z<1){
         // Leave the central orb and its rings free of title collisions.
-        occupied.push({x:core.x-65,y:core.y-65,w:130,h:130});
-        show(core,{x:clamp(core.x-78,16,this.w-172),y:core.y+62,w:156,h:30});
+        // The petals' size on screen follows the camera distance.
+        const reach=clamp(.31*this.h/(2*Math.tan(this.camera.fov*Math.PI/360)*this.camera.position.distanceTo(this.core.position)),40,this.h*.4);
+        occupied.push({x:core.x-reach,y:core.y-reach,w:reach*2,h:reach*2});
+        show(core,{x:clamp(core.x-78,16,this.w-172),y:Math.min(core.y+reach+6,this.h-90),w:156,h:30});
       }
       const memories=items.filter(item=>item.node.kind==="memory"&&item.z<1&&item.z>-1);
       memories.sort((a,b)=>{
@@ -671,6 +797,12 @@
         energies[node.index]=clamp(level,0,2);
       }
       this.nodePoints.geometry.attributes.aEnergy.needsUpdate=true;
+      // The core turns and breathes as decoration; its light is the self's real level.
+      const selfNode=this.nodes.get("@self");
+      this.uniforms.uCoreEnergy.value=selfNode?energies[selfNode.index]:0;
+      this.uniforms.uCoreDim.value=this.asleep?.62:1;
+      if(motion&&!paused){this.coreSpin+=dt*(this.asleep?.05:.16);this.uniforms.uCoreTime.value=this.time;}
+      this.corePetals.rotation.z=this.coreSpin;
       this.updateSignals();
       this.layoutLabels();
       this.renderer.render(this.scene,this.camera);

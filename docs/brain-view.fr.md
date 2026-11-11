@@ -1,5 +1,7 @@
 # La vue Cerveau
 
+[English](brain-view.md) · **Français**
+
 La vue représente la mémoire et l'attention de Freewill dans un volume Three.js.
 Sa silhouette anatomique vient du modèle de Neural Network Prototype, utilisé
 sous licence MIT. Le réseau affiché ne représente pas les neurones du modèle de
@@ -26,8 +28,11 @@ La vue ne crée ni souvenir, ni association persistante, ni activité cognitive.
 L'historique peut être lu dans le panneau ; il ne rejoue pas une activité passée
 comme si elle venait de se produire.
 
-Le noyau central possède une forme pleine et des anneaux violets, avec une
-étiquette persistante. Les souvenirs restent visibles comme points cerclés et
+Le noyau central (« Noyau · soi ») est dessiné en volume : des pétales
+translucides bleus, violets et roses autour d'un cœur lumineux, sur le modèle de
+l'icône de Freewill. Sa forme, sa lente rotation et sa respiration sont
+décoratives ; sa luminosité suit le niveau réel du soi (décisions, sommeil). Il
+garde une étiquette persistante et reste sélectionnable. Les souvenirs restent visibles comme points cerclés et
 contrastés ; plusieurs titres sont présentés sans survol, avec priorité aux
 souvenirs récemment rappelés. Les repères évitent les recouvrements et les titres
 viennent des données enregistrées. Le tissu de fond reste plus discret que ces
