@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -112,6 +113,25 @@ class MemoryStore:
 
     # -- writing -------------------------------------------------------------
 
+    def _write_text(self, path: Path, text: str) -> None:
+        """Publish a whole file at once, keeping partial writes out of readers."""
+        path = Guard.check_path(path, self.root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary: Path | None = None
+        try:
+            # The temporary file stays beside its destination for atomic
+            # replacement, and its suffix keeps it out of memory scans.
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=path.parent,
+                prefix=f".{path.name}.", suffix=".tmp", delete=False,
+            ) as handle:
+                temporary = Path(handle.name)
+                handle.write(text)
+            temporary.replace(path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+
     def add(self, memory: Memory) -> Memory:
         """Write a new memory and refresh the indexes. Returns it with its id."""
         memory.compartment = self._compartment_slug(memory.compartment)
@@ -127,8 +147,7 @@ class MemoryStore:
 
     def save(self, memory: Memory) -> None:
         path = self._path(memory.id)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_render(memory), encoding="utf-8")
+        self._write_text(path, _render(memory))
         self._write_indexes()
 
     def forget(self, memory_id: str) -> None:
@@ -174,9 +193,8 @@ class MemoryStore:
                 name = memory.id.rsplit("/", 1)[-1]
                 lines.append(f"- [{memory.title}]({name}.md): {memory.summary}")
             index = self.root / compartment / "index.md"
-            index.parent.mkdir(parents=True, exist_ok=True)
-            index.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        (self.root / "index.md").write_text("\n".join(top) + "\n", encoding="utf-8")
+            self._write_text(index, "\n".join(lines) + "\n")
+        self._write_text(self.root / "index.md", "\n".join(top) + "\n")
 
     def map(self) -> dict[str, int]:
         """The top level of the index: compartments and how much each holds."""

@@ -584,6 +584,131 @@ def test_sleep_without_memories_has_no_dream(tmp_path):
     assert life.dreams.all() == []
 
 
+@pytest.mark.parametrize("phase", ("conscious", "dream"))
+def test_recall_events_include_the_strength_already_saved_on_disk(tmp_path, phase):
+    life = Life.birth(tmp_path, "Noor", seed=5)
+    memory = life.memory.add(Memory("The sea", "A memory of the sea.", strength=0.3))
+    being = Being(life, SimulatedEngine(seed=1), rng=random.Random(4))
+    seen = []
+
+    def observe(event):
+        if event.type == "recall":
+            saved = life.memory.open(event.data["id"])
+            seen.append(event.data)
+            assert event.data["strength"] == saved.strength
+            assert event.data["state"] == saved.state
+
+    being.events.subscribe(observe)
+    if phase == "dream":
+        being.sleep_requested = True
+    else:
+        being.hear("Tell me about the sea.")
+    being.tick()
+    assert seen and all(event["phase"] == phase for event in seen)
+    assert seen[0]["id"] == memory.id and seen[0]["strength"] > 0.3
+
+
+def test_runner_snapshot_reports_sleep_while_the_dream_engine_is_pending(tmp_path, monkeypatch):
+    from threading import Event
+
+    from freewill.server.runner import Runner
+
+    life = Life.birth(tmp_path, "Noor", seed=5)
+    life.memory.add(Memory("The sea", "A memory of the sea.", strength=0.3))
+    runner = Runner(life.path)
+    entered, release = Event(), Event()
+
+    class DreamEngine:
+        def decide(self, *args, **kwargs):
+            entered.set()
+            assert release.wait(5), "the test did not release the dream engine"
+            return {"title": "The sea", "dream": "Waves pass.", "residue": ""}
+
+    runner.being.engine = DreamEngine()
+    scans = []
+    original_map = runner.life.memory.map
+
+    def count_scan():
+        scans.append(True)
+        return original_map()
+
+    monkeypatch.setattr(runner.life.memory, "map", count_scan)
+    runner.sleep()
+    runner.start()
+    try:
+        assert entered.wait(5), "the runner never entered its dream"
+        assert runner.snapshot["sleeping"] is True
+        assert runner.snapshot["activity"] == "sleeping"
+        assert scans == []  # live activity does not rescan the memory store
+        events = runner.events_since(0, timeout=0)
+        assert any(event["type"] == "sleep" for event in events)
+        assert any(event["type"] == "recall" and event["data"]["phase"] == "dream"
+                   for event in events)
+    finally:
+        release.set()
+        runner.stop()
+    assert runner.snapshot["sleeping"] is False
+    assert runner.snapshot["activity"] == "waiting"
+    assert scans  # the complete snapshot is refreshed when the tick finishes
+
+    # Replayed history must never turn an awake runner back into a sleeper.
+    reconnected = Runner(life.path)
+    assert any(event["type"] == "sleep" and event["past"]
+               for event in reconnected.events_since(0, timeout=0))
+    assert reconnected.snapshot["sleeping"] is False
+    assert reconnected.snapshot["activity"] == "waiting"
+
+
+def test_runner_keeps_thinking_until_the_decision_has_finished(tmp_path):
+    from threading import Event
+
+    from freewill.server.runner import Runner
+
+    runner = Runner(Life.birth(tmp_path, "Noor", seed=5).path)
+    entered, release = Event(), Event()
+
+    def pending_decision(event):
+        if event.type == "decision":
+            entered.set()
+            assert release.wait(5), "the test did not release the pending decision"
+
+    runner.being.events.subscribe(pending_decision)
+    runner.hear("Hello.")
+    runner.start()
+    try:
+        assert entered.wait(5), "the runner never reached its decision"
+        assert runner.snapshot["activity"] == "thinking"
+        assert runner.snapshot["sleeping"] is False
+    finally:
+        release.set()
+        runner.stop()
+    assert runner.snapshot["activity"] == "waiting"
+
+
+@pytest.mark.parametrize("activity", ("paused", "retrying", "budget"))
+def test_runner_snapshot_distinguishes_errors_and_exhausted_budget(tmp_path, activity):
+    from freewill.server.runner import Runner
+
+    runner = Runner(Life.birth(tmp_path, "Noor", seed=5).path,
+                    thoughts_per_hour=0 if activity == "budget" else 120)
+
+    class FailingEngine:
+        def decide(self, *args, **kwargs):
+            raise EngineError("Unavailable.", retryable=activity == "retrying")
+
+    if activity != "budget":
+        runner.being.conscious.engine = FailingEngine()
+        runner.hear("Hello.")
+    runner.start()
+    try:
+        with runner._changed:
+            assert runner._changed.wait_for(
+                lambda: runner.snapshot.get("activity") == activity, timeout=5)
+        assert runner.snapshot["sleeping"] is False
+    finally:
+        runner.stop()
+
+
 # -- consent, attachments and dreams through the service --------------------------
 
 def test_nothing_starts_before_the_terms_and_the_licence_are_accepted(tmp_path):

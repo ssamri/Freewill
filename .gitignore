@@ -3,6 +3,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .venv/
+node_modules/
 build/
 dist/
 # Life files are individuals, not source code.

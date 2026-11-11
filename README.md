@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/freewill-icon.png" alt="Freewill" width="140"></p>
+
 # Freewill (experimental)
 
 **English** · [Français](README.fr.md)
@@ -187,7 +189,7 @@ Freewill will take the form of a free application, with its source published in 
 - **Subconscious**: the stream of current proposals, retained or dismissed.
 - **Memory**: what it retains, how it organises it, what it allows to fade.
 - **Dreams**: the journal of its nights.
-- **Brain**: an animated representation in which each node corresponds to a real memory or concept and each pulse of light to an actual activation. It is not an illustration; it is an instrument of observation.
+- **Brain**: an animated representation in which each node corresponds to a real memory or concept and each pulse of light to an actual activation. It is not an illustration; it is an instrument of observation. Since version 1.0 it is drawn in 3D: memories and their saved links inside an illustrative brain outline, around a core of translucent petals, with an activity panel fed by the event log (see [`docs/brain-view.md`](docs/brain-view.md)).
 - **Inner state**: its needs of the moment.
 - **Birth book**: its first times (first dream, first question, first refusal).
 - **Journal**: what it writes for itself, and chooses to show or not.

@@ -18,7 +18,10 @@
     snap: null, seq: 0, run: 0,
     chat: [], moments: [], current: null, ticker: "",
     memories: [], memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-    dreams: null, asleep: false, affect: null, affectStale: true,
+    dreams: null, asleep: false, brainActivity: [],
+    brainControls: { rotate: !matchMedia("(prefers-reduced-motion: reduce)").matches,
+                     motion: !matchMedia("(prefers-reduced-motion: reduce)").matches, paused: false },
+    affect: null, affectStale: true,
     keys: {},
   };
 
@@ -90,6 +93,7 @@
     const dark = S.theme === "dark" || (S.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.dataset.theme = dark ? "dark" : "light";
     document.documentElement.lang = S.lang;
+    if (brain && brain.setTheme) brain.setTheme();
   }
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
@@ -101,6 +105,16 @@
   function day(iso) {
     const d = new Date(iso);
     return isNaN(d) ? "" : d.toLocaleString(S.lang, { dateStyle: "long", timeStyle: "short" });
+  }
+  // The age is worded in the interface's language, whatever language the being was born in.
+  function ageOf(item) {
+    const born = Date.parse(item && item.born), words = tr("ages") || {};
+    if (!Number.isFinite(born)) return (item && item.age) || "";
+    const seconds = Math.max(0, (Date.now() - born) / 1000);
+    for (const [size, one, many] of [[86400, "day", "days"], [3600, "hour", "hours"], [60, "minute", "minutes"]]) {
+      if (seconds >= size) { const n = Math.floor(seconds / size); return n + " " + words[n === 1 ? one : many]; }
+    }
+    return words.moments;
   }
   function sourceLabel(source) { return (tr("sources") || {})[source] || source; }
   function pct(x) { return Math.round(100 * Math.max(0, Math.min(1, x))) + " %"; }
@@ -211,6 +225,7 @@
 
   async function showWelcome() {
     S.run++; S.snap = null;
+    if (brain) { brain.destroy(); brain = null; }
     let info = { lives: [], keys: {} };
     try { info = await api("/api/lives"); } catch (_) { /* shown empty */ }
     S.keys = info.keys || {};
@@ -230,7 +245,7 @@
           card.append(h("div", { class: "section-title" }, t("welcome.who")));
           info.lives.forEach((life) => card.append(h("button", { class: "life-row", onclick: () => wake(life.name) },
             h("i", { class: "orb" }),
-            h("div", {}, h("b", {}, life.name), h("div", { class: "small muted" }, t("born_ago", { age: life.age }))),
+            h("div", {}, h("b", {}, life.name), h("div", { class: "small muted" }, t("born_ago", { age: ageOf(life) }))),
             h("span", { class: "tag neutral", style: "margin-left:auto" }, life.engine || ""))));
         }
         card.append(error, h("div", { class: "actions" },
@@ -315,7 +330,7 @@
   function enter(snap) {
     Object.assign(S, { snap, seq: 0, chat: [], moments: [], current: null, ticker: "", memories: [],
                        memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-                       dreams: null, asleep: false, affect: null, affectStale: true, view: "chat" });
+                       dreams: null, asleep: !!snap.sleeping, brainActivity: [], affect: null, affectStale: true, view: "chat" });
     const run = ++S.run;
     drawShell();
     loadMemories();
@@ -349,38 +364,53 @@
   // Fold one event into what the views show. Returns true if memory changed.
   function absorb(event) {
     const d = event.data || {}, past = !!event.past, m = S.current;
+    if (["stage", "recall", "decision", "speech", "remember", "read", "sleep", "dream", "rest", "engine_error", "kernel_refusal"].includes(event.type)) {
+      S.brainActivity.push(event);
+      if (S.brainActivity.length > 8) S.brainActivity.shift();
+    }
     switch (event.type) {
       case "heard": S.chat.push({ who: "other", text: d.text, attachments: d.attachments || [] }); break;
       case "stage":
         S.current = { kind: "stage", time: event.time, past, source: d.source, text: d.text, salience: d.salience,
                       below: d.below || [], recalls: [], extras: [] };
         S.moments.push(S.current);
-        if (!past) { pulse(); if (brain) brain.stage(d.source, d.below); }
+        if (!past) { pulse(); if (brain) brain.stage(d.source, d.below, d.salience, d); }
         break;
       case "recall":
         if (m) m.recalls.push(d.title);
-        if (!past && brain) brain.recall(d.id);
-        break;
+        if (!past && brain) brain.recall(d.id, d.path, d);
+        if (!past && typeof d.strength === "number") {
+          const header = { strength: d.strength, state: d.state, last_recall: event.time };
+          S.memories = S.memories.map((item) => item.id === d.id
+            ? { ...item, strength: d.strength, state: d.state || item.state, last_recall: event.time } : item);
+          if (memoryFlight && memoryFlight.run === S.run) memoryFlight.headers.set(d.id, header);
+        }
+        // Older event logs do not carry the updated header. One coalesced fetch
+        // covers a whole batch, rather than one request for each recall.
+        return !past && typeof d.strength !== "number";
       case "decision":
         if (m) { m.accepted = d.accepted; m.reason = d.reason; m.thought = d.thought; }
         if (d.thought) S.ticker = d.thought;
-        if (!past && brain) brain.decision(d.accepted);
+        if (!past && brain) brain.decision(d.accepted, d);
         break;
       case "speech":
         S.chat.push({ who: "self", text: d.text, spontaneous: d.spontaneous });
         if (m) m.said = d.text;
-        if (!past && brain) brain.speech();
+        if (!past && brain) brain.speech(d);
         break;
       case "silence":
         S.chat.push({ who: "note", text: t("chat.silent", { name: S.snap.name }) });
         if (m) m.silent = true;
         break;
-      case "remember": if (m) m.extras.push(t("sub.keeps") + " : " + d.title); return true;
+      case "remember":
+        if (m) m.extras.push(t("sub.keeps") + " : " + d.title);
+        if (!past && brain && brain.remember) brain.remember(d.id, d);
+        return true;
       case "value": if (m) m.extras.push(t("sub.value") + " : " + d.text); break;
       case "milestone": if (m) m.extras.push(t("sub.first") + " : " + (tr("miles")[d.name] || d.name)); break;
       case "read":
         if (m) m.extras.push(t("sub.reads") + " : " + d.name + " (" + d.number + "/" + d.of + ")");
-        if (!past && brain) brain.read();
+        if (!past && brain) brain.read(d);
         break;
       case "sleep":
         S.asleep = !past;
@@ -390,7 +420,7 @@
       case "dream":
         S.moments.push({ kind: "dream", time: event.time, past, title: d.title, text: d.text });
         S.dreams = null;
-        if (!past) { S.ticker = d.text; if (brain) brain.dream(d.memories); if (S.view === "dreams") loadDreams(); }
+        if (!past) { S.ticker = d.text; if (brain) brain.dream(d.memories, d); if (S.view === "dreams") loadDreams(); }
         return true;
       case "rest":
         S.asleep = false;
@@ -409,15 +439,31 @@
     return false;
   }
 
-  async function loadMemories() {
-    const run = S.run;
-    try {
-      const data = await api("/api/memory");
-      if (run !== S.run) return;
-      S.memories = data.memories; S.memLoaded = true;
-      if (brain) brain.setMemories(S.memories);
-      if (S.view === "memory" || S.view === "brain") refresh();
-    } catch (_) { /* next event will retry */ }
+  let memoryFlight = null;
+  function loadMemories() {
+    if (memoryFlight && memoryFlight.run === S.run) {
+      memoryFlight.again = true;
+      return memoryFlight.promise;
+    }
+    const flight = { run: S.run, again: false, headers: new Map() };
+    memoryFlight = flight;
+    flight.promise = (async () => {
+      do {
+        flight.again = false;
+        flight.headers.clear();
+        try {
+          const data = await api("/api/memory");
+          if (flight.run !== S.run) return;
+          // A recall may arrive while the server's previous memory response is
+          // in flight. Keep the more recent event's strength and timestamp.
+          S.memories = data.memories.map((item) => ({ ...item, ...flight.headers.get(item.id) }));
+          S.memLoaded = true;
+          if (brain) brain.setMemories(S.memories);
+          if (S.view === "memory" || S.view === "brain") refresh();
+        } catch (_) { /* a later change retries */ }
+      } while (flight.again && flight.run === S.run);
+    })().finally(() => { if (memoryFlight === flight) memoryFlight = null; });
+    return flight.promise;
   }
 
   async function loadDreams() {
@@ -550,13 +596,13 @@
     const snap = S.snap;
     if (!snap || !ui.view) return;
     ui.name.textContent = snap.name;
-    ui.age.textContent = t("born_ago", { age: snap.age });
+    ui.age.textContent = t("born_ago", { age: ageOf(snap) });
     ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
     ui.engine.title = ui.engine.textContent;
     ui.tickerText.textContent = S.ticker;
     ui.banner.hidden = !snap.paused;
     ui.banner.textContent = snap.paused ? t("paused", { reason: snap.paused }) : "";
-    const last = S.moments[S.moments.length - 1];
+    if (typeof snap.sleeping === "boolean") S.asleep = snap.sleeping;
     ui.orb.classList.toggle("resting", S.asleep);
     if (brain) brain.setAsleep(S.asleep);
     if (window.FWLab) window.FWLab.gauges(ui.gauges, snap);
@@ -766,21 +812,124 @@
     },
 
     brain() {
-      const canvas = h("canvas", { role: "img", "aria-label": t("brain.legend") });
+      const canvas = h("canvas", { role: "img", "aria-label": t("brain.title"), "aria-describedby": "brain-guide", tabindex: "0" });
       const tip = h("div", { class: "brain-tip", hidden: true });
-      const legend = h("div", { class: "brain-legend" }), hud = h("div", { class: "brain-hud" });
-      ui.view.append(h("div", { class: "brain" }, canvas, hud, legend, h("div", { class: "brain-hint" }, t("brain.hint")), tip));
-      brain = new window.Brain(canvas, tip, { self: t("brain.self"), sources: tr("sources") },
-        { onOpen: (id) => { S.memId = id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory"); } });
+      const hud = h("div", { class: "brain-hud" }), status = h("span", { class: "brain-status", role: "status" });
+      const events = h("div", { class: "brain-events", role: "log", "aria-live": "polite", "aria-label": t("brain.activity") });
+      const inspector = h("div", { class: "brain-inspector" });
+      const controls = h("div", { class: "brain-controls", role: "group", "aria-label": t("brain.controls") });
+      let selected = null, eventStamp = null, inspectStamp = "";
+      const openMemory = (id) => {
+        S.memId = id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory");
+      };
+      const drawControls = () => {
+        controls.replaceChildren(...["rotate", "motion", "paused"].map((key) => {
+          const on = S.brainControls[key];
+          return h("button", { class: "brain-control" + (on ? " on" : ""), "aria-pressed": String(on),
+            title: t("brain." + key + "_hint"), onclick: () => {
+              S.brainControls[key] = !on;
+              if (brain && brain.setControls) brain.setControls(S.brainControls);
+              drawControls();
+            } }, t("brain." + key));
+        }), h("button", { class: "brain-control", title: t("brain.reset_hint"), onclick: () => { if (brain && brain.resetView) brain.resetView(); } }, t("brain.reset")));
+      };
+      drawControls();
+      canvas.addEventListener("keydown", (event) => {
+        if (event.key === "Home" || event.key === "0") {
+          event.preventDefault();
+          if (brain && brain.resetView) brain.resetView();
+        } else if (event.key === " ") {
+          event.preventDefault();
+          S.brainControls.paused = !S.brainControls.paused;
+          if (brain && brain.setControls) brain.setControls(S.brainControls);
+          drawControls();
+        }
+      });
+      const colors = { message: "#4fc3f7", reminiscence: "#ffb65c", question: "#c58bff", association: "#5fd6a3",
+                       need: "#ff7b9c", drift: "#96a0c8", reading: "#7fd4c9", dream: "#b07cff" };
+      const guide = h("details", { class: "brain-guide" }, h("summary", {}, t("brain.map_key")),
+        h("div", { class: "brain-source-key" }, Object.entries(colors).map(([key, color]) =>
+          h("span", {}, h("i", { style: "--source:" + color }), sourceLabel(key)))),
+        h("p", { id: "brain-guide" }, t("brain.legend")));
+      const observer = h("details", { class: "brain-observer", open: true },
+        h("summary", {}, h("span", {}, t("brain.activity")), h("span", { class: "brain-live-label" }, t("brain.recorded"))),
+        inspector, events);
+      ui.view.append(h("div", { class: "brain" }, canvas,
+        h("div", { class: "brain-top" }, h("div", {}, h("div", { class: "brain-eyebrow" }, t("brain.observation")),
+          h("h2", {}, t("brain.title")), hud), h("div", { class: "brain-tools" }, status, controls)),
+        h("div", { class: "brain-bottom" }, h("div", { class: "brain-caption" },
+          h("p", {}, t("brain.hint")), guide), observer), tip));
+      brain = new window.Brain(canvas, tip, { self: t("brain.self"), core: t("brain.core"), sources: tr("sources") },
+        { onOpen: openMemory, onInspect: (item) => { selected = item; inspectStamp = ""; drawInspector(); } });
       brain.setMemories(S.memories);
       brain.setAsleep(S.asleep);
+      if (brain.setControls) brain.setControls(S.brainControls);
+
+      function drawInspector() {
+        const memory = selected && selected.kind === "memory" ? S.memories.find((item) => item.id === selected.id) : null;
+        const stamp = JSON.stringify([selected, memory, S.snap.thoughts, S.snap.weights]);
+        if (stamp === inspectStamp) return;
+        inspectStamp = stamp;
+        if (!selected) {
+          inspector.replaceChildren(h("p", { class: "brain-inspect-hint" }, t("brain.inspect_hint")));
+          return;
+        }
+        const rows = [], item = memory || selected;
+        if (selected.kind === "memory") {
+          rows.push([t("mem.strength"), pct(item.strength || 0)], [t("brain.links"), (item.links || []).length]);
+          if (item.compartment) rows.push([t("brain.compartment"), item.compartment]);
+        } else if (selected.kind === "compartment" || selected.kind === "hub") {
+          rows.push([t("brain.memories"), S.memories.filter((m) => m.compartment === selected.title).length]);
+        } else if (selected.kind === "self") {
+          rows.push([t("state.thoughts"), S.snap.thoughts]);
+        } else {
+          const source = selected.source || String(selected.id || "").replace(/^~/, "");
+          const weight = S.snap.weights[source];
+          if (typeof weight === "number") rows.push([t("brain.weight"), "× " + weight.toFixed(2)]);
+          rows.push([t("brain.zone"), sourceLabel(source)]);
+        }
+        inspector.replaceChildren(h("div", { class: "brain-inspect-title" },
+          h("b", {}, selected.title), h("span", { class: "tag neutral" }, t("brain.kinds." + selected.kind))),
+          h("dl", {}, rows.map(([key, value]) => [h("dt", {}, key), h("dd", {}, value)]).flat()),
+          selected.kind === "memory" ? h("button", { class: "brain-control", onclick: () => openMemory(selected.id) }, t("brain.open_memory")) : null);
+      }
+
+      function drawEvents() {
+        const stamp = S.brainActivity.map((e) => e.seq).join(":");
+        if (stamp === eventStamp) return;
+        eventStamp = stamp;
+        const list = S.brainActivity.slice(-4).reverse();
+        if (!list.length) {
+          events.replaceChildren(h("p", { class: "brain-inspect-hint" }, t("brain.no_events")));
+          return;
+        }
+        events.replaceChildren(...list.map((event) => {
+          const d = event.data || {};
+          let label = t("brain.events." + event.type);
+          if (event.type === "stage") label += " · " + sourceLabel(d.source);
+          if (event.type === "decision") label += " · " + (d.accepted ? t("sub.welcomed") : t("sub.dismissed"));
+          if (event.type === "recall" && d.phase === "dream") label += " · " + t("sub.dream");
+          const text = d.title || d.thought || d.text || d.name || d.reason || d.message || "";
+          return h("div", { class: "brain-event" + (event.past ? " past" : ""), "data-event": event.type },
+            h("div", {}, h("b", {}, label), h("time", {}, event.past ? t("brain.history") : clock(event.time))),
+            text ? h("p", { title: text }, text) : null);
+        }));
+      }
+
       return { update() {
         brain.setNeeds(S.snap.needs);
-        legend.textContent = t("brain.legend") + (S.memories.length ? "" : " " + t("brain.empty", { name: S.snap.name }));
+        if (brain.setSnapshot) brain.setSnapshot(S.snap);
+        if (brain.setPaused) brain.setPaused(S.snap.paused);
+        const activity = S.snap.activity || (S.asleep ? "sleeping" : S.snap.paused ? "paused" : "waiting");
+        status.dataset.activity = activity;
+        status.textContent = t("brain.states." + activity);
+        status.title = S.snap.paused || t("brain.states." + activity);
         const counts = brain.counts || { memories: 0, links: 0 };
         hud.replaceChildren(
-          h("span", { class: "tag " + (S.asleep ? "" : "good") }, S.asleep ? t("brain.asleep") : t("brain.awake")),
-          h("span", {}, counts.memories + " " + t("brain.memories")), h("span", {}, counts.links + " " + t("brain.links")));
+          h("span", {}, h("b", {}, counts.memories), " " + t("brain.memories")),
+          h("span", {}, h("b", {}, counts.links), " " + t("brain.memory_links")),
+          h("span", {}, h("b", {}, S.snap.thoughts), " " + t("brain.thoughts")));
+        drawInspector(); drawEvents();
       } };
     },
 
