@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Protocol
 
 
@@ -48,6 +49,16 @@ def make_engine(config: dict) -> Engine:
     if kind == "anthropic":
         from freewill.engines.anthropic_engine import AnthropicEngine
         return AnthropicEngine(model=config.get("model"), effort=config.get("effort"))
+    if kind == "embedded":
+        from freewill import models
+        from freewill.engines.embedded import EmbeddedEngine
+        from freewill.paths import data_dir
+        model = models.find(str(config.get("model")))
+        if model is None:
+            raise EngineError(f"unknown embedded model: {config.get('model')!r}")
+        store = models.ModelStore(Path(config.get("models_dir") or data_dir() / "models"))
+        paths = store.paths(model)
+        return EmbeddedEngine(model, paths["model"], paths["mmproj"])
     if kind in ("openai", "xai", "local", "compatible"):
         from freewill.engines.compatible import CompatibleEngine
         return CompatibleEngine.from_config(config)

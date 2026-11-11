@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import queue
 import sys
 import threading
@@ -10,6 +11,7 @@ import time
 from pathlib import Path
 
 from freewill import __version__
+from freewill.core.affect import AffectSystem
 from freewill.core.events import Event
 from freewill.core.life import Life
 from freewill.core.loop import Being
@@ -89,6 +91,10 @@ class Console:
             self.inner(f"★ {t['milestone']}: {d['name']}")
         elif event.type == "kernel_refusal":
             self.inner(f"{t['kernel']}: {d['message']}")
+        elif event.type == "affect_transition":  # H7: a computed state, shown as numbers
+            after = d["after"]
+            self.inner(f"affect ({d['cause']}): valence {after['valence']:+.2f}, arousal {after['arousal']:.2f}, "
+                       f"uncertainty {after['uncertainty']:.2f}")
         elif event.type in ("engine_error", "engine_refusal"):
             print(f"{self.dim}  ! {t['error']}: {d['message']}{self.reset}", flush=True)
 
@@ -106,7 +112,7 @@ def cmd_birth(args: argparse.Namespace) -> int:
         return 2
     try:
         life = Life.birth(Path(args.dir), args.name, language=args.language, engine=engine,
-                          interlocutor=args.interlocutor, seed=args.seed)
+                          interlocutor=args.interlocutor, seed=args.seed, affect=args.affect)
     except FileExistsError as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
@@ -129,6 +135,29 @@ def cmd_inspect(args: argparse.Namespace) -> int:
     print("values:", [value["text"] for value in life.values] or "none yet")
     print("milestones:", life.milestones or "none yet")
     print("memory:", life.memory.map() or "empty")
+    affect = AffectSystem.load(life.path, life.genome.seed)
+    print("affect (H7, computed state, not a feeling):",
+          affect.state.vector() if affect.enabled else "off")
+    return 0
+
+
+def cmd_affect(args: argparse.Namespace) -> int:
+    """Show the computed affective state of a life that is not awake, or switch the mode."""
+    life = Life(Path(args.path))
+    affect = AffectSystem.load(life.path, life.genome.seed)
+    if args.switch:
+        affect.set_enabled(args.switch == "on")
+    data = affect.public()
+    if args.json:
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+        return 0
+    print(f"{life.name}: H7 research mode {'on' if affect.enabled else 'off'} (rules {data['rules']})")
+    print("These are computed regulation variables. They are not evidence that anything is felt.")
+    if affect.enabled or data["exists"]:
+        for name, value in data["state"]["values"].items():
+            print(f"  {name:16} {value:+.3f}   rests at {data['setpoints'][name]:+.3f}")
+        for item in data["associations"]:
+            print(f"  learned  {item['key']:28} {item['valence']:+.3f}  ({item['n']} episodes)")
     return 0
 
 
@@ -223,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
     birth.add_argument("--interlocutor", help="your name, as the being will know you")
     birth.add_argument("--dir", default=".", help="where to create the life file")
     birth.add_argument("--seed", type=int, help="fix the genome (for experiments)")
+    birth.add_argument("--affect", action="store_true",
+                       help="switch on the H7 research mode (computed affective state); off by default")
     birth.set_defaults(run=cmd_birth)
 
     live = commands.add_parser("live", help="wake a being and stay with it")
@@ -237,6 +268,13 @@ def main(argv: list[str] | None = None) -> int:
     inspect = commands.add_parser("inspect", help="look at a life file without waking it")
     inspect.add_argument("path")
     inspect.set_defaults(run=cmd_inspect)
+
+    affect = commands.add_parser("affect", help="show or switch the H7 computed affective state of a life")
+    affect.add_argument("path")
+    affect.add_argument("--on", dest="switch", action="store_const", const="on")
+    affect.add_argument("--off", dest="switch", action="store_const", const="off")
+    affect.add_argument("--json", action="store_true")
+    affect.set_defaults(run=cmd_affect)
 
     args = parser.parse_args(argv)
     return args.run(args)

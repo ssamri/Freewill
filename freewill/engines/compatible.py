@@ -63,6 +63,20 @@ class CompatibleEngine:
                     "does not accept images. Say so if it matters.)")
             return self._ask(system, prompt + note, schema, None)
 
+    def _headers(self) -> dict:
+        headers = {"Content-Type": "application/json"}
+        if self.key_env:
+            from freewill.keys import get_key
+            key = get_key(self.kind) or os.environ.get(self.key_env)
+            if not key:
+                raise EngineError(f"no access key for this engine: add one in the settings, "
+                                  f"or set the {self.key_env} environment variable")
+            headers["Authorization"] = f"Bearer {key}"
+        return headers
+
+    def _response_format(self, schema: dict) -> dict:
+        return {"type": "json_object"}
+
     def _ask(self, system: str, prompt: str, schema: dict, images: list[dict] | None) -> dict:
         fields = ", ".join(f'"{name}"' for name in schema["properties"])
         text = f"{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}."
@@ -79,23 +93,16 @@ class CompatibleEngine:
                 {"role": "system", "content": system},
                 {"role": "user", "content": content},
             ],
-            "response_format": {"type": "json_object"},
+            "response_format": self._response_format(schema),
         }
-        headers = {"Content-Type": "application/json"}
-        if self.key_env:
-            from freewill.keys import get_key
-            key = get_key(self.kind) or os.environ.get(self.key_env)
-            if not key:
-                raise EngineError(f"no access key for this engine: add one in the settings, "
-                                  f"or set the {self.key_env} environment variable")
-            headers["Authorization"] = f"Bearer {key}"
+        headers = self._headers()
 
         request = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(body).encode("utf-8"), headers=headers, method="POST",
         )
         try:
-            with urllib.request.urlopen(request, timeout=180) as response:
+            with (getattr(self, "_opener", None) or urllib.request.build_opener()).open(request, timeout=600) as response:
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             detail = error.read().decode("utf-8", "replace")[:300]

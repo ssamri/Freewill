@@ -19,15 +19,15 @@ from freewill.core.life import Life
 from freewill.core.loop import Being
 from freewill.engines.base import EngineError, make_engine
 
-HISTORY = 400  # events kept in memory for an interface that connects late
+HISTORY = 1500  # events kept in memory for an interface that connects late
 
 
 class Runner:
-    def __init__(self, life_path: Path, *, tempo: float = 20.0, thoughts_per_hour: int = 120) -> None:
+    def __init__(self, life_path: Path, *, tempo: float | None = None, thoughts_per_hour: int | None = None,
+                 engine_options: dict | None = None) -> None:
         self.life = Life(life_path)
-        self.tempo = tempo
-        self.thoughts_per_hour = thoughts_per_hour
-        self.engine = make_engine(self.life.identity.get("engine", {}))  # may raise EngineError
+        # may raise EngineError
+        self.engine = make_engine({**self.life.identity.get("engine", {}), **(engine_options or {})})
 
         self._events: deque[dict] = deque(maxlen=HISTORY)
         self._seq = 0
@@ -36,6 +36,7 @@ class Runner:
         self._wake = threading.Event()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._living = threading.Lock()  # held while a moment is being lived
         self.paused_reason: str | None = None
         self._sleep_now = False
         self.snapshot: dict = {}
@@ -43,6 +44,10 @@ class Runner:
         self._load_history()
         self.being = Being(self.life, self.engine)
         self.being.events.subscribe(self._on_event)
+        # The rhythm is kept with the life, unless whoever starts it asks for another.
+        research = self.being.research
+        self.tempo = research.tempo if tempo is None else tempo
+        self.thoughts_per_hour = research.thoughts_per_hour if thoughts_per_hour is None else thoughts_per_hour
         self._refresh_snapshot()
 
     # -- events ----------------------------------------------------------------
@@ -88,6 +93,9 @@ class Runner:
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=30)
+        close = getattr(self.engine, "close", None)
+        if close:
+            close()
 
     def hear(self, text: str, attachments: list[dict] | None = None) -> None:
         self._incoming.put((text, attachments or []))
@@ -98,13 +106,86 @@ class Runner:
         self._sleep_now = True
         self._wake.set()
 
+    # -- H7: the computed affective state -------------------------------------------
+
+    def affect(self) -> dict:
+        """The computed state, its history and what produced it. A measurement, not a feeling."""
+        if not self._living.acquire(timeout=5):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            return json.loads(json.dumps(self.being.affect.public()))
+        finally:
+            self._living.release()
+
+    def set_affect(self, enabled: bool | None = None, config: dict | None = None) -> dict:
+        """Switch the research mode, or change its bounded settings, between two moments."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            if config:
+                self.being.affect.configure(config)
+            if enabled is not None and enabled != self.being.affect.enabled:
+                self.being.set_affect(enabled)
+            self._refresh_snapshot()
+            return json.loads(json.dumps(self.being.affect.public()))
+        finally:
+            self._living.release()
+
     def configure(self, *, tempo: float | None = None, thoughts_per_hour: int | None = None) -> None:
+        changes = {}
         if tempo is not None:
-            self.tempo = max(2.0, min(3600.0, float(tempo)))
+            changes["tempo"] = float(tempo)
         if thoughts_per_hour is not None:
-            self.thoughts_per_hour = max(0, min(3600, int(thoughts_per_hour)))
-        self._refresh_snapshot()
+            changes["thoughts_per_hour"] = int(thoughts_per_hour)
+        self.set_research(changes)
+
+    def research(self) -> dict:
+        return self.being.research.public()
+
+    def modules(self) -> dict:
+        """The research modules of this life (H8, H10, H4) as they are now. None when a module is switched off."""
+        if not self._living.acquire(timeout=5):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            being = self.being
+            return json.loads(json.dumps({
+                "metacognition": being.monitor.public() if being.monitor else None,
+                "sandbox": being.agency.public() if being.agency else None,
+                "learner": being.adapter.public() if being.adapter else None,
+                "own_model": being.own.public() if being.own else None}))
+        finally:
+            self._living.release()
+
+    def module_action(self, action: str, prompt: str = "") -> dict:
+        """A person's controls over what was learned: go back to earlier weights, or look at what the network writes."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            being = self.being
+            if action == "learner_rollback" and being.adapter:
+                being.adapter.rollback()
+                return {"ok": True}
+            if action == "own_rollback" and being.own:
+                return {"ok": being.own.rollback()}
+            if action == "own_sample" and being.own:
+                return {"text": being.own.sample(prompt[:200])}
+            return {"ok": False}
+        finally:
+            self._living.release()
+
+    def set_research(self, changes: dict | None = None, reset: bool = False) -> dict:
+        """Switch mechanisms of the life loop on or off, between two moments."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            self.being.set_research(changes, reset)
+            self.tempo = self.being.research.tempo
+            self.thoughts_per_hour = self.being.research.thoughts_per_hour
+            self._refresh_snapshot()
+        finally:
+            self._living.release()
         self._wake.set()
+        return self.research()
 
     def _run(self) -> None:
         thought_times: list[float] = []
@@ -139,7 +220,9 @@ class Runner:
                 next_thought = now + 5
                 continue
             try:
-                if self.being.tick() is not None:
+                with self._living:
+                    lived = self.being.tick()
+                if lived is not None:
                     thought_times.append(now)
                 backoff = 0.0
             except EngineError as error:
@@ -180,6 +263,9 @@ class Runner:
             "dreams": len(life.dreams.ids()),
             "library": [life.library.public(item) for item in life.library.items()],
             "weights": dict(being.subconscious.weights),
+            "affect": being.affect.summary(),
+            "research": being.research.changed(),
+            "inbox": len(being.inbox),
             "tempo": self.tempo,
             "thoughts_per_hour": self.thoughts_per_hour,
             "paused": self.paused_reason,

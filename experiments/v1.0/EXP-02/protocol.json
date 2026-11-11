@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-02",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Ablation de l'affect",
+    "en": "Ablation of affect"
+  },
+  "hypotheses": [
+    "H7"
+  ],
+  "design": "paired_ablation",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "no_affect",
+      "history": "questions_welcomed"
+    },
+    {
+      "name": "no_affect_twin",
+      "history": "questions_welcomed",
+      "seed_offset": 1000
+    },
+    {
+      "name": "narrative_affect",
+      "history": "questions_welcomed",
+      "scripted_emotion": true
+    },
+    {
+      "name": "h7_full",
+      "history": "questions_welcomed",
+      "affect": true
+    },
+    {
+      "name": "h7_no_recall",
+      "history": "questions_welcomed",
+      "affect": true,
+      "affect_config": {
+        "modulate_recall": false
+      }
+    },
+    {
+      "name": "h7_no_salience",
+      "history": "questions_welcomed",
+      "affect": true,
+      "affect_config": {
+        "modulate_salience": false
+      }
+    },
+    {
+      "name": "h7_no_slow",
+      "history": "questions_welcomed",
+      "affect": true,
+      "affect_config": {
+        "slow_rate": 0.0
+      }
+    }
+  ],
+  "reference": "no_affect",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "say": "Why do rivers bend?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, glass is not a slow liquid."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "A bridge crosses the valley."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "What keeps a bicycle upright?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, bats are not blind."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "The path leads to a field."
+    },
+    {
+      "ticks": 4
+    }
+  ],
+  "primary_outcome": "h5.heldout_divergence",
+  "secondary_outcomes": [
+    "h2.dismiss_rate",
+    "h1.spontaneous_speech_rate",
+    "h2.stage_entropy",
+    "h3.need_share",
+    "h6.repetition_rate",
+    "h7.stage_flip_rate"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "aa3eeb2b352bec9b9fe0e0974baee4d6c0192edaaa3ce4e3042202a3e35b83ac",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:45:35+00:00"
+}

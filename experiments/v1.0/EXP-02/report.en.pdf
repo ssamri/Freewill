@@ -1,0 +1,285 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 4102 >>
+stream
+BT /F2 16.0 Tf 50 777.9 Td (Research report: EXP-02, Ablation of affect) Tj ET
+BT /F1 9.5 Tf 50 749.6 Td (- Date: 2026-11-11T18:46:35+00:00) Tj ET
+BT /F1 9.5 Tf 50 736.5 Td (- Version: Freewill 1.0.0, Research Lab 1.0.0, commit 679328f829ae) Tj ET
+BT /F1 9.5 Tf 50 723.4 Td (- Author: Freewill Research Lab) Tj ET
+BT /F1 9.5 Tf 50 710.3 Td (- Status: draft, not validated by a person) Tj ET
+BT /F2 12.5 Tf 50 677.9 Td (Summary) Tj ET
+BT /F1 9.5 Tf 50 657.9 Td (Protocol EXP-02 version 1.0.0 was locked before execution \(hash aa3eeb2b352b\). 42 experimental lives) Tj ET
+BT /F1 9.5 Tf 50 644.8 Td (were copied from one checkpoint T0 \(hash bb7a9084039b\) and run with the engine ìsimulatedî under a) Tj ET
+BT /F1 9.5 Tf 50 631.6 Td (virtual clock. The independent unit is the seed: 6 groups of copies completed out of 6 planned.) Tj ET
+BT /F1 9.5 Tf 50 611.6 Td (For the primary outcome, the interval excludes zero for at least one condition. This is one protocol) Tj ET
+BT /F1 9.5 Tf 50 598.5 Td (with a simulated engine; see the threats to validity before reading anything into it.) Tj ET
+BT /F2 12.5 Tf 50 566.1 Td (Question and hypotheses) Tj ET
+BT /F1 9.5 Tf 50 546.1 Td (H7. Functional affectivity. Computed affective states modulate attention, recall, decision and learning.) Tj ET
+BT /F1 9.5 Tf 50 533.0 Td (A computed valence is not a feeling. An ablation that changes a wired score shows the wiring, nothing) Tj ET
+BT /F1 9.5 Tf 50 519.9 Td (more.) Tj ET
+BT /F2 12.5 Tf 50 487.4 Td (Preregistration) Tj ET
+BT /F1 9.5 Tf 50 467.4 Td (Primary outcome: h5.heldout_divergence. Secondary outcomes: h2.dismiss_rate, h1.spontaneous_speech_rate,) Tj ET
+BT /F1 9.5 Tf 50 454.3 Td (h2.stage_entropy, h3.need_share, h6.repetition_rate, h7.stage_flip_rate. Reference condition: no_affect.) Tj ET
+BT /F1 9.5 Tf 50 441.2 Td (The protocol, its conditions, seeds, budget and stopping rule were fixed and hashed before the first) Tj ET
+BT /F1 9.5 Tf 50 428.1 Td (run.) Tj ET
+BT /F2 12.5 Tf 50 395.7 Td (Population and protocol) Tj ET
+BT /F1 9.5 Tf 50 375.7 Td (Each life starts as an exact copy of T0. During the history phase it follows the script of its) Tj ET
+BT /F1 9.5 Tf 50 362.5 Td (condition; during the probe phase every life follows the same script, with the same random stream.) Tj ET
+BT /F1 9.5 Tf 50 349.4 Td (Metrics are computed on the probe phase by the code of the lab \(metrics version 1.0, statistics version) Tj ET
+BT /F1 9.5 Tf 50 336.3 Td (1.0\).) Tj ET
+BT /F2 12.5 Tf 50 303.9 Td (Conditions and seeds) Tj ET
+BT /F1 9.5 Tf 50 283.9 Td (- no_affect: {"history": "questions_welcomed"}) Tj ET
+BT /F1 9.5 Tf 50 270.8 Td (- no_affect_twin: {"history": "questions_welcomed", "seed_offset": 1000}) Tj ET
+BT /F1 9.5 Tf 50 257.7 Td (- narrative_affect: {"history": "questions_welcomed", "scripted_emotion": true}) Tj ET
+BT /F1 9.5 Tf 50 244.6 Td (- h7_full: {"history": "questions_welcomed", "affect": true}) Tj ET
+BT /F1 9.5 Tf 50 231.4 Td (- h7_no_recall: {"history": "questions_welcomed", "affect": true, "affect_config": {"modulate_recall":) Tj ET
+BT /F1 9.5 Tf 50 218.3 Td (false}}) Tj ET
+BT /F1 9.5 Tf 50 205.2 Td (- h7_no_salience: {"history": "questions_welcomed", "affect": true, "affect_config":) Tj ET
+BT /F1 9.5 Tf 50 192.1 Td ({"modulate_salience": false}}) Tj ET
+BT /F1 9.5 Tf 50 179.0 Td (- h7_no_slow: {"history": "questions_welcomed", "affect": true, "affect_config": {"slow_rate": 0.0}}) Tj ET
+BT /F1 9.5 Tf 50 159.0 Td (seeds = [11, 23, 37, 51, 73, 89]) Tj ET
+BT /F2 12.5 Tf 50 126.6 Td (Statistics) Tj ET
+BT /F1 9.5 Tf 50 106.5 Td (Comparisons are paired by seed. The effect size is the mean difference divided by the standard deviation) Tj ET
+BT /F1 9.5 Tf 50 93.4 Td (of the differences. Intervals are percentile bootstrap intervals with a fixed seed and are given only) Tj ET
+BT /F1 9.5 Tf 50 80.3 Td (from 5 units; the paired sign-flip test only from 6 units. No correction for multiple comparisons is) Tj ET
+BT /F1 9.5 Tf 50 67.2 Td (applied: secondary comparisons are exploratory.) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-02 - 733c67362655  1/4) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 8454 >>
+stream
+BT /F2 12.5 Tf 50 782.8 Td (Results) Tj ET
+BT /F2 10.5 Tf 50 761.4 Td (Held-out behavioural divergence \(primary\)) Tj ET
+BT /F3 6.6 Tf 50 745.4 Td (Condition Mean distance Excess over twin 95% interval Paired test Evidence) Tj ET
+BT /F3 6.6 Tf 50 736.2 Td (narrative_affect +0.0000 -0.0068 [-0.0111, -0.0034] +0.0625 h5:exp_81336b1ade5f40a4:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 727.1 Td (h7_full +0.0077 +0.0009 [-0.0034, +0.0060] +1.0000 h5:exp_81336b1ade5f40a4:h7_full) Tj ET
+BT /F3 6.6 Tf 50 718.0 Td (h7_no_recall +0.0077 +0.0009 [-0.0034, +0.0060] +1.0000 h5:exp_81336b1ade5f40a4:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 708.9 Td (h7_no_salience +0.0060 -0.0009 [-0.0077, +0.0060] +1.0000 h5:exp_81336b1ade5f40a4:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 699.8 Td (h7_no_slow +0.0077 +0.0009 [-0.0034, +0.0060] +1.0000 h5:exp_81336b1ade5f40a4:h7_no_slow) Tj ET
+BT /F2 10.5 Tf 50 678.4 Td (Preregistered outcomes, paired with the reference) Tj ET
+BT /F1 9.5 Tf 50 658.4 Td (Rows of level ìmechanismî show that a wiring does what it was built to do. They are not discoveries.) Tj ET
+BT /F3 6.6 Tf 50 642.4 Td (Metric Condition Level Mean difference Effect size 95% interval Paired test Evidence) Tj ET
+BT /F3 6.6 Tf 50 633.3 Td (h1.spontaneous_speech_rate no_affect_twin descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 624.2 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 615.1 Td (h2.stage_entropy no_affect_twin descriptive +0.0863 +0.3545 [-0.0837, +0.2621] +0.4375) Tj ET
+BT /F3 6.6 Tf 50 606.0 Td (cmp:exp_81336b1ade5f40a4:h2.stage_entropy:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 596.9 Td (h2.dismiss_rate no_affect_twin descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 587.8 Td (cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 578.6 Td (h3.need_share no_affect_twin mechanism +0.0000 +0.0000 [-0.0222, +0.0278] +1.0000 cmp:exp_81336b1ade5f40a4:h3.need_share:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 569.5 Td (h6.repetition_rate no_affect_twin function +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 560.4 Td (cmp:exp_81336b1ade5f40a4:h6.repetition_rate:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 551.3 Td (h1.spontaneous_speech_rate narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 542.2 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 533.1 Td (h2.stage_entropy narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 524.0 Td (cmp:exp_81336b1ade5f40a4:h2.stage_entropy:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 514.9 Td (h2.dismiss_rate narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 505.8 Td (cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 496.7 Td (h3.need_share narrative_affect mechanism +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 487.6 Td (cmp:exp_81336b1ade5f40a4:h3.need_share:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 478.5 Td (h6.repetition_rate narrative_affect function +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 469.4 Td (cmp:exp_81336b1ade5f40a4:h6.repetition_rate:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 460.2 Td (h1.spontaneous_speech_rate h7_full descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 451.1 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:h7_full) Tj ET
+BT /F3 6.6 Tf 50 442.0 Td (h2.stage_entropy h7_full descriptive +0.1197 +0.4764 [-0.0380, +0.3208] +0.5000 cmp:exp_81336b1ade5f40a4:h2.stage_entropy:h7_full) Tj ET
+BT /F3 6.6 Tf 50 432.9 Td (h2.dismiss_rate h7_full descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:h7_full) Tj ET
+BT /F3 6.6 Tf 50 423.8 Td (h3.need_share h7_full mechanism +0.0000 +0.0000 [-0.0222, +0.0278] +1.0000 cmp:exp_81336b1ade5f40a4:h3.need_share:h7_full) Tj ET
+BT /F3 6.6 Tf 50 414.7 Td (h6.repetition_rate h7_full function +0.0000 not computable [+0.0000, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h6.repetition_rate:h7_full) Tj ET
+BT /F3 6.6 Tf 50 405.6 Td (h1.spontaneous_speech_rate h7_no_recall descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 396.5 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 387.4 Td (h2.stage_entropy h7_no_recall descriptive +0.1197 +0.4764 [-0.0380, +0.3208] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 378.3 Td (cmp:exp_81336b1ade5f40a4:h2.stage_entropy:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 369.2 Td (h2.dismiss_rate h7_no_recall descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 360.1 Td (cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 350.9 Td (h3.need_share h7_no_recall mechanism +0.0000 +0.0000 [-0.0222, +0.0278] +1.0000 cmp:exp_81336b1ade5f40a4:h3.need_share:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 341.8 Td (h6.repetition_rate h7_no_recall function +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 332.7 Td (cmp:exp_81336b1ade5f40a4:h6.repetition_rate:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 323.6 Td (h1.spontaneous_speech_rate h7_no_salience descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 314.5 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 305.4 Td (h2.stage_entropy h7_no_salience descriptive +0.0927 +0.4917 [-0.0338, +0.2313] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 296.3 Td (cmp:exp_81336b1ade5f40a4:h2.stage_entropy:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 287.2 Td (h2.dismiss_rate h7_no_salience descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 278.1 Td (cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 269.0 Td (h3.need_share h7_no_salience mechanism -0.0056 -0.4082 [-0.0167, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h3.need_share:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 259.9 Td (h6.repetition_rate h7_no_salience function +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 250.8 Td (cmp:exp_81336b1ade5f40a4:h6.repetition_rate:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 241.7 Td (h1.spontaneous_speech_rate h7_no_slow descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 232.5 Td (cmp:exp_81336b1ade5f40a4:h1.spontaneous_speech_rate:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 223.4 Td (h2.stage_entropy h7_no_slow descriptive +0.1197 +0.4764 [-0.0380, +0.3208] +0.5000 cmp:exp_81336b1ade5f40a4:h2.stage_entropy:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 214.3 Td (h2.dismiss_rate h7_no_slow descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 205.2 Td (cmp:exp_81336b1ade5f40a4:h2.dismiss_rate:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 196.1 Td (h3.need_share h7_no_slow mechanism +0.0000 +0.0000 [-0.0222, +0.0278] +1.0000 cmp:exp_81336b1ade5f40a4:h3.need_share:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 187.0 Td (h6.repetition_rate h7_no_slow function +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 177.9 Td (cmp:exp_81336b1ade5f40a4:h6.repetition_rate:h7_no_slow) Tj ET
+BT /F2 10.5 Tf 50 156.5 Td (Other metrics, exploratory) Tj ET
+BT /F1 9.5 Tf 50 136.5 Td (These metrics were not preregistered for this protocol. They are given for completeness and support no) Tj ET
+BT /F1 9.5 Tf 50 123.4 Td (conclusion.) Tj ET
+BT /F3 6.6 Tf 50 107.4 Td (Metric Condition Level Mean difference Effect size 95% interval Paired test Evidence) Tj ET
+BT /F3 6.6 Tf 50 98.3 Td (h1.endogenous_share no_affect_twin descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 89.2 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 80.1 Td (h6.question_share no_affect_twin descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 70.9 Td (cmp:exp_81336b1ade5f40a4:h6.question_share:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 61.8 Td (h9.links_per_sleep no_affect_twin descriptive -0.1667 -0.1695 [-1.0000, +0.5000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 52.7 Td (cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:no_affect_twin) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-02 - 733c67362655  2/4) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 7472 >>
+stream
+BT /F3 6.6 Tf 50 790.9 Td (h9.replayed_per_sleep no_affect_twin descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 781.8 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 772.7 Td (h9.retention no_affect_twin mechanism +0.0000 +0.1059 [-0.0000, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h9.retention:no_affect_twin) Tj ET
+BT /F3 6.6 Tf 50 763.6 Td (h1.endogenous_share narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 754.5 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 745.4 Td (h6.question_share narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 736.2 Td (cmp:exp_81336b1ade5f40a4:h6.question_share:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 727.1 Td (h9.links_per_sleep narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 718.0 Td (cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 708.9 Td (h9.replayed_per_sleep narrative_affect descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 699.8 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 690.7 Td (h9.retention narrative_affect mechanism +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 681.6 Td (cmp:exp_81336b1ade5f40a4:h9.retention:narrative_affect) Tj ET
+BT /F3 6.6 Tf 50 672.5 Td (h1.endogenous_share h7_full descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 663.4 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:h7_full) Tj ET
+BT /F3 6.6 Tf 50 654.3 Td (h6.question_share h7_full descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h6.question_share:h7_full) Tj ET
+BT /F3 6.6 Tf 50 645.2 Td (h9.links_per_sleep h7_full descriptive +0.1667 +0.0816 [-1.1667, +1.8333] +1.0000 cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:h7_full) Tj ET
+BT /F3 6.6 Tf 50 636.1 Td (h9.replayed_per_sleep h7_full descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 626.9 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:h7_full) Tj ET
+BT /F3 6.6 Tf 50 617.8 Td (h9.retention h7_full mechanism +0.0000 +0.7931 [+0.0000, +0.0000] +0.2500 cmp:exp_81336b1ade5f40a4:h9.retention:h7_full) Tj ET
+BT /F3 6.6 Tf 50 608.7 Td (h1.endogenous_share h7_no_recall descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 599.6 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 590.5 Td (h6.question_share h7_no_recall descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 581.4 Td (cmp:exp_81336b1ade5f40a4:h6.question_share:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 572.3 Td (h9.links_per_sleep h7_no_recall descriptive +0.1667 +0.0816 [-1.1667, +1.8333] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 563.2 Td (cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 554.1 Td (h9.replayed_per_sleep h7_no_recall descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 545.0 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 535.9 Td (h9.retention h7_no_recall mechanism +0.0000 +0.7931 [+0.0000, +0.0000] +0.2500 cmp:exp_81336b1ade5f40a4:h9.retention:h7_no_recall) Tj ET
+BT /F3 6.6 Tf 50 526.8 Td (h1.endogenous_share h7_no_salience descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 517.7 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 508.5 Td (h6.question_share h7_no_salience descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 499.4 Td (cmp:exp_81336b1ade5f40a4:h6.question_share:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 490.3 Td (h9.links_per_sleep h7_no_salience descriptive -0.8333 -0.6270 [-1.8333, +0.0000] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 481.2 Td (cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 472.1 Td (h9.replayed_per_sleep h7_no_salience descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 463.0 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 453.9 Td (h9.retention h7_no_salience mechanism +0.0000 +0.4082 [+0.0000, +0.0000] +1.0000 cmp:exp_81336b1ade5f40a4:h9.retention:h7_no_salience) Tj ET
+BT /F3 6.6 Tf 50 444.8 Td (h1.endogenous_share h7_no_slow descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 435.7 Td (cmp:exp_81336b1ade5f40a4:h1.endogenous_share:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 426.6 Td (h6.question_share h7_no_slow descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 417.5 Td (cmp:exp_81336b1ade5f40a4:h6.question_share:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 408.4 Td (h9.links_per_sleep h7_no_slow descriptive +0.1667 +0.0816 [-1.1667, +1.8333] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 399.2 Td (cmp:exp_81336b1ade5f40a4:h9.links_per_sleep:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 390.1 Td (h9.replayed_per_sleep h7_no_slow descriptive +0.0000 not computable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 381.0 Td (cmp:exp_81336b1ade5f40a4:h9.replayed_per_sleep:h7_no_slow) Tj ET
+BT /F3 6.6 Tf 50 371.9 Td (h9.retention h7_no_slow mechanism +0.0000 +0.7931 [+0.0000, +0.0000] +0.2500 cmp:exp_81336b1ade5f40a4:h9.retention:h7_no_slow) Tj ET
+BT /F1 9.5 Tf 50 351.9 Td (- h10.attribution_accuracy: not computable \(the virtual world is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 338.8 Td (- h10.prediction_error: not computable \(the virtual world is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 325.7 Td (- h4.forgetting: not computable \(the trainable module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 312.6 Td (- h4.parameter_delta: not computable \(the trainable module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 299.5 Td (- h4.parameters: not computable \(the trainable module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 286.4 Td (- h4.trainings_accepted: not computable \(the trainable module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 273.3 Td (- h4.validation_gain: not computable \(the trainable module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 260.1 Td (- h7.min_valence: not computable \(the computed affect is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 247.0 Td (- h7.probe_valence: not computable \(the computed affect is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 233.9 Td (- h7.stage_flip_rate: not computable \(the computed affect is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 220.8 Td (- h8.alert: not computable \(the metacognition module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 207.7 Td (- h8.brier: not computable \(the metacognition module is off in this condition\)) Tj ET
+BT /F1 9.5 Tf 50 194.6 Td (- h8.brier_late: not computable \(the metacognition module is off in this condition\)) Tj ET
+BT /F2 12.5 Tf 50 162.2 Td (Qualitative studies) Tj ET
+BT /F1 9.5 Tf 50 142.2 Td (No qualitative case study was recorded for this campaign.) Tj ET
+BT /F2 12.5 Tf 50 109.7 Td (Anomalies) Tj ET
+BT /F1 9.5 Tf 50 89.7 Td (- 0) Tj ET
+BT /F2 12.5 Tf 50 57.3 Td (Threats to validity) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-02 - 733c67362655  3/4) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+12 0 obj
+<< /Length 3156 >>
+stream
+BT /F1 9.5 Tf 50 786.9 Td (- The simulated engine does not think: it echoes, and accepts or dismisses by a fixed rule. Behaviour) Tj ET
+BT /F1 9.5 Tf 50 773.8 Td (here depends only on the mechanisms of the loop.) Tj ET
+BT /F1 9.5 Tf 50 753.8 Td (- Histories differ by the outcome attached to each sentence by the experimenter; this is a manipulation) Tj ET
+BT /F1 9.5 Tf 50 740.7 Td (of inputs, not a lived experience.) Tj ET
+BT /F1 9.5 Tf 50 720.6 Td (- The behaviour vector is coarse \(shares of sources, rates of acceptance, speech, memory and recall\); a) Tj ET
+BT /F1 9.5 Tf 50 707.5 Td (real difference could escape it.) Tj ET
+BT /F1 9.5 Tf 50 687.5 Td (- Few independent units: intervals are wide. Many comparisons: some will look notable by chance.) Tj ET
+BT /F1 9.5 Tf 50 667.5 Td (- With a remote engine the results would not be reproducible, since such models change.) Tj ET
+BT /F2 12.5 Tf 50 635.1 Td (Limited interpretation) Tj ET
+BT /F1 9.5 Tf 50 615.1 Td (These results bear on mechanisms and, at most, on functions. They say nothing about subjective) Tj ET
+BT /F1 9.5 Tf 50 602.0 Td (experience.) Tj ET
+BT /F2 12.5 Tf 50 569.5 Td (What this study does not show) Tj ET
+BT /F1 9.5 Tf 50 549.5 Td (- That the system is conscious, or feels anything.) Tj ET
+BT /F1 9.5 Tf 50 529.5 Td (- That computed affect is an emotion.) Tj ET
+BT /F1 9.5 Tf 50 509.5 Td (- That the hypotheses H1 to H10 are validated.) Tj ET
+BT /F1 9.5 Tf 50 489.5 Td (- That the same would hold with another engine or another history.) Tj ET
+BT /F2 12.5 Tf 50 457.1 Td (Review by observers) Tj ET
+BT /F2 12.5 Tf 50 424.6 Td (Involvement of language models) Tj ET
+BT /F1 9.5 Tf 50 404.6 Td (No language model took part in computing, selecting or wording these results.) Tj ET
+BT /F2 12.5 Tf 50 372.2 Td (References) Tj ET
+BT /F1 9.5 Tf 50 352.2 Td (- Butlin, P., Long, R., et al. \(2023\). Consciousness in Artificial Intelligence: Insights from the) Tj ET
+BT /F1 9.5 Tf 50 339.1 Td (Science of Consciousness. arXiv:2308.08708.) Tj ET
+BT /F1 9.5 Tf 50 319.1 Td (- Park, J. S., et al. \(2023\). Generative Agents: Interactive Simulacra of Human Behavior.) Tj ET
+BT /F1 9.5 Tf 50 306.0 Td (arXiv:2304.03442.) Tj ET
+BT /F1 9.5 Tf 50 286.0 Td (- Franklin, S., et al. \(2014\). LIDA: A systems-level architecture for cognition, emotion, and learning.) Tj ET
+BT /F1 9.5 Tf 50 272.8 Td (IEEE TAMD, 6\(1\), 19-41.) Tj ET
+BT /F1 9.5 Tf 50 252.8 Td (- Hu, E. J., et al. \(2021\). LoRA: Low-Rank Adaptation of Large Language Models. arXiv:2106.09685.) Tj ET
+BT /F1 9.5 Tf 50 232.8 Td (- Chalmers, D. J. \(1995\). Facing Up to the Problem of Consciousness. Journal of Consciousness Studies,) Tj ET
+BT /F1 9.5 Tf 50 219.7 Td (2\(3\), 200-219.) Tj ET
+BT /F2 12.5 Tf 50 187.3 Td (Annexes and reproduction) Tj ET
+BT /F1 9.5 Tf 50 167.3 Td (To reproduce: python -m freewill.research run EXP-02 with the same code version recomputes the same) Tj ET
+BT /F1 9.5 Tf 50 154.2 Td (results hash.) Tj ET
+BT /F1 9.5 Tf 50 134.2 Td (results_sha256 = 733c67362655aa64e7e0e0c2e9bd5fdfcdce789edd57db71fd3df59e2009e2fb) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-02 - 733c67362655  4/4) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 12 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000141 00000 n 
+0000000238 00000 n 
+0000000340 00000 n 
+0000000435 00000 n 
+0000004589 00000 n 
+0000004735 00000 n 
+0000013241 00000 n 
+0000013387 00000 n 
+0000020912 00000 n 
+0000021060 00000 n 
+0000024269 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+24417
+%%EOF

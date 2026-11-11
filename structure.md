@@ -71,6 +71,10 @@ The core is the only component that thinks. The interface can be closed without 
 
 > **State of the code.** What exists today lives in a single Python package, `freewill/`: `core/` (kernel, genome, memory in files, subconscious, stage, conscious, life loop), `engines/` (Claude, OpenAI-compatible services, a local model through Ollama, a simulated engine), `server/` (the local service, bound to the loopback address and protected by a session token), `ui/` (the interface, in plain HTML, CSS and JavaScript, with no build step) and `desktop.py` (the native window). `packaging/windows/` holds what builds the Windows installer. The first interface was written without React or three.js so that it could ship without a build chain; the tree below remains the target. Since version 0.2 the core also holds `library.py` (what the person gives: documents read passage by passage, images, still frames of videos), `perception.py` (reading text out of files) and `sleep.py` (replay, dreams, links created between the memories a dream brought together). The integrated engine, and with it the rewriting of learned parameters during sleep, is not yet built: for now sleep rewrites the structure of memory only.
 
+> **H7, emergent affectivity (built).** `freewill/core/affect/` holds the computed affective state: `state.py` (dimensions, bounds, versioned configuration, innate sensitivities derived from the genome's seed), `appraisal.py` (appraisal of an event and a small predictive model), `regulation.py` (bounded steps, return to equilibrium, guards), `dynamics.py` (transition and shift of salience), `memory.py` (traces on memories, weights at recall, consolidation) and `system.py` (the `affect.json` file and what the life loop asks of it). The mode is off by default; when off, the loop is exactly the earlier one. `experiments/h7/` holds the reproducible protocol and its results; `docs/H7_AFFECTIVITY.md` the hypothesis, the protocol and the limits. Still to do: calibration of the coefficients, trials with real models, study of emergent categories. The integrated engine that learns and rewrites itself (section 5.1) is still not built.
+
+> **Version 1.0, the Research Lab (built).** Three additions, all outside the kernel. `freewill/core/research.py` holds the research settings of a life (`research.json`): each switch removes or restores one mechanism of the loop, every default reproduces the loop as it was, and every change is written to the event log. `freewill/research/` is the lab: `schemas.py` (versioned contracts), `evidence.py` (append-only journal, snapshot hashes, copies of a life), `stats.py` (deterministic statistics that refuse small samples), `metrics.py` (the register of metrics for H1 to H10), `experiments.py` (protocols locked before they run, campaigns on isolated copies under a virtual clock), `observers.py` (observers A, B, C: they read measurements, cite evidence and never act on a life), `reports.py` (Markdown, PDF and reproduction pack, validated only by a person), `environments.py` (the closed grid world of H10), `texts.py` (everything the lab says, in French and in English, never mixed). Three research modules now run in the life loop behind switches that are off by default: `core/metacognition.py` (H8), `core/agency.py` (H10), and the sleep of `core/loop.py`, which goes through phases that can be removed one by one and resumes where it was cut (H9). `freewill/learning/` holds what a life can train (H4): `adapter.py`, a few dozen weights in pure Python; `own_model.py`, Freewill's own small transformer, trained during sleep on the text a being lived, kept only when it predicts unseen text better, and able to add layers under a ceiling (needs PyTorch); `lora.py`, adapters beside a frozen base model, verified on a toy base only. The engine that thinks for a being is still never trained by its life. `server/lab_api.py` serves all of this to the interface (`ui/lab.js`, `ui/i18n-lab.js`). What was tested and what is missing: [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
+
 ```
 freewill/
 ├── README.md · README.fr.md        Thesis and theoretical framework
@@ -233,6 +237,13 @@ The individual resides in a single folder, portable from one machine to another 
 ├── journal/             Personal writings, with their visibility status
 ├── milestones.json      First times
 ├── state.json           Current inner state
+├── affect.json          H7: computed affective state, learned associations, settings (absent until the mode is switched on)
+├── affect.json.bak      The previous version, kept at every write
+├── research.json        Research settings: which mechanisms run (absent while all are at their defaults)
+├── metacognition.json   H8: its record of its own decisions (absent until the module is switched on)
+├── agency.json          H10: the closed world and what its acts did there (same)
+├── adapter.json         H4: the small trainable module, its weights and its trainings (same)
+├── own_model/           H4: Freewill's own network: weights, previous weights, lived text, manifest (same)
 ├── events.log           Complete, timestamped log
 └── engine/              Specific to the integrated engine: parameters and restore points
 ```
@@ -328,11 +339,15 @@ The background process runs the following cycle indefinitely.
 5. A restore point is created.
 6. On waking, the system takes note of its dreams and of the time elapsed.
 
+**With the H7 research mode** (off by default), five points of the cycle are instrumented: after time has passed, the computed state returns towards its equilibrium; before the competition, it shifts the salience of the proposals, within a small cap and never touching what the person says; at recall, it weighs the candidate memories; after a content reaches the stage and again after the decision, the event and its outcome are appraised and a bounded transition is applied; at encoding, the memory receives a trace of the computed state. During sleep, the episodes lived are consolidated into associations. None of these steps goes through the language model, and none modifies the kernel.
+
 When the application is closed, the system is suspended. At the next launch it registers the length of the interruption and, where appropriate, catches up on the sleep owed.
 
 ## 8. The event stream
 
 Everything that happens in the core is emitted as a typed event on a single channel: proposal emitted, access to the stage, decision and its reason, memory recalled, concept activated, change in a need, start and end of sleep, dream, modification of structure, first time.
+
+The H7 mode adds five types of events, stable and documented: `affect_mode` (switched on or off), `affect_appraisal` (kind of event, context, appraised features and their causes), `affect_transition` (state before, state after, target, rate, version of the rules), `affect_modulation` (target: salience, recall or encoding; values before and after) and `affect_consolidation` (episodes consolidated, prediction gap before and after, state before and after). They carry numbers, contexts and causes, never the text of what was said.
 
 The stream serves three purposes. It feeds the interface in real time: every pulse of light in the Brain view corresponds to an actual activation event. It constitutes the complete log, which provides traceability. And it supplies the raw material for the experiments.
 

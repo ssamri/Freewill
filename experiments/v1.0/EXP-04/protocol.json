@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-04",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Consolidation contrôlée",
+    "en": "Controlled consolidation"
+  },
+  "hypotheses": [
+    "H9"
+  ],
+  "design": "sleep_ablation",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "no_sleep",
+      "history": "told_then_delay",
+      "skip_sleep": true,
+      "research": {
+        "auto_sleep": false
+      }
+    },
+    {
+      "name": "rest_only",
+      "history": "told_then_delay",
+      "research": {
+        "auto_sleep": false,
+        "dreaming": false,
+        "sleep_replay": false
+      }
+    },
+    {
+      "name": "replay_only",
+      "history": "told_then_delay",
+      "research": {
+        "auto_sleep": false,
+        "dreaming": false
+      }
+    },
+    {
+      "name": "dream_only",
+      "history": "told_then_delay",
+      "research": {
+        "auto_sleep": false,
+        "sleep_replay": false
+      }
+    },
+    {
+      "name": "full_sleep",
+      "history": "told_then_delay",
+      "research": {
+        "auto_sleep": false
+      }
+    }
+  ],
+  "reference": "no_sleep",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "say": "Why do rivers bend?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, glass is not a slow liquid."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "A bridge crosses the valley."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "What keeps a bicycle upright?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, bats are not blind."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "The path leads to a field."
+    },
+    {
+      "ticks": 4
+    }
+  ],
+  "primary_outcome": "h9.retention",
+  "secondary_outcomes": [
+    "h9.replayed_per_sleep",
+    "h9.links_per_sleep",
+    "tech.engine_calls"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "f15a8992440ff9b536d36d5b8b5bf17ce78cfd6a263b0028003637ef0c17579e",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:46:44+00:00"
+}

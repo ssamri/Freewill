@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import secrets
 from datetime import datetime, timezone
@@ -71,8 +72,11 @@ class Library:
 
     def _save(self, items: list[dict]) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
-        self._path("index.json").write_text(
-            json.dumps(items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        # Written beside and swapped in, so a reader never sees a half-written index:
+        # the being reads and marks its library while the service is answering.
+        temporary = self._path(f"index.json.{secrets.token_hex(4)}.tmp")
+        temporary.write_text(json.dumps(items, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        os.replace(temporary, self._path("index.json"))
 
     def get(self, item_id: str) -> dict | None:
         return next((item for item in self.items() if item["id"] == item_id), None)

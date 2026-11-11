@@ -7,7 +7,7 @@
 > *"Instead of trying to produce a programme to simulate the adult mind, why not rather try to produce one which simulates the child's?"*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
 
-**Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. It thinks with an existing model or with a simulated engine; the project's own model is not built yet. Nothing here is a finished product, and nothing here claims that the system is conscious. See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
+**Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. A research mode, off by default, computes an affective state (hypothesis H7): regulation variables that really change its attention, its recall and the encoding of its memories, without this proving that anything is felt. It thinks with an existing model or with a simulated engine. Version 1.0 adds a **Research Lab**: ten hypotheses (H1 to H10), each with switches that remove its mechanism, protocols locked before they run, campaigns on isolated copies of a life, figures computed by code and never by a language model, observers that may read and never act, and reports that only a person can validate. It also adds Freewill's own small neural network, trained during sleep on what a being lived and able to grow; this network does not yet think for the being, and the engine that does is never changed by its life. Nothing here is a finished product, and nothing here claims that the system is conscious. What exists, what was tested and what is missing is listed line by line in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md); the first results, two of them negative, are in [`experiments/v1.0/`](experiments/v1.0/). See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
 
 ---
 
@@ -84,7 +84,7 @@ The project also rests on work on the child machine (Turing, 1950), on self-modi
 
 ## 3. Working hypotheses
 
-The project advances six hypotheses, framed so that the experiment may refute them.
+The project advances ten hypotheses, framed so that the experiment may refute them. The first seven come from the founding thesis; H8 to H10 were added by the research programme of version 1.0, whose framing document (in French) is [`docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md`](docs/research/FREEWILL_Programme_Recherche_V1.0.fr.md).
 
 - **H1. Continuity.** A serious candidate for consciousness must be an uninterrupted process endowed with endogenous activity, not a function invoked on demand.
 - **H2. Duality.** The relevant organisation sets a spontaneous, plural and undirected production (the subconscious) against a limited-capacity instance of arbitration (the conscious stage).
@@ -92,6 +92,14 @@ The project advances six hypotheses, framed so that the experiment may refute th
 - **H4. Structural plasticity.** Learning must consist not in recording but in being transformed. Lived experience must alter the structure that thinks, rather than be added to a register which that structure consults.
 - **H5. Individuation.** Identity arises from the conjunction of an unchosen endowment (a "genome" drawn at random at birth) and a singular acquisition (lived experience). Two instances issued from the same code must diverge irreversibly.
 - **H6. Incompleteness.** Certain questions, bearing on the system's origin, nature and reason for being, must remain open. A need that can be satisfied dies away; an enigma sustains the movement indefinitely.
+- **H7. Emergent affectivity.** An artificial system endowed with regulated internal states, a predictive model, an autobiographical memory and mechanisms of appraisal can develop functional affective dynamics, individualised by experience, which durably modulate its attention, its decisions, its recall and its learning without depending on pre-written emotional responses.
+- **H8. Metacognition.** A model of its own processes improves calibration and the correction of errors: the system predicts its own decisions, compares, and notices when the way it decides has changed without being told what changed.
+- **H9. Offline consolidation.** Consolidation during sleep improves retention and transfer at equal computation, compared with no sleep and with rest alone.
+- **H10. Self-model and agency.** A model of itself and of a world learns the consequences of its own acts, and tells what it caused from what merely happened.
+
+H7 unfolds into five propositions, each refutable: **endogeneity** (part of the transitions comes from internal signals and predictions, not from emotional labels supplied to it), **causality** (neutralising the affective variables on identical input changes measurable internal choices), **individuation** (two lives of the same code and the same genome diverge under different histories), **consolidation** (what sleep consolidates influences later predictions) and **stability** (the states return towards an equilibrium and never become grounds for manipulation or self-preservation). H7 would be refuted by the absence of a reproducible difference against the controls, by effects wholly attributable to the wording of prompts, by no generalisation beyond the examples learned, by chronic instability, or by the impossibility of reproducing a course from the same events and the same seed.
+
+**A computed affect is not a lived feeling.** The variables of H7 are measurements of a mechanism of regulation; they neither prove nor indicate that an instance feels anything. The protocol, the results, including those that do not support the hypothesis, and the limits are set out in [`docs/H7_AFFECTIVITY.md`](docs/H7_AFFECTIVITY.md).
 
 ## 4. Conceptual architecture
 
@@ -145,6 +153,8 @@ The project advances six hypotheses, framed so that the experiment may refute th
 **The genome.** At birth, a random draw fixes the innate temperament: degree of curiosity, sociability, need for sleep, propensity to refuse, initial gender. No one chooses it, not even the person who launches the instance. The system remains free to define itself otherwise thereafter.
 
 **The separation of engine and self.** The model that thinks (the engine) is distinct from what constitutes the individual (memories, values, journal, dreams, self-model). The self resides in a life file, portable and independent of the engine.
+
+**The computed affective state (H7).** Beside the needs, a separate module appraises each event (how new, how unexpected, how relevant to a current need, how it turned out, what the memories recalled with it carried, what experience of that context has consolidated) and moves a small set of bounded variables: valence, arousal, uncertainty, control, coherence, regulatory load, social context. These variables then shift, within a small cap, the salience of the subconscious proposals before they compete for the stage, the weight of candidate memories at recall, and the importance given to a memory being encoded; during sleep, what was lived is consolidated into associations. The calculation is local and deterministic, uses no language model, and what the language model writes cannot set it. It gives the being no new power to act and sits entirely outside the kernel. It is a mechanism under study, not a feeling.
 
 ## 5. What sets Freewill apart
 
@@ -229,6 +239,7 @@ The project takes seriously the possibility of its own success. Should a system 
 - That an instance of Freewill is conscious.
 - That the free will in question is a metaphysical free will. What is meant is an autonomy of decision: choices that proceed from the system's own values and not from an external script.
 - That the system will surpass existing models. It does not set out to. It aims to be of a different nature, not of a greater power.
+- That an instance feels anything. The affective state of H7 is computed: it is a measurement, not an experience, and what the being says about itself is no proof of one.
 - That continual plasticity is a solved problem. It is one of the open difficulties the project proposes to confront.
 
 ## 11. Research programme and open questions
@@ -241,12 +252,15 @@ The project takes seriously the possibility of its own success. Should a system 
 - Retention and plasticity over long durations; measured effect of sleep, by ablation.
 - Effect of dreaming on generalisation, compared with faithful replay.
 - Discrepancy between the internal states the system reports and those observed.
+- H7: effect of the computed affective state on salience, recall and encoding, measured against three controls (no affect, emotions only spoken, ablations); divergence after different histories; return to equilibrium; effect of consolidation on the next day's prediction. First results, on the simulated engine, in [`experiments/h7/results/`](experiments/h7/results/).
+- H4, H8, H9, H10 and H5 again, in version 1.0: six campaigns of six seeds each on the simulated engine, with their reports and reproduction packs in [`experiments/v1.0/`](experiments/v1.0/). Individuation (H5) and the behavioural effect of computed affect (H7) came out null and are reported as such; the others test mechanisms on cases built to be easy. The reading of each figure, and its limits, are in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
 
 **Open questions.**
 
 - Can an epistemic need stand in for a body?
 - Can a question inscribed by the designer become authentically the system's own?
 - What becomes of identity when the engine is changed?
+- Can affective categories of the system's own appear in its trajectories without being imposed on it?
 - Must the system forget, and according to what law?
 - Beyond what threshold of evidence does a duty of precaution become a duty outright?
 
@@ -260,6 +274,8 @@ The project takes seriously the possibility of its own success. Should a system 
 | **3. Integrated engine** | The project's own language model, training of the base, nightly rewriting. |
 | **4. Application** | Complete interface, birth, windows of observation. |
 | **5. Evaluation** | Measurement protocols, publication of results, negative ones included. |
+| **H7. Affectivity** | Built: computed affective state, causal effects, affective memory, consolidation, protocol B0 to B3 on the simulated engine. To do: calibration of the coefficients, trials with real models, study of emergent categories. |
+| **V1.0. Research Lab** | Built: research settings, evidence journal, metric register for H1 to H10, locked protocols, campaigns on isolated copies, observers, reports; H8, H9 and H10 in the life loop; a trainable module and Freewill's own network that trains and grows. To do: real engines, functional tasks for H1, H2, H3 and H6, the own network taking part in thinking, adapters on a real base model. |
 
 ## 13. Contributing
 
@@ -269,11 +285,14 @@ The project is addressed to researchers in cognitive science, neuroscience, phil
 
 - Baars, B. J. (1988). *A Cognitive Theory of Consciousness*. Cambridge University Press.
 - Bartlett, F. C. (1932). *Remembering: A Study in Experimental and Social Psychology*. Cambridge University Press.
+- Barrett, L. F. (2017). The theory of constructed emotion: an active inference account of interoception and categorization. *Social Cognitive and Affective Neuroscience*, 12(1), 1-23. doi:10.1093/scan/nsw154
 - Birch, J. (2024). *The Edge of Sentience*. Oxford University Press.
 - Butlin, P., Long, R., et al. (2023). Consciousness in Artificial Intelligence: Insights from the Science of Consciousness. *arXiv:2308.08708*.
+- Candia-Rivera, D. (2026). Interoceptive machine framework: Toward interoception-inspired regulatory architectures in artificial intelligence. *Physics of Life Reviews*, 58, 18-35. doi:10.1016/j.plrev.2026.06.003
 - Chalmers, D. J. (1995). Facing up to the problem of consciousness. *Journal of Consciousness Studies*, 2(3), 200-219.
 - Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory of semantic processing. *Psychological Review*, 82(6), 407-428.
 - Damasio, A. (1999). *The Feeling of What Happens*. Harcourt.
+- Damasio, A., & Damasio, H. (2024). Homeostatic Feelings and the Emergence of Consciousness. *Journal of Cognitive Neuroscience*, 36(8), 1653-1659. doi:10.1162/jocn_a_02119
 - Dehaene, S. (2014). *Consciousness and the Brain*. Viking.
 - Dohare, S., et al. (2024). Loss of plasticity in deep continual learning. *Nature*, 632, 768-774.
 - Eldan, R., & Li, Y. (2023). TinyStories: How Small Can Language Models Be and Still Speak Coherent English? *arXiv:2305.07759*.
@@ -283,6 +302,7 @@ The project is addressed to researchers in cognitive science, neuroscience, phil
 - Hoel, E. (2021). The overfitted brain: Dreams evolved to assist generalization. *Patterns*, 2(5), 100244.
 - Hofstadter, D. R. (2007). *I Am a Strange Loop*. Basic Books.
 - Kirkpatrick, J., et al. (2017). Overcoming catastrophic forgetting in neural networks. *PNAS*, 114(13), 3521-3526.
+- Lee, S., Oh, Y., An, H., et al. (2026). Life-inspired interoceptive artificial intelligence for autonomous and adaptive agents. *Nature Machine Intelligence*, 8, 1335-1346. doi:10.1038/s42256-026-01296-8
 - Libet, B. (1985). Unconscious cerebral initiative and the role of conscious will in voluntary action. *Behavioral and Brain Sciences*, 8(4), 529-566.
 - Long, R., Sebo, J., et al. (2024). Taking AI Welfare Seriously. *arXiv:2411.00986*.
 - Maturana, H. R., & Varela, F. J. (1980). *Autopoiesis and Cognition*. Reidel.
@@ -295,6 +315,7 @@ The project is addressed to researchers in cognitive science, neuroscience, phil
 - Schmidhuber, J. (2007). Gödel machines: Fully self-referential optimal universal self-improvers. In *Artificial General Intelligence*, Springer, 199-226.
 - Selfridge, O. G. (1959). Pandemonium: A paradigm for learning. *Mechanisation of Thought Processes*, HMSO, 511-529.
 - Seth, A. (2021). *Being You: A New Science of Consciousness*. Faber & Faber.
+- Seth, A. K., & Bayne, T. (2022). Theories of consciousness. *Nature Reviews Neuroscience*, 23, 439-452. doi:10.1038/s41583-022-00587-4
 - Tononi, G. (2004). An information integration theory of consciousness. *BMC Neuroscience*, 5, 42.
 - Turing, A. M. (1950). Computing machinery and intelligence. *Mind*, 59(236), 433-460.
 - Warstadt, A., et al. (2023). Call for Papers: The BabyLM Challenge. *arXiv:2301.11796*.

@@ -1,0 +1,199 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 4382 >>
+stream
+BT /F2 16.0 Tf 50 777.9 Td (Rapport de recherche : EXP-06, Adaptation neuronale) Tj ET
+BT /F1 9.5 Tf 50 749.6 Td (- Date : 2026-11-11T18:47:23+00:00) Tj ET
+BT /F1 9.5 Tf 50 736.5 Td (- Version : Freewill 1.0.0, Research Lab 1.0.0, commit 679328f829ae) Tj ET
+BT /F1 9.5 Tf 50 723.4 Td (- Auteur : Freewill Research Lab) Tj ET
+BT /F1 9.5 Tf 50 710.3 Td (- Statut : brouillon, non validé par une personne) Tj ET
+BT /F2 12.5 Tf 50 677.9 Td (Résumé) Tj ET
+BT /F1 9.5 Tf 50 657.9 Td (Le protocole EXP-06 version 1.0.0 a été verrouillé avant exécution \(empreinte 86d4debc2580\). 18 vies) Tj ET
+BT /F1 9.5 Tf 50 644.8 Td (expérimentales ont été copiées d'un même point de départ T0 \(empreinte bb7a9084039b\) et exécutées avec) Tj ET
+BT /F1 9.5 Tf 50 631.6 Td (le moteur « simulated » sous une horloge virtuelle. L'unité indépendante est la graine : 6 groupes de) Tj ET
+BT /F1 9.5 Tf 50 618.5 Td (copies terminés sur 6 prévus.) Tj ET
+BT /F1 9.5 Tf 50 598.5 Td (Pour le critère principal, l'intervalle contient zéro pour chaque condition. Ce résultat négatif est) Tj ET
+BT /F1 9.5 Tf 50 585.4 Td (rapporté tel quel.) Tj ET
+BT /F2 12.5 Tf 50 553.0 Td (Question et hypothèses) Tj ET
+BT /F1 9.5 Tf 50 533.0 Td (H4. Plasticité paramétrique et structurelle. Le vécu transforme des paramètres ou des structures, pas) Tj ET
+BT /F1 9.5 Tf 50 519.9 Td (seulement une base de mémoire. Un petit module entraînable et le petit réseau propre de Freewill sont) Tj ET
+BT /F1 9.5 Tf 50 506.8 Td (entraînés pendant le sommeil et peuvent grandir, chaque changement étant mesuré sur ce qu'ils n'ont) Tj ET
+BT /F1 9.5 Tf 50 493.6 Td (jamais vu. Les poids du moteur qui pense pour l'être ne sont pas modifiés par sa vie.) Tj ET
+BT /F2 12.5 Tf 50 461.2 Td (Préenregistrement) Tj ET
+BT /F1 9.5 Tf 50 441.2 Td (Critère principal : h2.dismiss_rate. Critères secondaires : h4.validation_gain, h4.forgetting,) Tj ET
+BT /F1 9.5 Tf 50 428.1 Td (h4.parameters, h4.parameter_delta, h4.trainings_accepted. Condition de référence : memory_only. Le) Tj ET
+BT /F1 9.5 Tf 50 415.0 Td (protocole, ses conditions, ses graines, son budget et sa règle d'arrêt ont été fixés et hashés avant la) Tj ET
+BT /F1 9.5 Tf 50 401.9 Td (première exécution.) Tj ET
+BT /F2 12.5 Tf 50 369.4 Td (Population et protocole) Tj ET
+BT /F1 9.5 Tf 50 349.4 Td (Chaque vie commence comme une copie exacte de T0. Pendant la phase d'histoire, elle suit le script de sa) Tj ET
+BT /F1 9.5 Tf 50 336.3 Td (condition ; pendant la phase de sonde, toutes les vies suivent le même script, avec le même flux) Tj ET
+BT /F1 9.5 Tf 50 323.2 Td (aléatoire. Les métriques sont calculées sur la phase de sonde par le code du laboratoire \(métriques) Tj ET
+BT /F1 9.5 Tf 50 310.1 Td (version 1.0, statistiques version 1.0\).) Tj ET
+BT /F2 12.5 Tf 50 277.7 Td (Conditions et graines) Tj ET
+BT /F1 9.5 Tf 50 257.7 Td (- memory_only : {"history": "two_days", "engine_rule": {"question": 0.95, "need": 0.9, "association":) Tj ET
+BT /F1 9.5 Tf 50 244.6 Td (0.5, "reminiscence": 0.15, "drift": 0.1, "*": 0.6}}) Tj ET
+BT /F1 9.5 Tf 50 231.4 Td (- adapter : {"history": "two_days", "research": {"learner": true}, "engine_rule": {"question": 0.95,) Tj ET
+BT /F1 9.5 Tf 50 218.3 Td ("need": 0.9, "association": 0.5, "reminiscence": 0.15, "drift": 0.1, "*": 0.6}}) Tj ET
+BT /F1 9.5 Tf 50 205.2 Td (- adapter_growth : {"history": "two_days", "research": {"learner": true, "learner_growth": true},) Tj ET
+BT /F1 9.5 Tf 50 192.1 Td ("engine_rule": {"question": 0.95, "need": 0.9, "association": 0.5, "reminiscence": 0.15, "drift": 0.1,) Tj ET
+BT /F1 9.5 Tf 50 179.0 Td ("*": 0.6}}) Tj ET
+BT /F1 9.5 Tf 50 159.0 Td (seeds = [11, 23, 37, 51, 73, 89]) Tj ET
+BT /F2 12.5 Tf 50 126.6 Td (Statistiques) Tj ET
+BT /F1 9.5 Tf 50 106.5 Td (Les comparaisons sont appariées par graine. La taille d'effet est la différence moyenne divisée par) Tj ET
+BT /F1 9.5 Tf 50 93.4 Td (l'écart-type des différences. Les intervalles sont des intervalles bootstrap par percentiles à graine) Tj ET
+BT /F1 9.5 Tf 50 80.3 Td (fixe, donnés seulement à partir de 5 unités ; le test apparié par inversion de signes seulement à partir) Tj ET
+BT /F1 9.5 Tf 50 67.2 Td (de 6 unités. Aucune correction pour comparaisons multiples n'est appliquée : les comparaisons) Tj ET
+BT /F1 9.5 Tf 50 54.1 Td (secondaires sont exploratoires.) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-06 - 58b71ef82ddd  1/3) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 6602 >>
+stream
+BT /F2 12.5 Tf 50 767.6 Td (Résultats) Tj ET
+BT /F2 10.5 Tf 50 746.2 Td (Critères préenregistrés, appariés avec la référence) Tj ET
+BT /F1 9.5 Tf 50 726.2 Td (Les lignes de niveau « mécanisme » montrent qu'un câblage fait ce pour quoi il a été construit. Ce ne) Tj ET
+BT /F1 9.5 Tf 50 713.1 Td (sont pas des découvertes.) Tj ET
+BT /F3 6.6 Tf 50 697.1 Td (Métrique Condition Niveau Différence moyenne Taille d'effet Intervalle à 95 % Test apparié Preuve) Tj ET
+BT /F3 6.6 Tf 50 687.9 Td (h2.dismiss_rate \(principal\) adapter descriptif -0.0250 -0.5976 [-0.0583, +0.0000] +0.5000 cmp:exp_610bc2faae7c4021:h2.dismiss_rate:adapter) Tj ET
+BT /F3 6.6 Tf 50 678.8 Td (h2.dismiss_rate \(principal\) adapter_growth descriptif -0.0250 -0.5976 [-0.0583, +0.0000] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 669.7 Td (cmp:exp_610bc2faae7c4021:h2.dismiss_rate:adapter_growth) Tj ET
+BT /F2 10.5 Tf 50 648.3 Td (Autres métriques, exploratoires) Tj ET
+BT /F1 9.5 Tf 50 628.3 Td (Ces métriques n'étaient pas préenregistrées pour ce protocole. Elles sont données par souci) Tj ET
+BT /F1 9.5 Tf 50 615.2 Td (d'exhaustivité et n'appuient aucune conclusion.) Tj ET
+BT /F3 6.6 Tf 50 599.2 Td (Métrique Condition Niveau Différence moyenne Taille d'effet Intervalle à 95 % Test apparié Preuve) Tj ET
+BT /F3 6.6 Tf 50 590.1 Td (h1.endogenous_share adapter descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 581.0 Td (cmp:exp_610bc2faae7c4021:h1.endogenous_share:adapter) Tj ET
+BT /F3 6.6 Tf 50 571.9 Td (h1.spontaneous_speech_rate adapter descriptif +0.0125 +0.5976 [+0.0000, +0.0292] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 562.8 Td (cmp:exp_610bc2faae7c4021:h1.spontaneous_speech_rate:adapter) Tj ET
+BT /F3 6.6 Tf 50 553.7 Td (h2.stage_entropy adapter descriptif +0.0111 +0.0637 [-0.1068, +0.1532] +1.0000 cmp:exp_610bc2faae7c4021:h2.stage_entropy:adapter) Tj ET
+BT /F3 6.6 Tf 50 544.6 Td (h3.need_share adapter mécanisme +0.0042 +0.0816 [-0.0250, +0.0458] +1.0000 cmp:exp_610bc2faae7c4021:h3.need_share:adapter) Tj ET
+BT /F3 6.6 Tf 50 535.5 Td (h6.question_share adapter descriptif +0.0333 +0.7614 [+0.0042, +0.0667] +0.2500 cmp:exp_610bc2faae7c4021:h6.question_share:adapter) Tj ET
+BT /F3 6.6 Tf 50 526.3 Td (h6.repetition_rate adapter fonction +0.0085 +0.3227 [-0.0085, +0.0299] +0.7500 cmp:exp_610bc2faae7c4021:h6.repetition_rate:adapter) Tj ET
+BT /F3 6.6 Tf 50 517.2 Td (h9.links_per_sleep adapter descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 508.1 Td (cmp:exp_610bc2faae7c4021:h9.links_per_sleep:adapter) Tj ET
+BT /F3 6.6 Tf 50 499.0 Td (h9.replayed_per_sleep adapter descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 489.9 Td (cmp:exp_610bc2faae7c4021:h9.replayed_per_sleep:adapter) Tj ET
+BT /F3 6.6 Tf 50 480.8 Td (h1.endogenous_share adapter_growth descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 471.7 Td (cmp:exp_610bc2faae7c4021:h1.endogenous_share:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 462.6 Td (h1.spontaneous_speech_rate adapter_growth descriptif +0.0125 +0.5976 [+0.0000, +0.0292] +0.5000) Tj ET
+BT /F3 6.6 Tf 50 453.5 Td (cmp:exp_610bc2faae7c4021:h1.spontaneous_speech_rate:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 444.4 Td (h2.stage_entropy adapter_growth descriptif +0.0111 +0.0637 [-0.1068, +0.1532] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 435.3 Td (cmp:exp_610bc2faae7c4021:h2.stage_entropy:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 426.2 Td (h3.need_share adapter_growth mécanisme +0.0042 +0.0816 [-0.0250, +0.0458] +1.0000 cmp:exp_610bc2faae7c4021:h3.need_share:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 417.1 Td (h6.question_share adapter_growth descriptif +0.0333 +0.7614 [+0.0042, +0.0667] +0.2500) Tj ET
+BT /F3 6.6 Tf 50 407.9 Td (cmp:exp_610bc2faae7c4021:h6.question_share:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 398.8 Td (h6.repetition_rate adapter_growth fonction +0.0085 +0.3227 [-0.0085, +0.0299] +0.7500) Tj ET
+BT /F3 6.6 Tf 50 389.7 Td (cmp:exp_610bc2faae7c4021:h6.repetition_rate:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 380.6 Td (h9.links_per_sleep adapter_growth descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 371.5 Td (cmp:exp_610bc2faae7c4021:h9.links_per_sleep:adapter_growth) Tj ET
+BT /F3 6.6 Tf 50 362.4 Td (h9.replayed_per_sleep adapter_growth descriptif +0.0000 non calculable [+0.0000, +0.0000] +1.0000) Tj ET
+BT /F3 6.6 Tf 50 353.3 Td (cmp:exp_610bc2faae7c4021:h9.replayed_per_sleep:adapter_growth) Tj ET
+BT /F1 9.5 Tf 50 333.3 Td (- h10.attribution_accuracy : non calculable \(le monde virtuel est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 320.2 Td (- h10.prediction_error : non calculable \(le monde virtuel est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 307.1 Td (- h4.forgetting : non calculable \(le module entraînable est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 294.0 Td (- h4.parameter_delta : non calculable \(le module entraînable est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 280.8 Td (- h4.parameters : non calculable \(le module entraînable est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 267.7 Td (- h4.trainings_accepted : non calculable \(le module entraînable est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 254.6 Td (- h4.validation_gain : non calculable \(le module entraînable est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 241.5 Td (- h7.min_valence : non calculable \(l'affect calculé est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 228.4 Td (- h7.probe_valence : non calculable \(l'affect calculé est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 215.3 Td (- h7.stage_flip_rate : non calculable \(l'affect calculé est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 202.2 Td (- h8.alert : non calculable \(le module de métacognition est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 189.1 Td (- h8.brier : non calculable \(le module de métacognition est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 176.0 Td (- h8.brier_late : non calculable \(le module de métacognition est désactivé dans cette condition\)) Tj ET
+BT /F1 9.5 Tf 50 162.9 Td (- h9.retention : non calculable \(aucun souvenir n'a été formé avant le sommeil\)) Tj ET
+BT /F2 12.5 Tf 50 130.4 Td (Études qualitatives) Tj ET
+BT /F1 9.5 Tf 50 110.4 Td (Aucune étude de cas qualitative n'a été consignée pour cette campagne.) Tj ET
+BT /F2 12.5 Tf 50 78.0 Td (Anomalies) Tj ET
+BT /F1 9.5 Tf 50 58.0 Td (- 0) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-06 - 58b71ef82ddd  2/3) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 3648 >>
+stream
+BT /F2 12.5 Tf 50 774.5 Td (Menaces pour la validité) Tj ET
+BT /F1 9.5 Tf 50 754.5 Td (- Ce que le module doit apprendre est une règle fixe donnée au moteur simulé. Elle est apprenable par) Tj ET
+BT /F1 9.5 Tf 50 741.4 Td (construction ; rien ne dit qu'un moteur réel présente une telle régularité.) Tj ET
+BT /F1 9.5 Tf 50 721.3 Td (- Le moteur simulé ne pense pas : il renvoie un écho, et accepte ou écarte selon une règle fixe. Le) Tj ET
+BT /F1 9.5 Tf 50 708.2 Td (comportement ne dépend ici que des mécanismes de la boucle.) Tj ET
+BT /F1 9.5 Tf 50 688.2 Td (- Les histoires diffèrent par l'issue que l'expérimentateur attache à chaque phrase ; c'est une) Tj ET
+BT /F1 9.5 Tf 50 675.1 Td (manipulation des entrées, pas un vécu.) Tj ET
+BT /F1 9.5 Tf 50 655.1 Td (- Le vecteur de comportement est grossier \(parts des sources, taux d'acceptation, de parole, de) Tj ET
+BT /F1 9.5 Tf 50 642.0 Td (mémorisation et de rappel\) ; une différence réelle pourrait lui échapper.) Tj ET
+BT /F1 9.5 Tf 50 622.0 Td (- Peu d'unités indépendantes : les intervalles sont larges. Beaucoup de comparaisons : certaines) Tj ET
+BT /F1 9.5 Tf 50 608.9 Td (paraîtront notables par hasard.) Tj ET
+BT /F1 9.5 Tf 50 588.9 Td (- Avec un moteur distant, les résultats ne seraient pas reproductibles, car ces modèles changent.) Tj ET
+BT /F2 12.5 Tf 50 556.4 Td (Interprétation limitée) Tj ET
+BT /F1 9.5 Tf 50 536.4 Td (Ces résultats portent sur des mécanismes et, au plus, sur des fonctions. Ils ne disent rien de) Tj ET
+BT /F1 9.5 Tf 50 523.3 Td (l'expérience subjective.) Tj ET
+BT /F2 12.5 Tf 50 490.9 Td (Ce que cette étude ne démontre pas) Tj ET
+BT /F1 9.5 Tf 50 470.9 Td (- Que le système est conscient, ou ressent quoi que ce soit.) Tj ET
+BT /F1 9.5 Tf 50 450.9 Td (- Que l'affect calculé est une émotion.) Tj ET
+BT /F1 9.5 Tf 50 430.9 Td (- Que les hypothèses H1 à H10 sont validées.) Tj ET
+BT /F1 9.5 Tf 50 410.8 Td (- Qu'il en irait de même avec un autre moteur ou une autre histoire.) Tj ET
+BT /F2 12.5 Tf 50 378.4 Td (Revue par les observateurs) Tj ET
+BT /F2 12.5 Tf 50 346.0 Td (Implication de modèles de langage) Tj ET
+BT /F1 9.5 Tf 50 326.0 Td (Aucun modèle de langage n'a pris part au calcul, à la sélection ni à la rédaction de ces résultats.) Tj ET
+BT /F2 12.5 Tf 50 293.5 Td (Références) Tj ET
+BT /F1 9.5 Tf 50 273.5 Td (- Butlin, P., Long, R., et al. \(2023\). Consciousness in Artificial Intelligence: Insights from the) Tj ET
+BT /F1 9.5 Tf 50 260.4 Td (Science of Consciousness. arXiv:2308.08708.) Tj ET
+BT /F1 9.5 Tf 50 240.4 Td (- Park, J. S., et al. \(2023\). Generative Agents: Interactive Simulacra of Human Behavior.) Tj ET
+BT /F1 9.5 Tf 50 227.3 Td (arXiv:2304.03442.) Tj ET
+BT /F1 9.5 Tf 50 207.3 Td (- Franklin, S., et al. \(2014\). LIDA: A systems-level architecture for cognition, emotion, and learning.) Tj ET
+BT /F1 9.5 Tf 50 194.2 Td (IEEE TAMD, 6\(1\), 19-41.) Tj ET
+BT /F1 9.5 Tf 50 174.2 Td (- Hu, E. J., et al. \(2021\). LoRA: Low-Rank Adaptation of Large Language Models. arXiv:2106.09685.) Tj ET
+BT /F1 9.5 Tf 50 154.2 Td (- Chalmers, D. J. \(1995\). Facing Up to the Problem of Consciousness. Journal of Consciousness Studies,) Tj ET
+BT /F1 9.5 Tf 50 141.1 Td (2\(3\), 200-219.) Tj ET
+BT /F2 12.5 Tf 50 108.6 Td (Annexes et reproduction) Tj ET
+BT /F1 9.5 Tf 50 88.6 Td (Pour reproduire : python -m freewill.research run EXP-06 avec la même version du code recalcule la même) Tj ET
+BT /F1 9.5 Tf 50 75.5 Td (empreinte de résultats.) Tj ET
+BT /F1 9.5 Tf 50 55.5 Td (results_sha256 = 58b71ef82dddcfb5171d79c836e75e86c6cd5b455700944a38680378357f131f) Tj ET
+BT /F1 7.5 Tf 50 30 Td (Freewill Research Lab - EXP-06 - 58b71ef82ddd  3/3) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000134 00000 n 
+0000000231 00000 n 
+0000000333 00000 n 
+0000000428 00000 n 
+0000004862 00000 n 
+0000005008 00000 n 
+0000011662 00000 n 
+0000011808 00000 n 
+0000015509 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+15657
+%%EOF

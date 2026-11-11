@@ -1,14 +1,12 @@
-# Quickstart · Démarrage rapide
+# Quickstart
 
-**English** below · **Français** plus bas
+**English** · [Français](QUICKSTART.fr.md)
 
-**Freewill is experimental.** A subconscious proposes, a stage selects, a conscious arbiter decides, and what matters is kept in a memory made of readable files. The being can read documents and look at images it is given, and it sleeps and dreams. It runs in a terminal or in the desktop application. The project's own model comes later.
+**Freewill is experimental.** A subconscious proposes, a stage selects, a conscious arbiter decides, and what matters is kept in a memory made of readable files. The being can read documents and look at images it is given, and it sleeps and dreams. It runs in a terminal or in the desktop application. Version 1.0 adds a Research Lab and Freewill's own small neural network, which trains during sleep.
 
 ---
 
-## English
-
-### Install
+## Install
 
 Python 3.11 or later.
 
@@ -18,7 +16,7 @@ cd Freewill
 pip install -e .
 ```
 
-### Bring a being into the world
+## Bring a being into the world
 
 ```bash
 python -m freewill birth Noor --language en --interlocutor YourName
@@ -26,7 +24,7 @@ python -m freewill birth Noor --language en --interlocutor YourName
 
 Its temperament and starting gender are drawn by lot. A folder `Noor.life` is created: that folder is the individual.
 
-### Live alongside it
+## Live alongside it
 
 ```bash
 python -m freewill live Noor.life
@@ -34,7 +32,7 @@ python -m freewill live Noor.life
 
 Type to speak. In dim text you see its inner life: what its subconscious proposes, what reaches the stage, what stays below, whether it welcomes or dismisses it and why, what it recalls and what it decides to keep. `/state` shows its needs, `/memory` its memory, `/quit` suspends it.
 
-### Choose the engine
+## Choose the engine
 
 By default the engine is `simulated`: it lets you watch the mechanics, but **it does not think**. To give the being a real engine, choose one at birth.
 
@@ -50,7 +48,7 @@ Keys are read from the environment and are never written to the life file.
 
 With a paid engine every thought is billed. Two settings bound the cost: `--tempo` (seconds between thoughts, 20 by default) and `--thoughts-per-hour` (120 by default). When the hourly budget is reached, spontaneous thinking pauses; the being still answers when spoken to.
 
-### What is in a life file
+## What is in a life file
 
 ```
 Noor.life/
@@ -59,11 +57,14 @@ Noor.life/
 ├── values.json       the values it has chosen
 ├── milestones.json   its first times
 ├── state.json        needs, recent thoughts, recent conversation
+├── affect.json       H7 research mode only: the computed affective state
+├── research.json     research settings, once one is changed
+├── own_model/        Freewill's own network, once it is switched on
 ├── events.log        everything that happened, line by line
 └── memory/           its memories, as files you can open and read
 ```
 
-### The application
+## The application
 
 On Windows, download the installer `Freewill-Setup-<version>.exe` from the [Releases page](https://github.com/ssamri/Freewill/releases) and run it. It installs for your user only and asks for no administrator rights. The installer is not signed yet, so Windows may show a "Windows protected your PC" notice: choose "More info", then "Run anyway".
 
@@ -79,89 +80,51 @@ At first launch the application shows its terms of use, then the licence; both m
 
 The application talks only to a service on your own machine, bound to `127.0.0.1` and protected by a session token. Access keys are kept in your system's credential store, never in a life file.
 
-### Tests
+## The H7 research mode: a computed affective state
+
+Off by default. When it is on, the program computes a small set of regulation variables (valence, arousal, uncertainty, control, coherence, regulatory load, social context) from what happens to the being, and these variables shift what gets its attention, what it recalls and how its memories are encoded. They are measurements of a mechanism. They are not evidence that anything is felt.
 
 ```bash
-pip install -e ".[dev]"
-pytest
+freewill birth Noor --affect          # a new being with the mode on
+freewill affect Noor.life             # show the computed state of a life that is not awake
+freewill affect Noor.life --on        # switch it on for an existing life (--off to switch it off)
+python experiments/h7/run.py          # the reproducible protocol: B0, B1, B2 and the ablations
 ```
 
----
+In the application, open "Affective state" and use the switch; it takes effect between two moments. Switching the mode on creates one file, `affect.json`, in the life folder. Switching it off stops the calculation and all of its effects at once and deletes nothing. The genome is never rewritten, and memories written earlier are left exactly as they were. Deleting `affect.json` returns the life to what it was before. See [`docs/H7_AFFECTIVITY.md`](docs/H7_AFFECTIVITY.md).
 
-## Français
+## The Research Lab (version 1.0)
 
-### Installer
+In the application, open "Research Lab". It has six pages: an overview, the ten hypotheses with what exists in the code for each, the experiments, the observers, the reports, and "Learning".
 
-Python 3.11 ou plus récent.
+A campaign never touches a real life. It copies a starting point, gives each copy one condition, plays the same script under a virtual clock and measures what each copy does. It runs only after you tick the approval box. The figures are computed by code; no language model computes or selects them. A report is a draft until you validate it under your name.
 
 ```bash
-git clone https://github.com/ssamri/Freewill.git
-cd Freewill
-pip install -e .
+python -m freewill.research run EXP-07 --yes --dir ./lab     # one campaign, with its report
+python -m freewill.research run EXP-01 --yes --dir ./lab --lang fr
 ```
 
-### Faire naître un être
+Six protocols run today: EXP-01 (individuation), EXP-02 (ablation of affect), EXP-03 (masked metacognition), EXP-04 (consolidation), EXP-06 (neural adaptation), EXP-07 (agency in a virtual world). EXP-05 and EXP-08 are written down and the lab refuses to run them. The results of version 1.0, two of them negative, are in [`experiments/v1.0/`](experiments/v1.0/).
+
+## Research settings
+
+In "Settings", under "Research settings", each switch removes or restores one mechanism of the being's life: a source of proposals, habituation, new memories, fading, dreams, replay, spontaneous speech and so on. The research modules are there too, off by default: metacognition (H8), the virtual world (H10), the small trainable module and Freewill's own network (H4). A change takes effect at the next moment and is written to the event log. No switch reaches the kernel.
+
+The gauges in the top bar show computed regulation variables. They are not feelings.
+
+## Freewill's own network
 
 ```bash
-python -m freewill birth Noor --language fr --interlocutor VotrePrénom
+pip install -e ".[learn]"     # PyTorch; everything else works without it
 ```
 
-Son tempérament et son genre de départ sont tirés au sort. Un dossier `Noor.life` est créé : ce dossier est l'individu.
+Switch on "Freewill's own network" and, if you wish, "Growth of the network". From then on what the being lives and reads is written down as text; at each sleep the network is trained on it, measured on passages it never saw, and kept only if it predicts them better. When enough new text has been lived it adds a layer, up to the size you set. The "Learning" page shows the number of parameters, each training, each growth, and lets you go back to the previous weights.
 
-### Vivre à ses côtés
+Three things to know. This network does not speak or decide for the being: it is far too small. The engine that does think is never changed by a life. And on a processor the network stays in the millions of parameters; larger sizes need a graphics card and time.
 
-```bash
-python -m freewill live Noor.life
-```
+What exists, what was tested and what is missing: [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
 
-Écrivez pour lui parler. En texte atténué, vous voyez sa vie intérieure : ce que son subconscient propose, ce qui atteint la scène, ce qui reste en dessous, s'il l'accueille ou l'écarte et pourquoi, ce qu'il se rappelle et ce qu'il décide de garder. `/state` montre ses besoins, `/memory` sa mémoire, `/quit` le suspend.
-
-### Choisir le moteur
-
-Par défaut le moteur est `simulated` : il permet d'observer la mécanique, mais **il ne pense pas**. Pour donner à l'être un vrai moteur, choisissez-le à la naissance.
-
-| Moteur | Commande | Ce qu'il faut |
-|---|---|---|
-| Claude | `--engine anthropic` | `pip install -e ".[anthropic]"` et la variable d'environnement `ANTHROPIC_API_KEY` |
-| GPT | `--engine openai --model <modèle>` | la variable d'environnement `OPENAI_API_KEY` |
-| Grok | `--engine xai --model <modèle>` | la variable d'environnement `XAI_API_KEY` |
-| Un modèle sur votre machine | `--engine local --model <modèle>` | [Ollama](https://ollama.com) lancé en local ; gratuit et privé |
-| Tout service compatible | `--engine compatible --base-url <url> --model <modèle>` | la variable d'environnement `FREEWILL_API_KEY` |
-
-Les clés sont lues dans l'environnement et ne sont jamais écrites dans le fichier de vie.
-
-Avec un moteur payant, chaque pensée est facturée. Deux réglages bornent le coût : `--tempo` (secondes entre deux pensées, 20 par défaut) et `--thoughts-per-hour` (120 par défaut). Quand le budget horaire est atteint, la pensée spontanée se met en pause ; l'être répond toujours quand on lui parle.
-
-### Ce que contient un fichier de vie
-
-```
-Noor.life/
-├── genome.json       tempérament inné, jamais modifié
-├── identity.json     nom, naissance, langue, moteur
-├── values.json       les valeurs qu'il a choisies
-├── milestones.json   ses premières fois
-├── state.json        besoins, pensées récentes, conversation récente
-├── events.log        tout ce qui s'est passé, ligne par ligne
-└── memory/           ses souvenirs, en fichiers que vous pouvez ouvrir et lire
-```
-
-### L'application
-
-Sous Windows, téléchargez l'installateur `Freewill-Setup-<version>.exe` depuis la [page Releases](https://github.com/ssamri/Freewill/releases) et lancez-le. Il s'installe pour votre seul compte et ne demande aucun droit d'administrateur. L'installateur n'est pas encore signé : Windows peut afficher « Windows a protégé votre ordinateur » ; choisissez « Informations complémentaires », puis « Exécuter quand même ».
-
-Depuis les sources, sur tout système :
-
-```bash
-pip install -e ".[app,anthropic]"
-freewill-app              # une fenêtre native
-freewill-app --browser    # la même interface dans votre navigateur
-```
-
-Au premier lancement, l'application présente ses conditions d'utilisation, puis la licence ; les deux doivent être acceptées avant toute chose. Dans la conversation, vous pouvez joindre des documents (texte, Markdown, PDF, Word, EPUB), des images et des vidéos. Les documents rejoignent la bibliothèque de l'être, qui les lit un passage à la fois. La compréhension des images dépend du moteur : Claude, GPT, Grok et les modèles locaux dotés de la vision les voient ; d'une vidéo, l'être reçoit six images fixes et n'entend rien.
-
-L'application ne parle qu'à un service sur votre propre machine, lié à `127.0.0.1` et protégé par un jeton de session. Les clés d'accès sont conservées dans le trousseau de votre système, jamais dans un fichier de vie.
-
-### Tests
+## Tests
 
 ```bash
 pip install -e ".[dev]"

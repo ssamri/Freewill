@@ -12,13 +12,13 @@
   };
 
   const S = {
-    lang: store.get("fw-lang", (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en"),
+    lang: store.get("fw-lang", "en"),  // English unless the person chose French
     theme: store.get("fw-theme", "system"),
     view: "chat",
     snap: null, seq: 0, run: 0,
     chat: [], moments: [], current: null, ticker: "",
     memories: [], memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-    dreams: null, asleep: false,
+    dreams: null, asleep: false, affect: null, affectStale: true,
     keys: {},
   };
 
@@ -62,6 +62,9 @@
     attach: '<path d="M20 11.5 12.2 19.3a5 5 0 0 1-7.1-7.1l8.2-8.2a3.4 3.4 0 0 1 4.8 4.8l-8.1 8.1a1.8 1.8 0 0 1-2.5-2.5l7.4-7.4"/>',
     file: '<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4"/>',
     close: '<path d="m6 6 12 12M18 6 6 18"/>',
+    sources: '<path d="M5 5.5A1.5 1.5 0 0 1 6.5 4H11v15H6.5A1.5 1.5 0 0 0 5 20.5z"/><path d="M19 5.5A1.5 1.5 0 0 0 17.5 4H13v15h4.5a1.5 1.5 0 0 1 1.5 1.5z"/>',
+    lab: '<path d="M9.5 3.5h5M10.5 3.5v6L5 19a1.4 1.4 0 0 0 1.2 2h11.6A1.4 1.4 0 0 0 19 19l-5.5-9.5v-6"/><path d="M7.6 15h8.8" opacity=".55"/>',
+    affect: '<path d="M3 17c3 0 3-10 6-10s3 12 6 12 3-7 6-7"/><path d="M3 21h18" opacity=".45"/>',
   };
   function icon(name) {
     const span = document.createElement("span");
@@ -106,6 +109,69 @@
   const brandMark = (style) => h("div", { class: "brand", style },
     h("i", { class: "brand-mark" }), h("span", {}, "Freewill"), h("span", { class: "tag neutral exp" }, t("exp")));
 
+  // ---------- sources and embedded models ----------
+
+  // A link the application shows: opened in the person's own browser, by the service,
+  // which only accepts the addresses it has itself put on screen.
+  function link(url, label) {
+    return h("button", { class: "linkish", title: url, onclick: (e) => { e.stopPropagation(); api("/api/open", { url }).catch(() => {}); } }, label);
+  }
+  function gb(bytes) { return (bytes / 1e9).toLocaleString(S.lang, { maximumFractionDigits: 1 }) + " " + t("models.gb"); }
+  const DOWNLOADING = (m) => m.progress && (m.progress.state === "downloading" || m.progress.state === "verifying");
+
+  // The catalogue of models the application can run by itself: the person picks one,
+  // downloads it, and sees who made it and under which licence.
+  function modelPicker(selected, onSelect, inUse) {
+    const box = h("div", { class: "models" }, h("p", { class: "hint" }, "…"));
+    let data = null, timer = null;
+    async function load() {
+      try { data = await api("/api/models"); } catch (_) { /* keep what is shown */ }
+      draw();
+    }
+    async function act(path, id) {
+      try { const out = await api(path, { id }); if (out.models) data.models = out.models; }
+      catch (e) { data.error = t("errors.generic", { message: e.message }); }
+      if (path.endsWith("delete") && selected === id) { selected = ""; onSelect(""); }
+      await load();
+    }
+    function row(m) {
+      const p = m.progress || {}, busy = DOWNLOADING(m), on = selected === m.id;
+      const right = m.installed
+        ? [h("button", { class: "btn small" + (on ? " primary" : ""), "aria-pressed": String(on),
+            onclick: () => { selected = m.id; onSelect(m.id); draw(); } }, on ? t("models.chosen") : t("models.choose")),
+           inUse === m.id ? null : h("button", { class: "icon-btn", title: t("models.delete"), "aria-label": t("models.delete") + " " + m.name,
+            onclick: () => act("/api/models/delete", m.id) }, icon("close"))]
+        : busy
+          ? [h("span", { class: "small muted" }, p.state === "verifying" ? t("models.verifying") : pct(p.done / Math.max(1, p.total))),
+             h("button", { class: "btn small", onclick: () => act("/api/models/cancel", m.id) }, t("models.cancel"))]
+          : h("button", { class: "btn small", disabled: !data.runtime && null, onclick: () => act("/api/models/download", m.id) },
+              (p.state === "error" || p.state === "cancelled") && p.done ? t("models.resume") : t("models.download"));
+      return h("div", { class: "model" + (on ? " on" : "") },
+        h("div", { class: "model-main" },
+          h("div", { class: "model-head" }, h("b", {}, m.name), h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)),
+            m.sees ? h("span", { class: "tag" }, t("models.sees")) : null,
+            m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null),
+          h("div", { class: "small muted" }, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb })),
+          h("div", { class: "model-src" }, h("span", {}, m.author), link(m.licence_url, m.licence), link(m.source_url, t("models.source"))),
+          busy ? bar(p.done / Math.max(1, p.total)) : null,
+          p.state === "error" ? h("div", { class: "error", role: "alert" }, p.error) : null),
+        h("div", { class: "model-act" }, right));
+    }
+    function draw() {
+      clearTimeout(timer);
+      if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
+      box.replaceChildren(
+        data.runtime ? null : h("p", { class: "error", role: "alert" }, t("models.no_runtime")),
+        data.error ? h("p", { class: "error", role: "alert" }, data.error) : null,
+        ...data.models.map(row),
+        h("p", { class: "hint" }, t("models.hint")));
+      data.error = "";
+      if (data.models.some(DOWNLOADING) && box.isConnected) timer = setTimeout(load, 900);
+    }
+    load();
+    return box;
+  }
+
   // ---------- terms of use and licence, accepted before anything else ----------
 
   function showGate(consent) {
@@ -148,7 +214,7 @@
     let info = { lives: [], keys: {} };
     try { info = await api("/api/lives"); } catch (_) { /* shown empty */ }
     S.keys = info.keys || {};
-    const W = { step: 0, name: "", you: "", lang: S.lang, kind: "local", model: "", key: "", error: "", busy: false, born: null };
+    const W = { step: 0, name: "", you: "", lang: S.lang, kind: "embedded", model: "", key: "", error: "", busy: false, born: null };
 
     function draw() {
       const card = h("div", { class: "welcome-card glass" });
@@ -190,13 +256,14 @@
         setTimeout(() => name.focus(), 0);
       } else if (W.step === 2) {
         card.append(steps, h("h1", {}, t("welcome.s3")), h("p", {}, t("welcome.s3_lead")));
-        ["own", "local", "anthropic", "openai", "xai", "simulated"].forEach((kind) => {
+        ["embedded", "local", "anthropic", "openai", "xai", "simulated", "own"].forEach((kind) => {
           const [title, text] = tr("welcome.engines")[kind];
           card.append(h("button", { class: "choice" + (W.kind === kind ? " on" : ""), disabled: kind === "own",
-            "aria-pressed": String(W.kind === kind), onclick: () => { W.kind = kind; W.error = ""; draw(); } },
+            "aria-pressed": String(W.kind === kind), onclick: () => { W.kind = kind; W.model = ""; W.error = ""; draw(); } },
             h("div", {}, h("b", {}, title), h("span", {}, text))));
+          if (kind === "embedded" && W.kind === "embedded") card.append(modelPicker(W.model, (id) => { W.model = id; }));
         });
-        if (W.kind !== "simulated") {
+        if (W.kind !== "simulated" && W.kind !== "embedded") {
           const needsKey = W.kind !== "local";
           card.append(h("div", { class: "row", style: "margin-top:14px" },
             h("div", { class: "field" }, h("label", { for: "w-model" }, t("welcome.model")),
@@ -225,6 +292,7 @@
     }
 
     async function birth() {
+      if (W.kind === "embedded" && !W.model) { W.error = t("models.pick_first"); return draw(); }
       W.busy = true; W.error = ""; draw();
       try {
         const engine = { kind: W.kind };
@@ -247,7 +315,7 @@
   function enter(snap) {
     Object.assign(S, { snap, seq: 0, chat: [], moments: [], current: null, ticker: "", memories: [],
                        memLoaded: false, comp: null, memId: null, memItem: null, memTab: "memories", memQuery: "",
-                       dreams: null, asleep: false, view: "chat" });
+                       dreams: null, asleep: false, affect: null, affectStale: true, view: "chat" });
     const run = ++S.run;
     drawShell();
     loadMemories();
@@ -329,6 +397,9 @@
         S.moments.push({ kind: "note", time: event.time, past, text: t("sub.woke", { d: d.dreams || 0, n: d.faded || 0 }) });
         S.current = null;
         return true;
+      case "affect_transition": case "affect_consolidation": case "affect_mode":
+        S.affectStale = true;  // H7: the computed state moved; the view reloads it
+        break;
       case "kernel_refusal": case "engine_error": case "engine_refusal":
         if (m) m.extras.push(d.message);
         break;
@@ -414,7 +485,7 @@
 
   // ---------- shell ----------
 
-  const NAV = ["chat", "subconscious", "memory", "brain", "state", "milestones", "dreams", "settings"];
+  const NAV = ["chat", "subconscious", "memory", "brain", "state", "affect", "milestones", "dreams", "lab", "sources", "settings"];
   let ui = {}, brain = null, view = null;
 
   function drawShell() {
@@ -428,6 +499,7 @@
     ui.engine = h("div", { class: "engine-badge" });
     ui.title = h("h1", {});
     ui.tickerText = h("span", { class: "ticker-text" });
+    ui.gauges = h("div", { class: "gauges" });
     ui.banner = h("div", { class: "banner", role: "status", hidden: true });
     ui.view = h("div", { class: "view" });
     root.replaceChildren(h("div", { class: "shell" },
@@ -438,7 +510,7 @@
         h("div", { class: "sidebar-foot" }, ui.engine,
           h("button", { class: "icon-btn", title: t("theme"), "aria-label": t("theme"), onclick: toggleTheme }, icon("theme")))),
       h("main", { class: "main glass" },
-        h("header", { class: "main-head" }, ui.title, h("div", { class: "ticker" }, ui.tickerText)),
+        h("header", { class: "main-head" }, ui.title, ui.gauges, h("div", { class: "ticker" }, ui.tickerText)),
         ui.banner, ui.view)));
     go(S.view);
   }
@@ -466,7 +538,7 @@
       if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     ui.title.textContent = t("nav." + id);
-    ui.view.className = "view" + (["chat", "memory", "brain"].includes(id) ? " flush" : "");
+    ui.view.className = "view" + (["chat", "memory", "brain"].includes(id) ? " flush" : "") + (id === "lab" ? " wide" : "");
     ui.view.replaceChildren();
     ui.view.ondragover = ui.view.ondragleave = ui.view.ondrop = null;
     ui.view.classList.remove("dropping");
@@ -479,7 +551,7 @@
     if (!snap || !ui.view) return;
     ui.name.textContent = snap.name;
     ui.age.textContent = t("born_ago", { age: snap.age });
-    ui.engine.textContent = snap.engine.name || snap.engine.kind || "";
+    ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
     ui.engine.title = ui.engine.textContent;
     ui.tickerText.textContent = S.ticker;
     ui.banner.hidden = !snap.paused;
@@ -487,12 +559,14 @@
     const last = S.moments[S.moments.length - 1];
     ui.orb.classList.toggle("resting", S.asleep);
     if (brain) brain.setAsleep(S.asleep);
+    if (window.FWLab) window.FWLab.gauges(ui.gauges, snap);
     if (view && view.update) view.update();
   }
 
   // ---------- views ----------
 
   const VIEWS = {
+    lab() { return window.FWLab ? window.FWLab.view(ui.view) : {}; },
     chat() {
       const MAX = 6;
       const scroll = h("div", { class: "chat-scroll", role: "log", "aria-live": "polite" });
@@ -677,6 +751,9 @@
             h("b", {}, t("mem.strength")), h("span", {}, pct(it.strength)),
             h("b", {}, t("mem.importance")), h("span", {}, pct(it.importance)),
             it.tags && it.tags.length ? [h("b", {}, t("mem.tags")), h("span", {}, it.tags.join(", "))] : null,
+            it.affect && typeof it.affect.v === "number" ? [h("b", {}, t("mem.trace")), h("span", { title: t("mem.trace_hint") },
+              t("aff.dims.valence") + " " + (it.affect.v >= 0 ? "+" : "−") + Math.abs(it.affect.v).toFixed(2) + " · " +
+              t("aff.dims.arousal") + " " + Number(it.affect.a || 0).toFixed(2) + (it.affect.key ? " · " + it.affect.key : ""))] : null,
             it.links && it.links.length ? [h("b", {}, t("mem.links")), h("span", { class: "linkrow" }, it.links.filter((id) => titles.has(id)).map((id) =>
               h("button", { class: "chip in link", onclick: () => open(id) }, titles.get(id))))] : null));
       }
@@ -734,6 +811,97 @@
       } };
     },
 
+    // H7. An observation panel for a computed state: numbers, curves, causes. Nothing here
+    // says or suggests that anything is felt.
+    affect() {
+      const box = h("div", { class: "affect" });
+      ui.view.append(box);
+      let loading = false, last = 0, error = "";
+      const DIMS = ["valence", "arousal", "uncertainty", "control", "coherence", "regulatory_load", "social_context"];
+      const CURVES = [["valence", "var(--accent)"], ["arousal", "var(--good)"], ["uncertainty", "var(--warn, #c98a1b)"]];
+      const unit = (name, v) => (name === "valence" ? (v + 1) / 2 : v);
+      const signed = (name, v) => (name === "valence" ? (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) : v.toFixed(2));
+      async function load() {
+        if (loading) return;
+        loading = true; S.affectStale = false; last = Date.now();
+        try { S.affect = await api("/api/affect"); error = ""; } catch (e) { error = e.message; S.affectStale = true; }
+        loading = false; draw();
+      }
+      async function toggle(enabled) {
+        try { S.affect = await api("/api/affect", { enabled }); error = ""; } catch (e) { error = e.message; }
+        draw();
+      }
+      function chart(history) {
+        const W = 640, H = 150, n = history.length, wrap = h("div", { class: "affect-chart", role: "img", "aria-label": t("aff.curves_alt") });
+        if (n < 2) { wrap.append(h("p", { class: "hint" }, t("aff.no_history"))); return wrap; }
+        const x = (i) => (i / (n - 1)) * W, y = (u) => H - 6 - u * (H - 12);
+        const lines = CURVES.map(([name, color]) => '<polyline fill="none" stroke="' + color + '" stroke-width="1.8" stroke-linejoin="round" points="' +
+          history.map((p, i) => x(i).toFixed(1) + "," + y(unit(name, Number(p[name]) || 0)).toFixed(1)).join(" ") + '"/>').join("");
+        // Numbers only: nothing coming from the being or the person is put in this markup.
+        wrap.innerHTML = '<svg viewBox="0 0 ' + W + " " + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+          '<line x1="0" x2="' + W + '" y1="' + y(0.5) + '" y2="' + y(0.5) + '" stroke="currentColor" opacity=".18" stroke-dasharray="3 4"/>' + lines + "</svg>";
+        wrap.append(h("div", { class: "affect-legend" }, CURVES.map(([name, color]) =>
+          h("span", {}, h("i", { style: "background:" + color }), t("aff.dims." + name)))));
+        return wrap;
+      }
+      function draw() {
+        const a = S.affect;
+        if (!a) return box.replaceChildren(h("p", { class: "hint" }, error ? t("errors.generic", { message: error }) : "…"));
+        const head = h("section", { class: "card affect-head" },
+          h("div", { style: "flex:1;min-width:0" },
+            h("div", { class: "section-title" }, t("aff.title")),
+            h("p", {}, t("aff.caveat")),
+            h("p", { class: "hint", style: "margin-top:8px" }, a.enabled ? t("aff.on_hint", { name: S.snap.name }) : t("aff.off_hint", { name: S.snap.name }))),
+          h("button", { class: "switch" + (a.enabled ? " on" : ""), role: "switch", "aria-checked": String(a.enabled),
+            "aria-label": t("aff.switch"), onclick: () => toggle(!a.enabled) }, h("i", {}), h("span", {}, a.enabled ? t("aff.on") : t("aff.off"))));
+        if (!a.enabled && !a.exists) return box.replaceChildren(...[head, error ? h("p", { class: "error" }, error) : null].filter(Boolean));
+        const v = a.state.values, traced = S.memories.filter((m) => m.affect && typeof m.affect.v === "number");
+        const cons = a.last_consolidation;
+        box.replaceChildren(...[head,
+          error ? h("p", { class: "error", role: "alert" }, error) : null,
+          a.recovered ? h("p", { class: "error", role: "alert" }, t("aff.recovered_" + a.recovered)) : null,
+          h("div", { class: "grid-2" },
+            h("section", { class: "card" }, h("div", { class: "section-title" }, t("aff.levels")),
+              DIMS.map((name) => h("div", { class: "meter affect-meter", title: t("aff.help." + name) },
+                h("span", {}, t("aff.dims." + name)),
+                h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * unit(name, v[name])) + "%" }),
+                  h("b", { class: "setpoint", style: "left:" + Math.round(100 * unit(name, a.setpoints[name])) + "%", title: t("aff.rest") })),
+                h("span", {}, signed(name, v[name])))),
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.levels_hint"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.curves")), chart(a.history)),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.triggers")),
+              a.recent.length ? a.recent.slice().reverse().slice(0, 8).map((r) => h("div", { class: "trigger" },
+                h("div", { class: "moment-head" }, h("span", { class: "tag neutral" }, r.key), h("span", { class: "small muted" }, t("aff.kinds." + r.kind)),
+                  h("span", { class: "small faint" }, "Δ " + Number(r.delta).toFixed(2)), h("time", {}, clock(r.time))),
+                h("ul", { class: "causes" }, r.causes.map((c) => h("li", {}, c)))))
+                : h("p", { class: "muted" }, t("aff.no_triggers"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.learned")),
+              a.associations.length ? a.associations.map((x) => h("div", { class: "meter affect-meter" },
+                h("span", { title: x.key }, x.key), h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(100 * unit("valence", x.valence)) + "%" }),
+                  h("b", { class: "setpoint", style: "left:50%" })), h("span", {}, signed("valence", x.valence) + " · " + x.n)))
+                : h("p", { class: "muted" }, t("aff.no_learned")),
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.learned_hint", { n: a.episodes }))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.sleep")),
+              cons ? [h("div", { class: "kv", style: "margin-top:0" },
+                  h("b", {}, t("aff.when")), h("span", {}, day(cons.time)),
+                  h("b", {}, t("aff.episodes")), h("span", {}, cons.episodes + " · " + cons.contexts + " " + t("aff.contexts")),
+                  cons.skipped ? [h("b", {}, t("aff.gap")), h("span", {}, t("aff.skipped"))]
+                    : [h("b", {}, t("aff.gap")), h("span", {}, Number(cons.error_before).toFixed(3) + " → " + Number(cons.error_after).toFixed(3))],
+                  h("b", {}, t("aff.dims.valence")), h("span", {}, signed("valence", cons.state_before.valence) + " → " + signed("valence", cons.state_after.valence)),
+                  h("b", {}, t("aff.dims.regulatory_load")), h("span", {}, cons.state_before.regulatory_load.toFixed(2) + " → " + cons.state_after.regulatory_load.toFixed(2))),
+                h("p", { class: "hint", style: "margin-top:10px" }, t("aff.sleep_hint"))]
+                : h("p", { class: "muted" }, t("aff.no_sleep"))),
+            h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("aff.memory")),
+              h("p", {}, t("aff.memory_text", { n: traced.length, of: S.memories.length })),
+              traced.length ? h("div", { class: "linkrow", style: "margin-top:10px" }, traced.slice(-8).reverse().map((m) =>
+                h("button", { class: "chip in link", title: t("aff.dims.valence") + " " + signed("valence", m.affect.v),
+                  onclick: () => { S.memId = m.id; S.memItem = null; S.memTab = "memories"; S.comp = null; S.memQuery = ""; go("memory"); } }, m.title))) : null,
+              h("p", { class: "hint", style: "margin-top:10px" }, t("aff.rules", { rules: a.rules }))))].filter(Boolean));
+      }
+      draw();
+      return { update() { if (S.affectStale && Date.now() - last > 900) load(); } };
+    },
+
     milestones() {
       let shown = "";
       return { update() {
@@ -774,6 +942,30 @@
       } };
     },
 
+    sources() {
+      const box = h("div", { class: "sources" }, h("p", { class: "hint" }, "…"));
+      ui.view.append(box);
+      api("/api/credits").then((data) => {
+        const item = (name, role, author, licence, licenceUrl, url, extra) => h("div", { class: "card source" },
+          h("div", { class: "model-head" }, h("b", {}, name), extra || null),
+          role ? h("div", { class: "small muted" }, role) : null,
+          h("div", { class: "model-src" }, h("span", {}, author),
+            licence ? (licenceUrl ? link(licenceUrl, licence) : h("span", {}, licence)) : null, link(url, t("models.source"))));
+        box.replaceChildren(
+          h("p", { class: "lead" }, t("src.lead")),
+          h("div", { class: "section-title" }, t("src.models")),
+          h("p", { class: "hint", style: "margin-bottom:10px" }, t("src.models_hint")),
+          ...data.models.map((m) => item(m.name, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb }), m.author, m.licence, m.licence_url, m.source_url,
+            [h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)), m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null])),
+          h("div", { class: "section-title", style: "margin-top:26px" }, t("src.software")),
+          ...data.software.map((s) => item(s.name, s.role[S.lang] || s.role.en, s.author, s.licence, null, s.url)),
+          h("div", { class: "section-title", style: "margin-top:26px" }, t("src.research")),
+          h("div", { class: "card source" }, h("p", { class: "small muted" }, t("src.research_text")),
+            h("div", { class: "model-src" }, link(data.project + "#readme", t("src.readme")), link(data.project, t("src.project")))));
+      }).catch((e) => box.replaceChildren(h("p", { class: "error" }, t("errors.generic", { message: e.message }))));
+      return {};
+    },
+
     settings() {
       const snap = S.snap, kind = snap.engine.kind;
       const saved = h("span", { class: "small muted", role: "status" });
@@ -785,6 +977,38 @@
       const keyInput = h("input", { id: "s-key", type: "password", autocomplete: "off" });
       const keyState = h("span", { class: "hint" }, S.keys[kind] ? t("set.key_set") : t("set.key_none"));
       const takesKey = ["anthropic", "openai", "xai", "compatible"].includes(kind);
+      // Another engine for the same being: its life file, and so itself, does not change.
+      const changer = h("div", { class: "changer" });
+      const C = { open: false, kind, model: snap.engine.model || "", key: "", error: "", busy: false };
+      function drawChanger() {
+        if (!C.open) return changer.replaceChildren(h("button", { class: "btn", style: "margin-bottom:14px", onclick: () => { C.open = true; drawChanger(); } }, t("set.change")));
+        const kinds = ["embedded", "local", "anthropic", "openai", "xai", "simulated"];
+        const needsKey = ["anthropic", "openai", "xai"].includes(C.kind);
+        changer.replaceChildren(
+          h("p", { class: "hint", style: "margin-bottom:10px" }, t("set.change_hint", { name: snap.name })),
+          h("div", { class: "field" }, h("label", { for: "c-kind" }, t("set.engine")),
+            select("c-kind", C.kind, kinds.map((k) => [k, tr("welcome.engines")[k][0]]), (v) => { C.kind = v; C.model = ""; C.error = ""; drawChanger(); })),
+          C.kind === "embedded" ? modelPicker(C.model, (id) => { C.model = id; }, kind === "embedded" ? snap.engine.model : null) : null,
+          C.kind !== "embedded" && C.kind !== "simulated" ? h("div", { class: "field" }, h("label", { for: "c-model" }, t("welcome.model")),
+            h("input", { id: "c-model", value: C.model, autocomplete: "off", spellcheck: "false", oninput: (e) => { C.model = e.target.value; } })) : null,
+          needsKey ? h("div", { class: "field" }, h("label", { for: "c-key" }, t("set.key")),
+            h("input", { id: "c-key", type: "password", autocomplete: "off", placeholder: S.keys[C.kind] ? "••••••••" : "", oninput: (e) => { C.key = e.target.value; } }),
+            h("span", { class: "hint" }, S.keys[C.kind] ? t("set.key_set") : t("set.key_hint"))) : null,
+          C.error ? h("div", { class: "error", role: "alert" }, C.error) : null,
+          h("div", { class: "actions", style: "margin:12px 0 16px" },
+            h("button", { class: "btn", onclick: () => { C.open = false; C.error = ""; drawChanger(); } }, t("welcome.back")),
+            h("button", { class: "btn primary", disabled: C.busy, onclick: async () => {
+              if (C.kind === "embedded" && !C.model) { C.error = t("models.pick_first"); return drawChanger(); }
+              C.busy = true; drawChanger();
+              const engine = { kind: C.kind };
+              if (C.model.trim()) engine.model = C.model.trim();
+              try {
+                const next = await api("/api/engine", { engine, api_key: C.key.trim() || undefined });
+                enter(next);
+              } catch (e) { C.busy = false; C.error = t("errors.generic", { message: e.message }); drawChanger(); }
+            } }, t("set.apply"))));
+      }
+      drawChanger();
       ui.view.append(h("div", { class: "grid-2" },
         h("section", { class: "card" }, h("div", { class: "section-title" }, t("set.appearance")),
           h("div", { class: "field" }, h("label", { for: "s-theme" }, t("set.theme")),
@@ -800,6 +1024,7 @@
           h("p", { class: "hint" }, t("set.rhythm_hint")), saved),
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.engine")),
           h("p", { style: "margin-bottom:12px" }, snap.engine.name || kind),
+          changer,
           takesKey ? [h("div", { class: "field" }, h("label", { for: "s-key" }, t("set.key")), keyInput, keyState),
             h("button", { class: "btn", onclick: async () => {
               if (!keyInput.value.trim()) return;
@@ -810,9 +1035,16 @@
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.being")),
           h("button", { class: "btn", onclick: async () => { S.run++; try { await api("/api/rest", {}); } catch (_) { /* already resting */ } showWelcome(); } },
             t("set.rest")))));
+      const research = h("div", { class: "research-settings" });
+      ui.view.append(research);
+      if (window.FWLab) window.FWLab.settings(research);
       return {};
     },
   };
+
+  // What the Research Lab's own file builds on.
+  window.FW = { S, h, t, tr, api, bar, pct, icon, link, store, go: (id) => go(id), refresh: () => refresh(),
+                absorbSnap: (snap) => { S.snap = snap; refresh(); } };
 
   // ---------- start ----------
 

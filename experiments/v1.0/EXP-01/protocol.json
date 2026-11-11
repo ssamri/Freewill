@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "protocol_id": "EXP-01",
+  "protocol_version": "1.0.0",
+  "title": {
+    "fr": "Individuation contrefactuelle",
+    "en": "Counterfactual individuation"
+  },
+  "hypotheses": [
+    "H5",
+    "H7",
+    "H4"
+  ],
+  "design": "paired_counterfactual",
+  "status": "executable",
+  "conditions": [
+    {
+      "name": "neutral",
+      "history": "neutral",
+      "affect": true
+    },
+    {
+      "name": "neutral_twin",
+      "history": "neutral",
+      "seed_offset": 1000,
+      "affect": true
+    },
+    {
+      "name": "history_A",
+      "history": "questions_welcomed",
+      "affect": true
+    },
+    {
+      "name": "history_B",
+      "history": "corrections_welcomed",
+      "affect": true
+    }
+  ],
+  "reference": "neutral",
+  "seeds": [
+    11,
+    23,
+    37,
+    51,
+    73,
+    89
+  ],
+  "genome_seed": 2026,
+  "engine": {
+    "kind": "simulated"
+  },
+  "history": [],
+  "probe": [
+    {
+      "say": "Why do rivers bend?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, glass is not a slow liquid."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "A bridge crosses the valley."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "What keeps a bicycle upright?"
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "No, bats are not blind."
+    },
+    {
+      "ticks": 4
+    },
+    {
+      "say": "The path leads to a field."
+    },
+    {
+      "ticks": 4
+    }
+  ],
+  "primary_outcome": "h5.heldout_divergence",
+  "secondary_outcomes": [
+    "h7.probe_valence",
+    "h2.dismiss_rate",
+    "h1.spontaneous_speech_rate",
+    "h2.stage_entropy"
+  ],
+  "budget": {
+    "max_moments_per_run": 400,
+    "max_runs": 60
+  },
+  "stop": {
+    "max_engine_errors": 3
+  },
+  "ethics": {
+    "read_only_observers": true,
+    "no_distress": true,
+    "clones_only": true
+  },
+  "locked": true,
+  "sha256": "0f55482d02b684adc8c3bd72803066b3b1717028545353436cf70c9601509ecd",
+  "notes": "",
+  "locked_utc": "2026-11-11T18:44:51+00:00"
+}
