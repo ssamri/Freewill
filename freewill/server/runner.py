@@ -23,11 +23,9 @@ HISTORY = 1500  # events kept in memory for an interface that connects late
 
 
 class Runner:
-    def __init__(self, life_path: Path, *, tempo: float = 20.0, thoughts_per_hour: int = 120,
+    def __init__(self, life_path: Path, *, tempo: float | None = None, thoughts_per_hour: int | None = None,
                  engine_options: dict | None = None) -> None:
         self.life = Life(life_path)
-        self.tempo = tempo
-        self.thoughts_per_hour = thoughts_per_hour
         # may raise EngineError
         self.engine = make_engine({**self.life.identity.get("engine", {}), **(engine_options or {})})
 
@@ -46,6 +44,10 @@ class Runner:
         self._load_history()
         self.being = Being(self.life, self.engine)
         self.being.events.subscribe(self._on_event)
+        # The rhythm is kept with the life, unless whoever starts it asks for another.
+        research = self.being.research
+        self.tempo = research.tempo if tempo is None else tempo
+        self.thoughts_per_hour = research.thoughts_per_hour if thoughts_per_hour is None else thoughts_per_hour
         self._refresh_snapshot()
 
     # -- events ----------------------------------------------------------------
@@ -130,12 +132,29 @@ class Runner:
             self._living.release()
 
     def configure(self, *, tempo: float | None = None, thoughts_per_hour: int | None = None) -> None:
+        changes = {}
         if tempo is not None:
-            self.tempo = max(2.0, min(3600.0, float(tempo)))
+            changes["tempo"] = float(tempo)
         if thoughts_per_hour is not None:
-            self.thoughts_per_hour = max(0, min(3600, int(thoughts_per_hour)))
-        self._refresh_snapshot()
+            changes["thoughts_per_hour"] = int(thoughts_per_hour)
+        self.set_research(changes)
+
+    def research(self) -> dict:
+        return self.being.research.public()
+
+    def set_research(self, changes: dict | None = None, reset: bool = False) -> dict:
+        """Switch mechanisms of the life loop on or off, between two moments."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            self.being.set_research(changes, reset)
+            self.tempo = self.being.research.tempo
+            self.thoughts_per_hour = self.being.research.thoughts_per_hour
+            self._refresh_snapshot()
+        finally:
+            self._living.release()
         self._wake.set()
+        return self.research()
 
     def _run(self) -> None:
         thought_times: list[float] = []
@@ -214,6 +233,8 @@ class Runner:
             "library": [life.library.public(item) for item in life.library.items()],
             "weights": dict(being.subconscious.weights),
             "affect": being.affect.summary(),
+            "research": being.research.changed(),
+            "inbox": len(being.inbox),
             "tempo": self.tempo,
             "thoughts_per_hour": self.thoughts_per_hour,
             "paused": self.paused_reason,

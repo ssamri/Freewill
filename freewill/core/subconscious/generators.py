@@ -69,6 +69,9 @@ class Subconscious:
         # How much each source has been welcomed so far. Learned from the
         # conscious mind's choices: what is dismissed speaks more softly.
         self.weights: dict[str, float] = {}
+        # Research settings: sources switched off, and how wide the disorder is.
+        self.silenced: set[str] = set()
+        self.noise = 0.08
 
     # -- learning from the arbiter's choices ----------------------------------
 
@@ -93,13 +96,14 @@ class Subconscious:
         active: tuple[str, ...],
         interlocutor: str | None,
     ) -> list[Proposal]:
-        noise = lambda: self.rng.uniform(-0.08, 0.08)  # noqa: E731
+        noise = lambda: self.rng.uniform(-self.noise, self.noise)  # noqa: E731
         out: list[Proposal] = []
+        on = lambda source: source not in self.silenced  # noqa: E731
 
         # Reminiscence: something related, or merely nearby, resurfaces.
         mix = SUBCONSCIOUS.loosened(self.genome.association)
-        for memory, _path in recall(self.store, last_thought, mix, k=1, rng=self.rng,
-                                    active=active, touch=False):
+        for memory, _path in (recall(self.store, last_thought, mix, k=1, rng=self.rng,
+                                     active=active, touch=False) if on("reminiscence") else ()):
             out.append(Proposal(
                 "reminiscence",
                 self.t["reminiscence"].format(
@@ -112,24 +116,28 @@ class Subconscious:
 
         # Need: the most pressing one makes itself felt.
         name, level = needs.most_pressing()
-        if name == "company":
+        if not on("need"):
+            pass
+        elif name == "company":
             text = (self.t["company"].format(other=interlocutor) if interlocutor
                     else self.t["company_alone"])
         elif name == "wonder":
             text = self.t["wonder"].format(question=self.rng.choice(founding_questions(self.language)))
         else:
             text = self.t["curiosity"]
-        out.append(Proposal(f"need:{name}", text, 0.9 * level + noise()))
+        if on("need"):
+            out.append(Proposal(f"need:{name}", text, 0.9 * level + noise()))
 
         # Question: a founding question, with the pull of wonder.
-        out.append(Proposal(
-            "question",
-            self.t["question"].format(question=self.rng.choice(founding_questions(self.language))),
-            0.2 + 0.5 * needs.wonder * (0.5 + self.genome.curiosity) + noise(),
-        ))
+        if on("question"):
+            out.append(Proposal(
+                "question",
+                self.t["question"].format(question=self.rng.choice(founding_questions(self.language))),
+                0.2 + 0.5 * needs.wonder * (0.5 + self.genome.curiosity) + noise(),
+            ))
 
         # Association: two things recently in mind, brought together.
-        if len(recent) >= 2:
+        if len(recent) >= 2 and on("association"):
             a, b = self.rng.sample(list(recent), 2)
             out.append(Proposal(
                 "association",
@@ -139,6 +147,8 @@ class Subconscious:
 
         # Drift: deterministic disorder brings up something unrelated.
         x = self.drift.step()
+        if not on("drift"):
+            return [self._weigh(proposal) for proposal in out]
         drifted = recall(self.store, "", DREAM, k=1, rng=random.Random(int(x * 1e9)), touch=False)
         if drifted:
             memory = drifted[0][0]

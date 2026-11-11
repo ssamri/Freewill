@@ -20,6 +20,7 @@ from freewill.core.kernel.needs import Needs
 from freewill.core.life import Life, describe_duration
 from freewill.core.memory import CONSCIOUS, DREAM, Memory, recall
 from freewill.core.memory.strength import decay
+from freewill.core.research import Research
 from freewill.core.sleep import DREAM_SCHEMA, dream_prompt, dream_system, link_together
 from freewill.core.subconscious import Proposal, Subconscious
 from freewill.core.subconscious.drift import Drift
@@ -71,6 +72,9 @@ class Being:
             drift=Drift(life.genome.seed, state.get("drift")),
         )
         self.subconscious.weights = dict(state.get("weights", {}))
+        # Research settings: which mechanisms run. With no file, all of them, as before.
+        self.research = Research.load(life.path)
+        self._follow_research()
         self.conscious = Conscious(life, engine)
 
         self.inbox: deque[dict] = deque()
@@ -95,7 +99,7 @@ class Being:
         last_seen = state.get("last_seen")
         if last_seen and state.get("thoughts", 0) > 0:
             away = (self._last_tick - datetime.fromisoformat(last_seen)).total_seconds()
-            if away >= 600:
+            if away >= 600 and self.research.sense_of_time:
                 duration = describe_duration(away, life.language)
                 template = _RETURN.get(life.language, _RETURN["en"])
                 self._pending.append(Proposal("return", template.format(duration=duration), 0.7))
@@ -177,7 +181,7 @@ class Being:
         if affect:  # time passed: the computed state returns towards equilibrium
             affect.elapse(minutes)
 
-        if self.needs.fatigue >= 1.0 or self.sleep_requested:
+        if (self.needs.fatigue >= 1.0 and self.research.auto_sleep) or self.sleep_requested:
             self.sleep_requested = False
             self._sleep(now)
             return None
@@ -190,6 +194,8 @@ class Being:
         proposals.extend(self._pending)
         self._pending = []
         reading = self.life.library.next_unread()
+        if reading and not self.research.gen_reading:
+            reading = None
         if reading:
             item, number = reading
             proposals.append(Proposal(
@@ -203,7 +209,12 @@ class Being:
             proposals.append(Proposal("message", message["text"] or self.t["file_only"],
                                       0.95 + 0.2 * message["waited"]))
 
-        self._habituate(proposals)
+        if not proposals:  # every source is switched off and nobody spoke: an empty moment
+            self.events.emit("empty_moment")
+            self._save(now)
+            return None
+        if self.research.habituation:
+            self._habituate(proposals)
         if affect:  # causal effect 1: the computed state shifts salience, within a small cap
             affect.modulate(proposals, self._trace_of)
         competition = compete(proposals)
@@ -233,8 +244,8 @@ class Being:
 
         # Causal effect 2: the computed state weighs the candidates of recall.
         bias = affect.recall_bias() if affect else None
-        memories = recall(self.life.memory, winner.text, CONSCIOUS, k=3, rng=self.rng,
-                          active=tuple(self.active), bias=bias)
+        memories = recall(self.life.memory, winner.text, CONSCIOUS, k=self.research.recall_k, rng=self.rng,
+                          active=tuple(self.active), bias=bias) if self.research.recall_k else []
         for memory, path in memories:
             self.events.emit("recall", id=memory.id, title=memory.title, path=path)
 
@@ -316,6 +327,19 @@ class Being:
         """Switch the H7 research mode on or off while the being lives. See AffectSystem.set_enabled."""
         self.affect.set_enabled(enabled, self.clock())
 
+    def _follow_research(self) -> None:
+        self.subconscious.silenced = self.research.silenced()
+        self.subconscious.noise = self.research.noise
+
+    def set_research(self, changes: dict | None = None, reset: bool = False) -> dict:
+        """Change research settings between two moments. The change is written to the event log,
+        so that a trace always says under which condition each moment was lived."""
+        moved = self.research.reset() if reset else self.research.update(changes or {})
+        if moved:
+            self._follow_research()
+            self.events.emit("research_setting", changes=moved)
+        return moved
+
     def _habituate(self, proposals: list[Proposal]) -> None:
         """Dampen what was on stage a moment ago, so attention moves on."""
         for proposal in proposals:
@@ -337,7 +361,7 @@ class Being:
             self.events.emit("decision", accepted=decision.accepted, reason=decision.reason,
                              thought=decision.thought, source=winner.source)
 
-            if not is_message:
+            if not is_message and self.research.learning:
                 self.subconscious.learn(winner.source, decision.accepted)
             if decision.accepted:
                 self.recent_thoughts.append(decision.thought or winner.text)
@@ -359,7 +383,9 @@ class Being:
             for memory_id in winner.memory_ids:
                 self.active.append(memory_id)
 
-            if decision.say:
+            if decision.say and not is_message and not self.research.spontaneous_speech:
+                self.events.emit("withheld", what="spontaneous_speech")
+            elif decision.say:
                 self.guard.check(Action.SPEAK, decision.say)
                 self.dialogue.append({"who": "self", "text": decision.say})
                 self.events.emit("speech", text=decision.say, spontaneous=not is_message)
@@ -371,7 +397,9 @@ class Being:
                 if life.mark("first_silence"):
                     self.events.emit("milestone", name="first_silence")
 
-            if decision.remember:
+            if decision.remember and not self.research.remembering:
+                self.events.emit("withheld", what="remembering")
+            elif decision.remember:
                 body = decision.thought or winner.text
                 if is_message:
                     body = f"{winner.text}\n\n{body}" if decision.thought else winner.text
@@ -392,7 +420,7 @@ class Being:
                 if life.mark("first_memory"):
                     self.events.emit("milestone", name="first_memory")
 
-            if decision.new_value and all(v["text"] != decision.new_value for v in life.values):
+            if decision.new_value and self.research.adopting_values and all(v["text"] != decision.new_value for v in life.values):
                 self.guard.check(Action.ADOPT_VALUE, decision.new_value)
                 life.values.append({
                     "text": decision.new_value,
@@ -418,6 +446,7 @@ class Being:
         dreams = 0
         count = len(store)
         nights = 0 if count == 0 else 1 if count < 4 else 2 if count < 12 else 3
+        nights = min(nights, self.research.dreams_max) if self.research.dreaming else 0
         mix = DREAM.loosened(life.genome.association)
         for _ in range(nights):
             cue = self.rng.choice(list(self.recent_thoughts)) if self.recent_thoughts else ""
@@ -448,7 +477,7 @@ class Being:
                 self.events.emit("kernel_refusal", message=str(violation))
                 continue
             ids = [memory.id for memory, _path in memories]
-            linked = link_together(store, ids)
+            linked = link_together(store, ids) if self.research.dream_linking else []
             dream = life.dreams.add(
                 title or text[:40], text, residue,
                 [{"id": memory.id, "title": memory.title, "path": path} for memory, path in memories],
@@ -458,11 +487,11 @@ class Being:
                              memories=ids, linked=linked)
             if life.mark("first_dream"):
                 self.events.emit("milestone", name="first_dream")
-            if residue:
+            if residue and self.research.dream_residue:
                 self._pending = [Proposal("dream", self.t["residue"].format(residue=residue), 0.6)]
 
         faded = 0
-        for memory in store.headers():
+        for memory in (store.headers() if self.research.forgetting else ()):
             full = store.open(memory.id)
             if decay(full, now):
                 faded += 1

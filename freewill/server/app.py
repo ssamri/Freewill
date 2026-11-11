@@ -25,6 +25,7 @@ from freewill import __version__, keys, models
 from freewill.core.library import LibraryError
 from freewill.core.affect import AffectError
 from freewill.core.life import Life
+from freewill.core.research import ResearchError
 from freewill.core.perception import extract_text
 from freewill.engines.base import EngineError, make_engine
 from freewill.engines.embedded import find_runtime
@@ -40,6 +41,25 @@ MAX_BODY_BYTES = 48_000_000
 MAX_ATTACHMENTS = 6
 MAX_FILE_BYTES = 30_000_000
 NAME_PATTERN = re.compile(r"^[^\W\d_][\w '\-]{0,39}$", re.UNICODE)
+
+
+_WORDS = {"text", "thought", "reason", "title", "message", "say", "summary", "residue", "name", "dream"}
+
+
+def _without_words(value, kind: str = ""):
+    """An event with whatever carries what was said or thought replaced by its length."""
+    if isinstance(value, dict):
+        kind = value.get("type", kind) if isinstance(value.get("type"), str) else kind
+        out = {}
+        for key, item in value.items():
+            if key in _WORDS and isinstance(item, str) and not (key == "name" and kind == "milestone"):
+                out[key + "_chars"] = len(item)
+            else:
+                out[key] = _without_words(item, kind)
+        return out
+    if isinstance(value, list):
+        return [_without_words(item, kind) for item in value]
+    return value
 
 
 def default_lives_dir() -> Path:
@@ -259,6 +279,54 @@ class App:
                 raise ApiError(400, f"{name}: {error}") from error
         runner.hear(text, items)
 
+    # -- research traces -----------------------------------------------------------
+
+    def export(self, body: dict) -> dict:
+        """Write the traces of the awake life into one archive on this machine, for analysis.
+
+        Nothing leaves the computer. Memories, dreams and what was said are left out unless
+        asked for, since they are the most personal part of a life. No key is ever in a life file.
+        """
+        import zipfile
+        from datetime import datetime
+        runner = self.require_runner()
+        life = runner.life.path
+        folder = self.lives_dir.parent / "exports"
+        folder.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        target = folder / f"{runner.life.name}-{stamp}.zip"
+        wanted = ["research.json", "affect.json", "genome.json"]
+        full = body.get("content") is True
+        with runner._living, zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name in wanted:
+                if (life / name).is_file():
+                    archive.write(life / name, name)
+            log = life / "events.log"
+            if log.is_file():
+                if full:
+                    archive.write(log, "events.jsonl")
+                else:  # what happened and when, without the words
+                    lines = []
+                    for line in log.read_text(encoding="utf-8").splitlines():
+                        try:
+                            record = json.loads(line)
+                        except ValueError:
+                            continue
+                        lines.append(json.dumps(_without_words(record), ensure_ascii=False))
+                    archive.writestr("events.jsonl", "\n".join(lines) + "\n")
+            archive.writestr("README.txt", (
+                f"Freewill {__version__} research export\n"
+                f"content included: {'yes' if full else 'no (structure only)'}\n"
+                f"settings changed from the defaults: {json.dumps(runner.being.research.changed())}\n"
+                "Computed affect values are regulation variables, not evidence of anything felt.\n"))
+        return {"path": str(target), "bytes": target.stat().st_size, "content": full}
+
+    def reveal_exports(self) -> None:
+        """Show the exports folder in the file manager. The path is fixed: none is taken from the request."""
+        folder = self.lives_dir.parent / "exports"
+        folder.mkdir(parents=True, exist_ok=True)
+        webbrowser.open(folder.as_uri())
+
     # -- keys ------------------------------------------------------------------
 
     def store_key(self, kind: str, key: str) -> None:
@@ -371,6 +439,8 @@ def make_handler(app: App):
                     return self._json(app.require_runner().affect())
                 except TimeoutError as error:
                     raise ApiError(503, str(error)) from error
+            if path == "/api/research":
+                return self._json(app.require_runner().research())
             if path == "/api/memory":
                 store = app.require_runner().life.memory
                 return self._json({"memories": [
@@ -406,6 +476,9 @@ def make_handler(app: App):
                 return self._json({"models": app.models.listing()})
             if path == "/api/engine":
                 return self._json(app.change_engine(body))
+            if path == "/api/export/reveal":
+                app.reveal_exports()
+                return self._json({"ok": True})
             if path == "/api/open":
                 app.open_link(str(body.get("url", "")))
                 return self._json({"ok": True})
@@ -424,8 +497,21 @@ def make_handler(app: App):
                 return self._json({"ok": True})
             if path == "/api/settings":
                 runner = app.require_runner()
-                runner.configure(tempo=body.get("tempo"), thoughts_per_hour=body.get("thoughts_per_hour"))
+                try:
+                    runner.configure(tempo=body.get("tempo"), thoughts_per_hour=body.get("thoughts_per_hour"))
+                except (ResearchError, TypeError, ValueError) as error:
+                    raise ApiError(400, str(error)) from error
                 return self._json(runner.snapshot)
+            if path == "/api/research":
+                try:
+                    return self._json(app.require_runner().set_research(
+                        body.get("changes"), reset=body.get("reset") is True))
+                except ResearchError as error:
+                    raise ApiError(400, str(error)) from error
+                except TimeoutError as error:
+                    raise ApiError(503, str(error)) from error
+            if path == "/api/export":
+                return self._json(app.export(body))
             if path == "/api/affect":
                 enabled, config = body.get("enabled"), body.get("config")
                 if enabled is not None and not isinstance(enabled, bool):
