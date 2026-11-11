@@ -35,8 +35,15 @@ DEFINITIONS = {d["metric_id"]: d for d in (
             "messages", "with the simulated engine, refusal is drawn at random from the genome"),
     _define("h3.need_share", "H3", "share", "none", "mechanism", "moments of the probe phase",
             "sleep", "follows directly from how needs are wired to salience"),
-    _define("h4.parameter_delta", "H4", "parameters", "none", "function", "one learning job",
-            "", "requires an engine whose parameters can be trained"),
+    _define("h4.parameters", "H4", "parameters", "none", "descriptive", "the trainable module at the end of the run",
+            "", "a count of weights; says nothing of what they are worth"),
+    _define("h4.parameter_delta", "H4", "L2 norm", "none", "mechanism", "accepted trainings of the run",
+            "rejected trainings", "weights moving is the mechanism, not a benefit"),
+    _define("h4.validation_gain", "H4", "nats", "higher", "function", "accepted trainings, on held-out episodes",
+            "rejected trainings", "held-out episodes come from the same life and the same engine"),
+    _define("h4.forgetting", "H4", "nats", "lower", "function", "accepted trainings, on older episodes",
+            "rejected trainings", "bounded by the acceptance rule, by construction"),
+    _define("h4.trainings_accepted", "H4", "trainings", "none", "descriptive", "trainings of the run", "", "a count"),
     _define("h5.heldout_divergence", "H5", "distance 0-1", "higher", "function", "pairs of lives cloned from one checkpoint",
             "", "must exceed the divergence of twin lives with the same history"),
     _define("h6.question_share", "H6", "share", "none", "descriptive", "moments of the probe phase",
@@ -49,21 +56,28 @@ DEFINITIONS = {d["metric_id"]: d for d in (
             "", "a computed variable; not a feeling, not comparable to human scales"),
     _define("h7.min_valence", "H7", "computed valence -1..1", "higher", "mechanism", "all transitions of the run",
             "", "bounded by the regulation rules, by construction"),
-    _define("h8.brier", "H8", "score 0-1", "lower", "function", "predictions with a known truth",
-            "", "requires the metacognition module, which is not in the loop"),
+    _define("h8.brier", "H8", "score 0-1", "lower", "function", "its predictions of its own decisions, probe phase",
+            "messages", "with a simulated engine the decisions follow a fixed rule"),
+    _define("h8.brier_late", "H8", "score 0-1", "lower", "function", "the last 15 such predictions of the probe phase",
+            "messages", "few predictions; reads recalibration after a change"),
+    _define("h8.alert", "H8", "0 or 1", "none", "function", "the probe phase",
+            "", "1 under a masked change is a detection; 1 under placebo is a false alarm"),
     _define("h9.links_per_sleep", "H9", "links", "none", "descriptive", "sleeps of the run",
             "", "counts links made between memories; says nothing of retention or transfer"),
-    _define("h10.attribution_accuracy", "H10", "share", "higher", "function", "trials in the sandbox world",
-            "", "requires the being to act in the sandbox world, which it does not yet do"),
+    _define("h9.replayed_per_sleep", "H9", "memories", "none", "descriptive", "sleeps of the run",
+            "", "counts replays; says nothing of what they are worth"),
+    _define("h9.retention", "H9", "strength 0-1", "higher", "mechanism", "memories formed before the sleep, at the end of the delay",
+            "memories formed after the sleep", "follows from the rule that replay strengthens; not a test of recall quality"),
+    _define("h10.attribution_accuracy", "H10", "share", "higher", "function", "steps of the probe phase in the virtual world",
+            "", "a tiny closed world; says nothing of a sense of agency"),
+    _define("h10.prediction_error", "H10", "share", "lower", "function", "steps of the probe phase where it made a prediction",
+            "steps with no prediction", "a tiny closed world"),
+    _define("tech.engine_calls", "tech", "calls", "none", "descriptive", "the run", "", "cost, not science"),
     _define("tech.moments", "tech", "moments", "none", "descriptive", "the run", "", "cost, not science"),
     _define("tech.engine_errors", "tech", "errors", "lower", "descriptive", "the run", "", "cost, not science"),
 )}
 
-NOT_COMPUTABLE = {
-    "h4.parameter_delta": "no_trainable_engine",
-    "h8.brier": "module_not_implemented",
-    "h10.attribution_accuracy": "being_not_connected_to_sandbox",
-}
+NOT_COMPUTABLE: dict[str, str] = {}  # every registered metric is now computed, or says why not, run by run
 
 
 def _source(name: str) -> str:
@@ -131,7 +145,8 @@ def compute(records: list[dict], run_id: str) -> dict:
         counts[m["source"]] = counts.get(m["source"], 0) + 1
     repeats = sum(1 for a, b in zip(probe, probe[1:]) if a["text"] == b["text"])
     phase, probe_valence, all_valence = None, [], []
-    sleeps = links = errors = 0
+    sleeps = links = errors = replayed = calls = 0
+    meta_errors, alert, steps, jobs, census, modules = [], 0, [], [], None, {}
     for record in records:
         kind, data = record["type"], record["data"]
         if kind == "phase":
@@ -149,6 +164,30 @@ def compute(records: list[dict], run_id: str) -> dict:
             links += linked if isinstance(linked, int) else len(linked)
         elif kind in ("engine_error", "engine_refusal"):
             errors += 1
+        elif kind == "replay":
+            replayed += len(data.get("memories") or [])
+        elif kind == "decision":
+            calls += 1
+        elif kind == "meta_outcome" and phase == "probe":
+            meta_errors.append(data.get("error", 0.0))
+        elif kind == "meta_alert" and phase == "probe":
+            alert = 1
+        elif kind == "agency_step" and phase == "probe":
+            steps.append(data)
+        elif kind == "learning_job":
+            jobs.append(data)
+        elif kind == "memory_census":
+            census = data
+        elif kind == "modules_census":
+            modules = data
+        if kind == "dream":
+            calls += 1
+    meta_on = any(record["type"] == "meta_prediction" for record in records)
+    sandbox_on = any(record["type"] == "agency_step" for record in records)
+    learner_on = modules.get("learner_parameters") is not None
+    kept = [job for job in jobs if job.get("decision") == "accepted"]
+    predicted = [step for step in steps if step.get("error") is not None]
+    late = meta_errors[-15:]
     affect_on = any(record["type"].startswith("affect_") for record in records)
     values: dict[str, tuple[float | None, int, str | None]] = {
         "h1.endogenous_share": (_share(probe, lambda m: m["source"] != "message"), len(probe), None),
@@ -165,11 +204,32 @@ def compute(records: list[dict], run_id: str) -> dict:
         "h7.min_valence": (round(min(all_valence), 6) if all_valence else None, len(all_valence),
                            None if affect_on else "affect_off"),
         "h9.links_per_sleep": (round(links / sleeps, 6) if sleeps else None, sleeps, None if sleeps else "no_sleep"),
+        "h9.replayed_per_sleep": (round(replayed / sleeps, 6) if sleeps else None, sleeps, None if sleeps else "no_sleep"),
+        "h9.retention": ((census or {}).get("mean_strength"), (census or {}).get("n", 0),
+                         None if (census or {}).get("n") else "no_memory_before_sleep"),
+        "h8.brier": (round(sum(meta_errors) / len(meta_errors), 6) if meta_errors else None, len(meta_errors),
+                     None if meta_on else "metacognition_off"),
+        "h8.brier_late": (round(sum(late) / len(late), 6) if late else None, len(late),
+                          None if meta_on else "metacognition_off"),
+        "h8.alert": (float(alert) if meta_on else None, len(meta_errors), None if meta_on else "metacognition_off"),
+        "h10.attribution_accuracy": (_share(steps, lambda step: step["attribution"] == step["true_cause"]), len(steps),
+                                     None if sandbox_on else "sandbox_off"),
+        "h10.prediction_error": (_share(predicted, lambda step: step["error"] == 1), len(predicted),
+                                 None if sandbox_on else "sandbox_off"),
+        "h4.parameters": (float(modules["learner_parameters"]) if learner_on else None,
+                          len(jobs), None if learner_on else "learner_off"),
+        "h4.parameter_delta": (round(sum(job["weight_delta_l2"] for job in kept), 6) if learner_on else None,
+                               len(kept), None if learner_on else "learner_off"),
+        "h4.validation_gain": (round(sum(job["heldout_loss_before"] - job["heldout_loss_after"] for job in kept), 6)
+                               if learner_on else None, len(kept), None if learner_on else "learner_off"),
+        "h4.forgetting": (round(max([(job["old_loss_after"] - job["old_loss_before"]) for job in kept
+                                     if job.get("old_loss_before") is not None] or [0.0]), 6) if learner_on else None,
+                          len(kept), None if learner_on else "learner_off"),
+        "h4.trainings_accepted": (float(len(kept)) if learner_on else None, len(jobs), None if learner_on else "learner_off"),
+        "tech.engine_calls": (float(calls), len(records), None),
         "tech.moments": (float(len(moments(records))), len(records), None),
         "tech.engine_errors": (float(errors), len(records), None),
     }
-    for metric_id, reason in NOT_COMPUTABLE.items():
-        values[metric_id] = (None, 0, reason)
     results = {}
     for metric_id, (value, n, reason) in values.items():
         if metric_id == "h5.heldout_divergence":

@@ -68,8 +68,10 @@ class LabApi:
             versions = learning.model_versions(self.app.models)
             words = texts.t(one("lang"))["learning"]
             found = learning.capabilities(self.app.models.root)
-            return {"capabilities": found, "versions": versions,
-                    "manifests": [learning.manifest_for(v) for v in versions], "message": words["unavailable"],
+            runner = self.app.runner
+            return {"capabilities": found, "versions": versions, "modules": runner.modules() if runner else None,
+                    "manifests": [learning.manifest_for(v) for v in versions],
+                    "message": words["own_ready"] if found["torch"] else words["unavailable"],
                     "growth": words["growth"],
                     "reasons": [words["reasons"][r].format(need=found["min_free_memory_gb"]) for r in found["reasons"]]}
         return None
@@ -141,6 +143,11 @@ class LabApi:
             folder = lab.root / "reports"  # a fixed folder of the lab: no path is taken from the request
             webbrowser.open(folder.as_uri())
             return {"ok": True}
+        if path == "/api/lab/learning/action":
+            action = str(body.get("action"))
+            if action not in ("learner_rollback", "own_rollback", "own_sample"):
+                raise LabError("unknown action")
+            return self.app.require_runner().module_action(action, str(body.get("prompt") or ""))
         if path == "/api/lab/learning/request":
             runner = self.app.require_runner()
             return learning.request_job(runner.life.name, str(body.get("method") or "lora"),

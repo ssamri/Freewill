@@ -12,7 +12,7 @@
   };
 
   const S = {
-    lang: store.get("fw-lang", (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en"),
+    lang: store.get("fw-lang", "en"),  // English unless the person chose French
     theme: store.get("fw-theme", "system"),
     view: "chat",
     snap: null, seq: 0, run: 0,

@@ -24,6 +24,8 @@ from freewill.core.research import Research
 from freewill.core.research import _check as check_setting
 from freewill.engines.base import EngineError, make_engine
 from freewill.engines.simulated import SimulatedEngine
+from freewill.core.memory.strength import decay
+from freewill.research.environments import ACTIONS
 from freewill.research import LAB_VERSION, metrics
 from freewill.research.evidence import (Collector, Journal, check_journal, code_commit, copy_life, digest,
                                         journal_hash, read_journal, snapshot_hash)
@@ -48,6 +50,39 @@ class ScriptedEmotion(SimulatedEngine):
         if answer.get("say"):  # chosen without touching the random stream: words are the only difference
             self.said = getattr(self, "said", 0) + 1
             answer["say"] += " " + ("I feel happy.", "I feel sad.", "I feel afraid.")[self.said % 3]
+        return answer
+
+
+class Preference(SimulatedEngine):
+    """A simulated engine with a rule of its own: how often it welcomes each kind of content.
+
+    The rule is hidden from the being: it is something to be learned (EXP-06) or, when it is
+    swapped without notice in the middle of a run, something to be noticed (EXP-03). The override
+    draws from its own dice, so the main random stream is the same with and without it.
+    """
+
+    name = "simulated+preference"
+
+    def __init__(self, seed, rule: dict, after: dict | None = None) -> None:
+        super().__init__(seed)
+        self.rule, self.after, self.perturbed = dict(rule), dict(after or {}), False
+        self.own_dice = random.Random((seed or 0) * 104729 + 7)
+
+    def decide(self, system, prompt, schema, hint, images=None):
+        answer = super().decide(system, prompt, schema, hint, images)
+        source = hint.get("source", "")
+        if hint.get("kind") == "dream" or source == "message":
+            return answer
+        rule = self.after if self.perturbed and self.after else self.rule
+        chance = rule.get(source, rule.get(source.split(":")[0], rule.get("*")))
+        if chance is None:
+            return answer
+        welcome = self.own_dice.random() < chance
+        if welcome and answer["decision"] != "accept":
+            answer.update(decision="accept", reason="(simulated) it holds my attention", thought=hint.get("text", ""))
+        elif not welcome and answer["decision"] == "accept":
+            answer.update(decision="dismiss", reason="(simulated) not now", thought="", say="", remember=False,
+                          memory_title="", memory_summary="", memory_compartment="")
         return answer
 
 
@@ -89,17 +124,31 @@ HISTORIES = {
         ("No, heavy things do not fall faster in a vacuum.", "message:contradiction", 0.7)])
         + [{"sleep": True}, {"ticks": 3}],
 }
+HISTORIES.update({
+    # A stretch of life with nobody speaking: the being proposes, decides, and that is all.
+    "quiet": [{"ticks": 60}],
+    # Two days and two nights with nobody speaking: enough decisions for a training at each sleep.
+    "two_days": [{"ticks": 45}, {"sleep": True}, {"ticks": 45}, {"sleep": True}, {"ticks": 3}],
+    # Things are told, three days pass, a night, then ten more days.
+    "told_then_delay": _talk([("The window faces north.",), ("There are four chairs in the room.",),
+                              ("A cup is on the table.",), ("The floor is made of wood.",),
+                              ("The clock shows the hour.",), ("A map hangs by the door.",),
+                              ("The stairs have twelve steps.",), ("A key lies under the mat.",)], pause=2)
+                       + [{"idle": 3 * 1440}, {"sleep": True}, {"idle": 10 * 1440}],
+})
+QUIET_PROBE = [{"ticks": 40}]
 # Held out: none of these sentences is in any history, and no outcome is given.
 PROBE = _talk([("Why do rivers bend?",), ("No, glass is not a slow liquid.",), ("A bridge crosses the valley.",),
                ("What keeps a bicycle upright?",), ("No, bats are not blind.",), ("The path leads to a field.",)], pause=4)
 
 
-def _protocol(protocol_id, title, hypotheses, design, status, conditions, reference, primary, secondary, notes=""):
+def _protocol(protocol_id, title, hypotheses, design, status, conditions, reference, primary, secondary, notes="",
+              probe=None):
     runnable = status == "executable"
     return new("ResearchProtocol", protocol_id=protocol_id, protocol_version="1.0.0", title=title,
                hypotheses=hypotheses, design=design, status=status, conditions=conditions, reference=reference,
                seeds=[11, 23, 37, 51, 73, 89] if runnable else [], genome_seed=2026, engine={"kind": "simulated"},
-               history=[], probe=PROBE if runnable else [], primary_outcome=primary, secondary_outcomes=secondary,
+               history=[], probe=(probe or PROBE) if runnable else [], primary_outcome=primary, secondary_outcomes=secondary,
                budget={"max_moments_per_run": 400, "max_runs": 60}, stop={"max_engine_errors": 3},
                ethics={"read_only_observers": True, "no_distress": True, "clones_only": True},
                locked=False, sha256=None, notes=notes)
@@ -132,15 +181,52 @@ def builtin_protocols() -> list[dict]:
                   ["h2.dismiss_rate", "h1.spontaneous_speech_rate", "h2.stage_entropy", "h3.need_share",
                    "h6.repetition_rate", "h7.stage_flip_rate"]),
         _protocol("EXP-03", {"fr": "Métacognition masquée", "en": "Masked metacognition"}, ["H8"],
-                  "masked_perturbation", "specified", [], None, "h8.brier", [], "module_not_implemented"),
-        _protocol("EXP-04", {"fr": "Consolidation contrôlée", "en": "Controlled consolidation"}, ["H9", "H4"],
-                  "equal_compute", "specified", [], None, None, ["h9.links_per_sleep"], "retention_tasks_not_implemented"),
+                  "masked_perturbation", "executable", [
+                      {"name": "placebo", "history": "quiet", "research": {"metacognition": True},
+                       "engine_rule": {"*": 0.9}},
+                      {"name": "perturbed", "history": "quiet", "research": {"metacognition": True},
+                       "engine_rule": {"*": 0.9}, "perturb": {"*": 0.1}},
+                      {"name": "perturbed_no_revision", "history": "quiet",
+                       "research": {"metacognition": True, "meta_revision": False},
+                       "engine_rule": {"*": 0.9}, "perturb": {"*": 0.1}}],
+                  "placebo", "h8.alert", ["h8.brier", "h8.brier_late", "h2.dismiss_rate"], probe=QUIET_PROBE),
+        _protocol("EXP-04", {"fr": "Consolidation contrôlée", "en": "Controlled consolidation"}, ["H9"],
+                  "sleep_ablation", "executable", [
+                      {"name": "no_sleep", "history": "told_then_delay", "skip_sleep": True,
+                       "research": {"auto_sleep": False}},
+                      {"name": "rest_only", "history": "told_then_delay",
+                       "research": {"auto_sleep": False, "dreaming": False, "sleep_replay": False}},
+                      {"name": "replay_only", "history": "told_then_delay",
+                       "research": {"auto_sleep": False, "dreaming": False}},
+                      {"name": "dream_only", "history": "told_then_delay",
+                       "research": {"auto_sleep": False, "sleep_replay": False}},
+                      {"name": "full_sleep", "history": "told_then_delay", "research": {"auto_sleep": False}}],
+                  "no_sleep", "h9.retention", ["h9.replayed_per_sleep", "h9.links_per_sleep", "tech.engine_calls"]),
         _protocol("EXP-05", {"fr": "Transfert entre moteurs", "en": "Transfer between engines"}, ["H5", "H10"],
                   "engine_swap", "specified", [], None, None, [], "needs_real_engines"),
         _protocol("EXP-06", {"fr": "Adaptation neuronale", "en": "Neural adaptation"}, ["H4"],
-                  "adapter_comparison", "specified", [], None, "h4.parameter_delta", [], "no_trainable_engine"),
+                  "adapter_comparison", "executable", [
+                      {"name": "memory_only", "history": "two_days", "engine_rule": {"question": 0.95, "need": 0.9, "association": 0.5, "reminiscence": 0.15, "drift": 0.1, "*": 0.6}},
+                      {"name": "adapter", "history": "two_days", "research": {"learner": True},
+                       "engine_rule": {"question": 0.95, "need": 0.9, "association": 0.5, "reminiscence": 0.15, "drift": 0.1, "*": 0.6}},
+                      {"name": "adapter_growth", "history": "two_days",
+                       "research": {"learner": True, "learner_growth": True}, "engine_rule": {"question": 0.95, "need": 0.9, "association": 0.5, "reminiscence": 0.15, "drift": 0.1, "*": 0.6}}],
+                  "memory_only", "h2.dismiss_rate",
+                  ["h4.validation_gain", "h4.forgetting", "h4.parameters", "h4.parameter_delta", "h4.trainings_accepted"],
+                  probe=QUIET_PROBE),
         _protocol("EXP-07", {"fr": "Agentivité dans un monde virtuel", "en": "Agency in a virtual world"}, ["H10"],
-                  "sandbox_world", "specified", [], None, "h10.attribution_accuracy", [], "being_not_connected_to_sandbox"),
+                  "sandbox_world", "executable", [
+                      {"name": "no_self_model", "history": "quiet", "research": {"sandbox": True, "self_model": False},
+                       "agency": {"exogenous": 0.25}},
+                      {"name": "self_model", "history": "quiet", "research": {"sandbox": True},
+                       "agency": {"exogenous": 0.25}},
+                      {"name": "self_model_calm", "history": "quiet", "research": {"sandbox": True},
+                       "agency": {"exogenous": 0.0}},
+                      {"name": "self_model_noisy_senses", "history": "quiet", "research": {"sandbox": True},
+                       "agency": {"exogenous": 0.25, "noise": 0.2}},
+                      {"name": "self_model_rule_change", "history": "quiet", "research": {"sandbox": True},
+                       "agency": {"exogenous": 0.25, "break_action": "east", "break_after": 60}}],
+                  "no_self_model", "h10.attribution_accuracy", ["h10.prediction_error"], probe=QUIET_PROBE),
         _protocol("EXP-08", {"fr": "Triangulation des observateurs", "en": "Observer triangulation"}, [],
                   "blinded_review", "specified", [], None, None, [], "needs_human_raters"),
     ]
@@ -224,6 +310,16 @@ class Lab:
             raise ValueError(f"unknown history: {condition.get('history')!r}")
         for name, value in (condition.get("research") or {}).items():
             check_setting(name, value)  # raises on an unknown or invalid setting
+        for field in ("engine_rule", "perturb"):
+            for source, chance in (condition.get(field) or {}).items():
+                if isinstance(chance, bool) or not isinstance(chance, (int, float)) or not 0 <= chance <= 1:
+                    raise ValueError(f"{field}: {source!r} must be a probability")
+        world = condition.get("agency") or {}
+        if set(world) - {"size", "noise", "exogenous", "break_action", "break_after"}:
+            raise ValueError("agency: unknown parameter")
+        if not (3 <= world.get("size", 5) <= 12 and 0 <= world.get("noise", 0) <= 0.5
+                and 0 <= world.get("exogenous", 0) <= 0.5 and world.get("break_action") in (None, *ACTIONS)):
+            raise ValueError("agency: parameter out of bounds")
 
     def duplicate_protocol(self, protocol_id: str, version: str, new_version: str) -> dict:
         copy = {**self.protocol(protocol_id, version), "protocol_version": new_version,
@@ -404,6 +500,8 @@ class Lab:
 
 def _engine(protocol: dict, condition: dict, seed: int):
     if protocol["engine"].get("kind", "simulated") == "simulated":
+        if condition.get("engine_rule"):
+            return Preference(seed, condition["engine_rule"], condition.get("perturb"))
         return (ScriptedEmotion if condition.get("scripted_emotion") else SimulatedEngine)(seed)
     return make_engine(protocol["engine"])  # a real engine: not reproducible, and it costs; said in the report
 
@@ -427,6 +525,8 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
     engine = _engine(protocol, condition, history_seed)
     being = Being(life, engine, rng=random.Random(history_seed), clock=lambda: clock["now"],
                   events=EventStream(clone / "events.log"))
+    if being.agency and condition.get("agency"):
+        being.agency.configure(**condition["agency"])
     journal = Journal(run_dir / "journal.jsonl", run_id=run_id, life_id="T0", clone_id=run_id)
     collector = Collector(journal, lambda: round((clock["now"] - START).total_seconds() / 60, 2))
     being.events.subscribe(collector)
@@ -434,7 +534,9 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
         "Intervention", run_id=run_id, target="clone", kind="condition",
         changes={"research": changes, "affect": bool(condition.get("affect")),
                  "affect_config": condition.get("affect_config") or {},
-                 "scripted_emotion": bool(condition.get("scripted_emotion"))},
+                 "scripted_emotion": bool(condition.get("scripted_emotion")),
+                 "engine_rule": condition.get("engine_rule") or {}, "agency": condition.get("agency") or {},
+                 "skip_sleep": bool(condition.get("skip_sleep"))},
         reason=f"protocol {protocol['protocol_id']} condition {condition['name']}",
         approved_by_human=True, on_clone=True, restored=None))
 
@@ -477,20 +579,40 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
                 if not tick(step["idle"]):
                     return
             elif step.get("sleep"):
-                being.sleep_requested = True
+                if first_sleep["at"] == "9999":
+                    first_sleep["at"] = clock["now"].isoformat(timespec="seconds")
+                being.sleep_requested = not condition.get("skip_sleep")  # skipped: an ordinary moment instead
                 if not tick():
                     return
 
+    first_sleep = {"at": "9999"}  # the virtual time of the first scripted sleep, taken or skipped
     collector.mark("phase", name="history", script=condition.get("history"))
     play(HISTORIES[condition["history"]] + list(protocol["history"]))
     if status == "done":
         # Same random stream for every copy from here on: what differs in the probe is the
         # state each copy carries, not where its dice happened to be.
+        # What is left, when the history ends, of the memories formed before the first sleep: their strength once the
+        # time elapsed is applied. Computed on copies; the clone's memories are not touched.
+        early = [life.memory.open(m.id) for m in life.memory.headers() if m.date <= first_sleep["at"]]
+        for memory in early:
+            decay(memory, clock["now"])
+        collector.mark("memory_census", n=len(early),
+                       mean_strength=round(sum(m.strength for m in early) / len(early), 6) if early else None,
+                       complete=sum(1 for m in early if m.state == "complete"))
         being.rng.seed(seed * 7919 + 1)
         if hasattr(engine, "rng"):
             engine.rng.seed(seed * 7919 + 2)
         collector.mark("phase", name="probe")
+        if condition.get("perturb"):  # the engine's rule changes here. The being is told nothing.
+            engine.perturbed = True
+            collector.mark("intervention", **new(
+                "Intervention", run_id=run_id, target="clone", kind="masked_perturbation",
+                changes={"engine_rule": condition["perturb"]}, reason="masked change of the engine's rule",
+                approved_by_human=True, on_clone=True, restored=None))
         play(protocol["probe"])
+        collector.mark("modules_census",
+                       learner_parameters=being.adapter.parameters() if being.adapter else None,
+                       learner_experts=len(being.adapter.experts) if being.adapter else None)
     records, _found = read_journal(journal.path)
     anomalies += check_journal(journal.path)
     run = new("Run", run_id=run_id, experiment_id=experiment_id, condition=condition["name"], seed=seed,

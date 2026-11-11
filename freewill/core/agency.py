@@ -38,8 +38,9 @@ class Agency:
         self.steps = int(data.get("steps", 0))
         self.model: dict[str, list] = data.get("model") or {}   # "action|wall|box" -> recent observed effects
         self.tried: dict[str, int] = data.get("tried") or {}
-        self.rng = random.Random(seed * 31 + self.steps)
-        self.world = World(seed * 17 + 5, size=self.config["size"], noise=self.config["noise"],
+        self.seed = int(data.get("seed", seed))  # kept with the world, so that a reopened life finds the same one
+        self.rng = random.Random(self.seed * 31 + self.steps)
+        self.world = World(self.seed * 17 + 5, size=self.config["size"], noise=self.config["noise"],
                            exogenous=self.config["exogenous"])
         if data.get("world"):
             self.world.agent, self.world.box = tuple(data["world"]["agent"]), tuple(data["world"]["box"])
@@ -57,8 +58,12 @@ class Agency:
         if action in _MOVES:
             x, y = agent[0] + _MOVES[action][0], agent[1] + _MOVES[action][1]
             wall, ahead = not (0 <= x < size and 0 <= y < size), (x, y) == tuple(box)
-        elif action == "push":
-            ahead = abs(agent[0] - box[0]) + abs(agent[1] - box[1]) == 1
+        elif action == "push":  # which way the box lies, if it is next to it, and whether it has room to move
+            dx, dy = box[0] - agent[0], box[1] - agent[1]
+            if abs(dx) + abs(dy) != 1:
+                return "push|far"
+            room = 0 <= box[0] + dx < size and 0 <= box[1] + dy < size
+            return f"push|{dx},{dy}|{int(room)}"
         return f"{action}|{int(wall)}|{int(ahead)}"
 
     def step(self, self_model: bool = True) -> dict:
@@ -97,7 +102,7 @@ class Agency:
     def save(self) -> None:
         temporary = self.path.with_name(FILE + ".tmp")
         temporary.write_text(json.dumps({
-            "rules": RULES_VERSION, "config": self.config, "steps": self.steps, "model": self.model,
+            "rules": RULES_VERSION, "seed": self.seed, "config": self.config, "steps": self.steps, "model": self.model,
             "tried": self.tried, "world": {"agent": list(self.world.agent), "box": list(self.world.box),
                                            "rng": self.world.rng.getstate()}}), encoding="utf-8")
         os.replace(temporary, self.path)

@@ -58,7 +58,7 @@
         h("div", {}, h("b", {}, names[item.name]), h("div", { class: "hint" }, hints[item.name])), control(item));
       const group = (id) => h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, groups[id]),
         data.spec.filter((i) => i.group === id).map(row));
-      const cards = ["subconscious", "memory", "sleep", "expression"].map(group);
+      const cards = ["subconscious", "memory", "sleep", "expression", "modules"].map(group);
       if (affect) {
         const an = tr("rs.affect_names"), cfg = affect.config;
         const arow = (name) => h("div", { class: "setting" }, h("div", {}, h("b", {}, an[name])),
@@ -324,16 +324,49 @@
     function model() {
       const M = L.learning;
       if (!M) return [h("p", { class: "hint" }, "…")];
-      const c = M.capabilities, yes = (b) => (b ? t("lab.yes") : t("lab.no"));
-      return [h("p", { class: "lead" }, t("lab.model_lead")),
+      const c = M.capabilities, yes = (b) => (b ? t("lab.yes") : t("lab.no")), k = (name, vars) => t("lab.learn." + name, vars);
+      const mod = M.modules || {}, own = mod.own_model, small = mod.learner, meta = mod.metacognition, world = mod.sandbox;
+      const action = async (name, prompt) => { const r = await call("/api/lab/learning/action", { action: name, prompt }); if (r && "text" in r) L.sample = r.text; load(); };
+      const decision = (d) => tag(k("decisions." + d), d === "accepted" ? "good" : "bad");
+      const ownCard = h("section", { class: "card" }, ...[h("div", { class: "section-title" }, k("own_title")),
+        !own ? h("p", { class: "muted" }, k("own_off")) : !own.born ? h("p", { class: "muted" }, k("own_unborn")) : null,
+        own && own.born ? h("div", { class: "kv" }, h("b", {}, k("parameters")), h("span", {}, num(own.parameters, 0)), h("b", {}, k("layers")), h("span", {}, num(own.layers, 0)),
+          h("b", {}, k("width")), h("span", {}, num(own.width, 0)), h("b", {}, k("lived_text")), h("span", {}, k("bytes", { n: num(own.corpus_bytes, 0) })),
+          h("b", {}, k("trainings")), h("span", {}, num(own.jobs_accepted, 0) + " / " + num(own.jobs_total, 0)), h("b", {}, k("growths")), h("span", {}, num(own.growths.filter((g) => g.decision === "accepted").length, 0)),
+          h("b", {}, k("weights")), h("span", { class: "mono" }, (own.weights_sha256 || "").slice(0, 16))) : null,
+        own && own.jobs.length ? h("div", {}, h("div", { class: "section-title", style: "margin-top:16px" }, k("jobs") + " · " + k("loss_unit")),
+          table([k("col_job"), t("lab.col_decision"), k("col_before"), k("col_after"), k("col_params"), k("col_seconds")],
+            own.jobs.map((j) => [num(j.job, 0), decision(j.decision), num(j.heldout_loss_before, 3), num(j.heldout_loss_candidate, 3), num(j.trainable_parameters, 0), num(j.seconds, 1)]))) : null,
+        own && own.growths.length ? h("div", {}, h("div", { class: "section-title", style: "margin-top:16px" }, k("growth_log")),
+          table([k("col_layers"), k("col_params"), k("col_same"), t("lab.col_decision")],
+            own.growths.map((g) => [g.layers_before == null ? "" : g.layers_before + " → " + g.layers_after, num(g.parameters_before || g.parameters, 0) + (g.parameters_after ? " → " + num(g.parameters_after, 0) : ""),
+              g.function_preserved == null ? "" : yes(g.function_preserved), decision(g.decision)]))) : null,
+        own && own.born ? h("div", { class: "btn-row", style: "margin-top:12px" },
+          h("button", { class: "btn", onclick: () => action("own_sample", "") }, k("sample")),
+          h("button", { class: "btn", disabled: !own.can_roll_back, onclick: () => action("own_rollback") }, k("rollback"))) : null,
+        own && L.sample ? h("pre", { class: "sample" }, L.sample) : null,
+        h("p", { class: "hint", style: "margin-top:10px" }, k("own_caveat"))].filter(Boolean));
+      const smallCard = h("section", { class: "card" }, ...[h("div", { class: "section-title" }, k("learner_title")),
+        !small ? h("p", { class: "muted" }, k("learner_off")) : h("div", { class: "kv" }, h("b", {}, k("parameters")), h("span", {}, num(small.parameters, 0)),
+          h("b", {}, k("experts")), h("span", {}, num(small.experts.length - 1, 0) + " / " + num(small.quota_experts - 1, 0)), h("b", {}, k("episodes")), h("span", {}, num(small.episodes, 0)),
+          h("b", {}, k("trained")), h("span", {}, yes(small.trained)), h("b", {}, k("weights")), h("span", { class: "mono" }, small.weights_sha256.slice(0, 16))),
+        small && small.manifests.length ? table([t("lab.col_decision"), k("col_before"), k("col_after"), k("col_params")],
+          small.manifests.map((m) => [decision(m.decision), num(m.heldout_loss_before, 3), num(m.heldout_loss_after, 3), num(m.trainable_parameters, 0)])) : null,
+        small ? h("button", { class: "btn", style: "margin-top:12px", onclick: () => action("learner_rollback") }, k("learner_reset")) : null].filter(Boolean));
+      const others = h("section", { class: "card" }, h("div", { class: "section-title" }, k("other_title")),
+        h("div", { class: "kv" }, h("b", {}, k("meta")), h("span", {}, meta ? k("meta_line", { n: num(meta.n, 0), brier: num(meta.brier, 3), alerts: num(meta.alerts, 0), revisions: num(meta.revisions, 0) }) : k("off")),
+          h("b", {}, k("world")), h("span", {}, world ? k("world_line", { steps: num(world.steps, 0), contexts: num(world.contexts_learned, 0) }) : k("off"))));
+      return [h("p", { class: "lead" }, k("lead")),
         h("div", { class: "alert" }, M.message), h("ul", { class: "reasons" }, M.reasons.map((r) => h("li", {}, r))),
         h("div", { class: "alert" }, M.growth),
+        ownCard, smallCard, others,
         h("section", { class: "card" }, h("div", { class: "section-title" }, t("lab.machine")),
-          h("div", { class: "kv" }, h("b", {}, t("lab.m_inference")), h("span", {}, yes(c.inference)), h("b", {}, t("lab.m_training")), h("span", {}, yes(c.training_available)),
-            h("b", {}, t("lab.m_growth")), h("span", {}, yes(c.growth_available)), h("b", {}, "PyTorch / PEFT"), h("span", {}, yes(c.torch) + " / " + yes(c.peft)),
+          h("div", { class: "kv" }, h("b", {}, t("lab.m_inference")), h("span", {}, yes(c.inference)), h("b", {}, k("m_training")), h("span", {}, yes(c.training_available)),
+            h("b", {}, k("m_module")), h("span", {}, yes(c.module_training_available)), h("b", {}, k("m_growth")), h("span", {}, yes(c.growth_available)),
+            h("b", {}, k("m_engine")), h("span", {}, yes(c.engine_training_available)), h("b", {}, "PyTorch / PEFT"), h("span", {}, yes(c.torch) + " / " + yes(c.peft)),
             h("b", {}, "GPU"), h("span", {}, c.gpu || t("lab.none")), h("b", {}, t("lab.m_memory")), h("span", {}, c.free_memory_gb == null ? t("lab.na") : num(c.free_memory_gb, 1) + " " + t("models.gb")),
             h("b", {}, t("lab.m_disk")), h("span", {}, num(c.free_disk_gb, 1) + " " + t("models.gb")))),
-        h("section", { class: "card" }, h("div", { class: "section-title" }, t("lab.versions")),
+        h("section", { class: "card" }, h("div", { class: "section-title" }, k("engine_title")), h("p", { class: "hint", style: "margin-bottom:10px" }, k("engine_note")),
           M.manifests.length ? table([t("lab.col_model"), t("lab.col_method"), t("lab.col_adapters"), t("lab.col_added"), t("lab.col_decision")],
             M.manifests.map((m) => [m.base_model_id, t("lab.methods." + m.training_method), num(m.trainable_adapter_parameters, 0), num(m.added_module_parameters, 0), t("lab.decisions." + m.decision)]))
             : h("p", { class: "muted" }, t("lab.no_model"))),

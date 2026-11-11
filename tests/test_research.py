@@ -122,9 +122,11 @@ def test_the_register_covers_h1_to_h10_and_says_when_it_cannot_compute(campaign)
     lab, experiment, _results = campaign
     run_id = experiment["runs"][0]["run_id"]
     run = json.loads((lab.root / "experiments" / experiment["experiment_id"] / "runs" / run_id / "run.json").read_text())
-    for metric_id, reason in metrics.NOT_COMPUTABLE.items():
+    for metric_id, reason in (("h8.brier", "metacognition_off"), ("h10.attribution_accuracy", "sandbox_off"),
+                              ("h4.parameters", "learner_off")):  # modules off in this protocol: said, not invented
         result = run["metrics"][metric_id]
         assert result["value"] is None and not result["computable"] and result["reason"] == reason
+    assert set(run["metrics"]) == set(metrics.DEFINITIONS) - {"h5.heldout_divergence"}
     assert run["metrics"]["h1.endogenous_share"]["computable"] and run["anomalies"] == []
     assert 0 < run["metrics"]["h1.endogenous_share"]["value"] < 1
 
@@ -141,7 +143,7 @@ def test_a_locked_protocol_cannot_change_and_specifications_cannot_run(tmp_path)
     copy = lab.duplicate_protocol("EXP-01", "1.0.0", "1.1.0")
     assert not copy["locked"] and protocol_hash(copy) != locked["sha256"]
     with pytest.raises(LabError):
-        lab.lock_protocol("EXP-03", "1.0.0")  # H8: a specification, honestly not runnable
+        lab.lock_protocol("EXP-05", "1.0.0")  # needs real engines: a specification, honestly not runnable
     with pytest.raises(LabError):
         lab.create_experiment("EXP-01", "1.0.0", approved_by_human=False)
     with pytest.raises(LabError):
@@ -173,7 +175,7 @@ def test_a_campaign_is_reproducible_isolated_and_reports_a_null_as_a_null(campai
     for row in results["comparisons"]:
         assert row["evidence_id"] in results["evidence"]
     assert "h4.parameter_delta" in results["conditions"]["neutral"]
-    assert results["conditions"]["neutral"]["h4.parameter_delta"]["not_computable"] == ["no_trainable_engine"]
+    assert results["conditions"]["neutral"]["h4.parameter_delta"]["not_computable"] == ["learner_off"]
 
 
 def test_a_campaign_can_be_cancelled_and_resumed_and_checks_its_checkpoint(tmp_path):
@@ -218,7 +220,7 @@ def test_hypothesis_status_is_never_set_by_code(campaign):
     for language in ("fr", "en"):
         listed = texts.hypotheses(language)
         assert [h["id"] for h in listed] == list(texts.HYPOTHESES)
-        assert {h["id"]: h["implementation"] for h in listed}["H8"] == "not_implemented"
+        assert {h["id"]: h["implementation"] for h in listed}["H4"] == "partial"  # stated, never raised by a result
 
 
 # -- observers ---------------------------------------------------------------------------------------------
@@ -312,7 +314,7 @@ def test_reports_come_in_one_language_as_markdown_pdf_and_a_pack(campaign):
     for word in ("Résumé", "Menaces", "brouillon"):
         assert word not in english
     assert results["results_sha256"] in english and results["divergence"][0]["evidence_id"] in english
-    assert "no_trainable_engine" not in english and "no engine of this installation can be trained" in english
+    assert "learner_off" not in english and "the trainable module is off in this condition" in english
     pdf = Path(made["en"]["files"]["pdf"]).read_bytes()
     assert pdf.startswith(b"%PDF-1.4") and pdf.rstrip().endswith(b"%%EOF") and b"/Type /Page " in pdf
     with zipfile.ZipFile(made["en"]["files"]["pack"]) as pack:
@@ -365,9 +367,13 @@ def test_the_sandbox_world_is_deterministic_closed_and_tells_self_from_world():
     assert any(record["error"] for record in broken)  # a rule changed: the prediction fails, and it is recorded
 
 
-def test_learning_says_plainly_that_it_is_not_available(tmp_path):
+def test_learning_says_plainly_what_can_and_cannot_be_trained(tmp_path):
+    import importlib.util
     found = learning.capabilities(tmp_path)
-    assert found["training_available"] is False and found["growth_available"] is False and "gguf_only" in found["reasons"]
+    has_torch = importlib.util.find_spec("torch") is not None
+    assert found["training_available"] is has_torch and found["growth_available"] is has_torch
+    assert found["engine_training_available"] is False and "gguf_only" in found["reasons"]  # engines stay frozen
+    assert found["module_training_available"] is True
     job = learning.request_job("Ada", "lora", approved_by_human=True, models_dir=tmp_path)
     assert job["status"] == "refused" and "gguf_only" in job["reason"]
     assert "not_approved" in learning.request_job("Ada", "lora", approved_by_human=False, models_dir=tmp_path)["reason"]

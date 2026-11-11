@@ -40,6 +40,16 @@ SWITCHES: dict[str, tuple[bool, str]] = {
     "spontaneous_speech": (True, "expression"),
     "adopting_values": (True, "expression"),
     "sense_of_time": (True, "expression"),
+    # Research modules. Off by default: a life without them lives exactly as before.
+    "sleep_replay": (True, "sleep"),          # memories drawn at night are strengthened by being replayed
+    "metacognition": (False, "modules"),      # H8: predicts its own decisions and compares
+    "meta_revision": (True, "modules"),       # H8: an alert makes it trust its old record less
+    "sandbox": (False, "modules"),            # H10: one act per moment in the closed virtual world
+    "self_model": (True, "modules"),          # H10: attributes changes with a learned model of its own acts
+    "learner": (False, "modules"),            # H4: the small trainable module, trained during sleep
+    "learner_growth": (False, "modules"),     # H4: the module may add a specialist, under quota
+    "own_model": (False, "modules"),          # H4: Freewill's own neural network, trained during sleep
+    "own_model_growth": (False, "modules"),   # H4: that network may add layers, under the ceiling below
 }
 
 # name: (default, lowest, highest, whole number, group)
@@ -49,6 +59,8 @@ NUMBERS: dict[str, tuple[float, float, float, bool, str]] = {
     "dreams_max": (3, 0, 3, True, "sleep"),
     "tempo": (20.0, 2.0, 3600.0, False, "rhythm"),
     "thoughts_per_hour": (120, 0, 3600, True, "rhythm"),
+    "own_model_steps": (60, 1, 5000, True, "modules"),             # gradient steps per sleep
+    "own_model_max_millions": (5.0, 0.1, 4000.0, False, "modules"),  # ceiling on its size, in millions of parameters
 }
 
 # What a generator switch silences: the sources of the proposals it makes.

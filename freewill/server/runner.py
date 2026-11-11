@@ -142,6 +142,37 @@ class Runner:
     def research(self) -> dict:
         return self.being.research.public()
 
+    def modules(self) -> dict:
+        """The research modules of this life (H8, H10, H4) as they are now. None when a module is switched off."""
+        if not self._living.acquire(timeout=5):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            being = self.being
+            return json.loads(json.dumps({
+                "metacognition": being.monitor.public() if being.monitor else None,
+                "sandbox": being.agency.public() if being.agency else None,
+                "learner": being.adapter.public() if being.adapter else None,
+                "own_model": being.own.public() if being.own else None}))
+        finally:
+            self._living.release()
+
+    def module_action(self, action: str, prompt: str = "") -> dict:
+        """A person's controls over what was learned: go back to earlier weights, or look at what the network writes."""
+        if not self._living.acquire(timeout=60):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            being = self.being
+            if action == "learner_rollback" and being.adapter:
+                being.adapter.rollback()
+                return {"ok": True}
+            if action == "own_rollback" and being.own:
+                return {"ok": being.own.rollback()}
+            if action == "own_sample" and being.own:
+                return {"text": being.own.sample(prompt[:200])}
+            return {"ok": False}
+        finally:
+            self._living.release()
+
     def set_research(self, changes: dict | None = None, reset: bool = False) -> dict:
         """Switch mechanisms of the life loop on or off, between two moments."""
         if not self._living.acquire(timeout=60):

@@ -12,10 +12,12 @@ HYPOTHESES = ("H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10")
 # What exists in the code today. "implemented": the mechanism runs in the life loop.
 # "partial": part of it runs. "not_implemented": a contract or a specification only.
 IMPLEMENTATION = {
-    "H1": "implemented", "H2": "implemented", "H3": "implemented", "H4": "not_implemented",
-    "H5": "implemented", "H6": "implemented", "H7": "implemented", "H8": "not_implemented",
-    "H9": "partial", "H10": "not_implemented",
+    "H1": "implemented", "H2": "implemented", "H3": "implemented", "H4": "partial",
+    "H5": "implemented", "H6": "implemented", "H7": "implemented", "H8": "implemented",
+    "H9": "implemented", "H10": "implemented",
 }
+# Why H4 is only partial: a trainable module and Freewill's own small network are trained and can grow,
+# but the weights of the engine that thinks for the being are not changed by its life.
 PROTOCOLS = {"H1": [], "H2": [], "H3": [], "H4": ["EXP-06", "EXP-01"], "H5": ["EXP-01", "EXP-05"], "H6": [],
              "H7": ["EXP-02", "EXP-01"], "H8": ["EXP-03"], "H9": ["EXP-04"], "H10": ["EXP-07", "EXP-05"]}
 
@@ -64,6 +66,11 @@ T = {
             "being_not_connected_to_sandbox": "the being does not act in the sandbox world yet",
             "affect_off": "the computed affect is off in this condition", "no_sleep": "no sleep in this run",
             "no_observation": "nothing to measure in this run", "retention_tasks_not_implemented": "no retention task exists yet",
+            "metacognition_off": "the metacognition module is off in this condition",
+            "sandbox_off": "the virtual world is off in this condition",
+            "learner_off": "the trainable module is off in this condition",
+            "own_model_off": "Freewill's own network is off in this condition",
+            "no_memory_before_sleep": "no memory was formed before the sleep",
             "needs_real_engines": "needs real engines, and is not reproducible with remote models",
             "needs_human_raters": "needs human raters",
             "too_few_units_for_interval": "too few independent lives for an interval",
@@ -126,11 +133,13 @@ T = {
             "no_qual": "No qualitative case study was recorded for this campaign.",
         },
         "learning": {
-            "unavailable": "Parametric learning is not available on this machine.",
-            "reasons": {"no_torch": "the training libraries (PyTorch, PEFT) are not installed",
+            "unavailable": "PyTorch is not installed: Freewill's own network cannot be trained on this machine. The small trainable module still can.",
+            "own_ready": "This machine can train Freewill's own network and the small trainable module. The embedded engines stay frozen.",
+            "reasons": {"no_torch": "PyTorch is not installed, so Freewill's own network cannot be trained",
+                        "no_peft": "PEFT is not installed, so adapters for large models (LoRA) cannot be trained",
                         "gguf_only": "the embedded models are quantised GGUF files for inference; they are not trainable in that format",
                         "low_memory": "less than {need} GB of memory is free", "not_approved": "no person approved a learning job"},
-            "growth": "Structural growth: experimental, not available. No parameter was added.",
+            "growth": "Growth is real only where it is counted: Freewill's own network adds layers, and the trainable module adds specialists. The embedded engines do not grow.",
         },
     },
     "fr": {
@@ -177,6 +186,11 @@ T = {
             "being_not_connected_to_sandbox": "l'être n'agit pas encore dans le monde bac à sable",
             "affect_off": "l'affect calculé est désactivé dans cette condition", "no_sleep": "aucun sommeil dans cette exécution",
             "no_observation": "rien à mesurer dans cette exécution", "retention_tasks_not_implemented": "aucune tâche de rétention n'existe encore",
+            "metacognition_off": "le module de métacognition est désactivé dans cette condition",
+            "sandbox_off": "le monde virtuel est désactivé dans cette condition",
+            "learner_off": "le module entraînable est désactivé dans cette condition",
+            "own_model_off": "le réseau propre de Freewill est désactivé dans cette condition",
+            "no_memory_before_sleep": "aucun souvenir n'a été formé avant le sommeil",
             "needs_real_engines": "demande des moteurs réels, et n'est pas reproductible avec des modèles distants",
             "needs_human_raters": "demande des évaluateurs humains",
             "too_few_units_for_interval": "trop peu de vies indépendantes pour un intervalle",
@@ -240,11 +254,13 @@ T = {
             "no_qual": "Aucune étude de cas qualitative n'a été consignée pour cette campagne.",
         },
         "learning": {
-            "unavailable": "L'apprentissage paramétrique n'est pas disponible sur cette machine.",
-            "reasons": {"no_torch": "les bibliothèques d'entraînement (PyTorch, PEFT) ne sont pas installées",
+            "unavailable": "PyTorch n'est pas installé : le réseau propre de Freewill ne peut pas être entraîné sur cette machine. Le petit module entraînable, lui, le peut.",
+            "own_ready": "Cette machine peut entraîner le réseau propre de Freewill et le petit module entraînable. Les moteurs embarqués restent figés.",
+            "reasons": {"no_torch": "PyTorch n'est pas installé, donc le réseau propre de Freewill ne peut pas être entraîné",
+                        "no_peft": "PEFT n'est pas installé, donc les adaptateurs pour grands modèles (LoRA) ne peuvent pas être entraînés",
                         "gguf_only": "les modèles embarqués sont des fichiers GGUF quantifiés pour l'inférence ; ils ne sont pas entraînables dans ce format",
                         "low_memory": "moins de {need} Go de mémoire sont libres", "not_approved": "aucune personne n'a approuvé un apprentissage"},
-            "growth": "Croissance structurelle : expérimentale, non disponible. Aucun paramètre n'a été ajouté.",
+            "growth": "La croissance n'est réelle que là où elle est comptée : le réseau propre de Freewill ajoute des couches, et le module entraînable ajoute des spécialistes. Les moteurs embarqués ne grandissent pas.",
         },
     },
 }

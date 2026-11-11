@@ -32,6 +32,7 @@ EPOCHS, RATE = 30, 0.15
 MIN_GAIN = 0.001       # a training is kept only if held-out loss falls by at least this
 MAX_FORGETTING = 0.02  # and loss on older episodes rises by no more than this
 SALIENCE_CAP = 0.05
+POORLY_PREDICTED = 0.55  # nats: above this, a context is barely better predicted than by chance
 RULES_VERSION = "h4-0.1"
 
 
@@ -130,7 +131,9 @@ class Adapter:
         candidate = [dict(e, w=list(e["w"])) for e in self.experts]
         self._fit(candidate, train)
         report = self._judge(before, candidate, held, old, "lora-like adapter, gradient descent", added=0)
-        if report["decision"] == "accepted" and grow and len(self.experts) < MAX_EXPERTS:
+        # Growth is tried where the shared weights fail, whether or not this training was kept: a context
+        # they cannot predict is exactly what a specialist is for. It is judged like any training.
+        if grow and len(self.experts) < MAX_EXPERTS:
             worst = self._worst_context(held)
             if worst:
                 grown = [dict(e, w=list(e["w"])) for e in self.experts] + [
@@ -143,14 +146,14 @@ class Adapter:
         return report
 
     def _worst_context(self, held) -> str | None:
+        """The context the module predicts worst, if it predicts it barely better than a coin (0.69 nats)."""
         by: dict[str, list] = {}
         for episode in held:
             by.setdefault(episode[1], []).append(episode)
         owned = {e["context"] for e in self.experts}
         losses = {c: self._loss(self.experts, eps) for c, eps in by.items() if len(eps) >= 3 and c not in owned}
-        overall = self._loss(self.experts, held)
         worst = max(losses, key=losses.get, default=None)
-        return worst if worst and losses[worst] > overall + 0.05 else None
+        return worst if worst and losses[worst] > POORLY_PREDICTED else None
 
     def _judge(self, before, candidate, held, old, method: str, added: int) -> dict:
         held_before, held_after = self._loss(before, held), self._loss(candidate, held)

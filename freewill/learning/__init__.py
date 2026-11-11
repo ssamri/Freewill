@@ -47,14 +47,19 @@ def capabilities(models_dir: Path | None = None) -> dict:
         folder = folder.parent
     disk = round(shutil.disk_usage(folder).free / 1e9, 1)
     reasons = []
-    if not (torch and peft):
+    if not torch:
         reasons.append("no_torch")
+    elif not peft:
+        reasons.append("no_peft")
     reasons.append("gguf_only")  # the catalogue ships inference files only; a trainable base is not provided yet
     if memory is not None and memory < MIN_FREE_MEMORY_GB:
         reasons.append("low_memory")
     return {"torch": torch, "peft": peft, "gpu": gpu, "free_memory_gb": memory, "free_disk_gb": disk,
-            "min_free_memory_gb": MIN_FREE_MEMORY_GB, "inference": True, "training_available": False,
-            "growth_available": False, "reasons": reasons, "learning_version": LEARNING_VERSION}
+            "min_free_memory_gb": MIN_FREE_MEMORY_GB, "inference": True,
+            # What can be trained here: Freewill's own small network needs PyTorch; the pure-Python module needs
+            # nothing. The embedded GGUF engines are never trained in place.
+            "training_available": torch, "module_training_available": True, "engine_training_available": False,
+            "growth_available": torch, "reasons": reasons, "learning_version": LEARNING_VERSION}
 
 
 def model_versions(store: "models.ModelStore") -> list[dict]:

@@ -18,7 +18,10 @@ from freewill.core.events import EventStream
 from freewill.core.kernel import Action, Guard, KernelViolation
 from freewill.core.kernel.needs import Needs
 from freewill.core.life import Life, describe_duration
+from freewill.core.agency import Agency
 from freewill.core.memory import CONSCIOUS, DREAM, Memory, recall
+from freewill.core.memory.recall import tokens as words
+from freewill.core.metacognition import Monitor
 from freewill.core.memory.strength import decay
 from freewill.core.research import Research
 from freewill.core.sleep import DREAM_SCHEMA, dream_prompt, dream_system, link_together
@@ -26,6 +29,8 @@ from freewill.core.subconscious import Proposal, Subconscious
 from freewill.core.subconscious.drift import Drift
 from freewill.core.workspace import compete
 from freewill.engines.base import Engine, EngineError, EngineRefusal
+from freewill.learning.adapter import Adapter
+from freewill.learning.own_model import OwnModel
 
 _T = {
     "en": {"reading": "I could go on reading “{name}” (passage {number} of {of}).",
@@ -74,6 +79,11 @@ class Being:
         self.subconscious.weights = dict(state.get("weights", {}))
         # Research settings: which mechanisms run. With no file, all of them, as before.
         self.research = Research.load(life.path)
+        # Research modules (H8, H10, H4). Each exists only while its switch is on.
+        self.monitor: Monitor | None = None
+        self.agency: Agency | None = None
+        self.adapter: Adapter | None = None
+        self.own: OwnModel | None = None
         self._follow_research()
         self.conscious = Conscious(life, engine)
 
@@ -109,6 +119,8 @@ class Being:
                     self.affect.elapse(away / 60)
         self.events.emit("awake", name=life.name, engine=engine.name,
                          kernel=self.guard.fingerprint[:12])
+        if state.get("sleep"):  # it was stopped in the middle of a sleep: the sleep resumes where it was
+            self.sleep_requested = True
 
     # -- perception ------------------------------------------------------------
 
@@ -217,6 +229,11 @@ class Being:
             self._habituate(proposals)
         if affect:  # causal effect 1: the computed state shifts salience, within a small cap
             affect.modulate(proposals, self._trace_of)
+        if self.adapter:  # H4: what the trained module learned shifts salience, within a small cap
+            for proposal in proposals:
+                if proposal.source != "message":
+                    proposal.salience = round(
+                        proposal.salience + self.adapter.shift(self._tokens(proposal), proposal.source), 4)
         competition = compete(proposals)
         winner = competition.winner
         self.staged.append(winner.text)
@@ -228,6 +245,8 @@ class Being:
         )
 
         is_message = winner.source == "message"
+        # H8: before deciding, it states how confident it is that this content will be welcomed.
+        confidence = self.monitor.predict(winner.source) if self.monitor and not is_message else None
         message, perception, images = None, None, []
         if is_message:
             message = self.inbox.popleft()
@@ -245,9 +264,11 @@ class Being:
         # Causal effect 2: the computed state weighs the candidates of recall.
         bias = affect.recall_bias() if affect else None
         memories = recall(self.life.memory, winner.text, CONSCIOUS, k=self.research.recall_k, rng=self.rng,
-                          active=tuple(self.active), bias=bias) if self.research.recall_k else []
+                          active=tuple(self.active), bias=bias, now=now) if self.research.recall_k else []
         for memory, path in memories:
             self.events.emit("recall", id=memory.id, title=memory.title, path=path)
+            if self.monitor:  # source monitoring: where what comes back to mind came from
+                self.monitor.recalled(next((tag[7:] for tag in memory.tags if tag.startswith("origin:")), "unknown"))
 
         hint = (message or {}).get("appraisal") or {}
         before = self.needs.to_dict()
@@ -294,6 +315,14 @@ class Being:
                 self.needs.satisfy("curiosity", 0.3)
 
         refused = self._apply(winner, decision, memories)
+        if confidence is not None:
+            self.monitor.observe(winner.source, confidence, decision.accepted, self.research.meta_revision)
+        if self.adapter and not is_message:
+            self.adapter.record(self._tokens(winner), winner.source, decision.accepted)
+        if self.agency:  # H10: one act in the closed world, predicted, observed, attributed
+            self.agency.step(self.research.self_model)
+        if self.own:  # H4: what was lived becomes text its own network will be trained on during sleep
+            self.own.live([winner.text, decision.thought, decision.say])
         if affect:  # what followed is appraised: was it welcomed, did it relieve a need
             after = self.needs.to_dict()
             relief = sum(max(0.0, before[name] - after[name]) for name in ("curiosity", "wonder", "company"))
@@ -327,9 +356,19 @@ class Being:
         """Switch the H7 research mode on or off while the being lives. See AffectSystem.set_enabled."""
         self.affect.set_enabled(enabled, self.clock())
 
+    @staticmethod
+    def _tokens(proposal: Proposal) -> list[str]:
+        return ["source:" + proposal.source] + sorted(words(proposal.text))[:16]
+
     def _follow_research(self) -> None:
         self.subconscious.silenced = self.research.silenced()
         self.subconscious.noise = self.research.noise
+        research, path, emit = self.research, self.life.path, self.events.emit
+        self.monitor = (self.monitor or Monitor(path, emit)) if research.metacognition else None
+        # The world is drawn from this life's own dice, once: two copies of one newborn meet different worlds.
+        self.agency = (self.agency or Agency(path, self.rng.randrange(2 ** 31), emit)) if research.sandbox else None
+        self.adapter = (self.adapter or Adapter(path, emit)) if research.learner else None
+        self.own = (self.own or OwnModel(path, self.life.genome.seed, emit)) if research.own_model else None
 
     def set_research(self, changes: dict | None = None, reset: bool = False) -> dict:
         """Change research settings between two moments. The change is written to the event log,
@@ -411,7 +450,10 @@ class Being:
                     body=body,
                     importance=0.7 if is_message else 0.5,
                     links=list(dict.fromkeys(self.active))[-3:],
+                    date=self._last_tick.isoformat(timespec="seconds"),
                 )
+                if self.monitor:  # where this memory comes from, so that recall can tell told from thought
+                    memory.tags.append("origin:told" if is_message else "origin:self")
                 if self.affect.enabled:  # the trace of the computed state, and its weight on importance
                     self.affect.encode(memory, self._context)
                 memory = life.memory.add(memory)
@@ -424,7 +466,7 @@ class Being:
                 self.guard.check(Action.ADOPT_VALUE, decision.new_value)
                 life.values.append({
                     "text": decision.new_value,
-                    "adopted": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                    "adopted": self._last_tick.isoformat(timespec="seconds"),
                 })
                 self.events.emit("value", text=decision.new_value)
                 if life.mark("first_value"):
@@ -437,25 +479,53 @@ class Being:
         life.state["thoughts"] = life.state.get("thoughts", 0) + 1
         return refused
 
+    def _phase(self, name: str, night: int = 0) -> None:
+        """Enter a phase of sleep. It is written down first, so that a sleep cut short resumes there."""
+        self.life.state["sleep"] = {"phase": name, "night": night}
+        self.life.save()
+        self.events.emit("sleep_phase", phase=name, night=night)
+
     def _sleep(self, now: datetime) -> None:
-        """Sleep: replay and dream, link what the dreams brought together, let the rest fade."""
-        self.guard.check(Action.REST)
-        life, store = self.life, self.life.memory
-        self.events.emit("sleep")
+        """Sleep, in phases: rest; each night, replay then dream; consolidation; waking.
+
+        Replay strengthens the memories drawn; a dream recombines them and links them;
+        consolidation lets the rest fade and trains what can be trained. A sleep that was
+        interrupted resumes at the phase it had reached.
+        """
+        life, store, research = self.life, self.life.memory, self.research
+        reached = life.state.get("sleep") or {}
+        begin = {"offline_replay": 1, "dream": 1, "offline_consolidation": 2, "wake": 3}.get(reached.get("phase"), 0)
+        if begin == 0:
+            self.guard.check(Action.REST)
+            self.events.emit("sleep")
+            self._phase("rest")
+        else:
+            self.events.emit("sleep_resumed", phase=reached.get("phase"), night=reached.get("night", 0))
 
         dreams = 0
         count = len(store)
         nights = 0 if count == 0 else 1 if count < 4 else 2 if count < 12 else 3
-        nights = min(nights, self.research.dreams_max) if self.research.dreaming else 0
+        if research.dreaming:
+            nights = min(nights, research.dreams_max)
+        elif not research.sleep_replay:
+            nights = 0
         mix = DREAM.loosened(life.genome.association)
-        for _ in range(nights):
+        first = int(reached.get("night", 0)) if begin == 1 else 0
+        for night in range(first, nights if begin <= 1 else 0):
+            self._phase("offline_replay", night)
             cue = self.rng.choice(list(self.recent_thoughts)) if self.recent_thoughts else ""
             # Replay: the memories drawn tonight are strengthened by being relived.
             # With H7 on, memories carrying a negative trace are not favoured in replay.
             memories = recall(store, cue, mix, k=min(3, count), rng=self.rng, active=tuple(self.active),
-                              bias=self.affect.recall_bias() if self.affect.enabled else None)
+                              bias=self.affect.recall_bias() if self.affect.enabled else None,
+                              touch=research.sleep_replay, now=now)
             if not memories:
                 break
+            if research.sleep_replay:
+                self.events.emit("replay", memories=[memory.id for memory, _path in memories])
+            if not research.dreaming:
+                continue
+            self._phase("dream", night)
             hint = {"kind": "dream", "language": life.language,
                     "memories": [memory.title for memory, _path in memories]}
             try:
@@ -477,7 +547,7 @@ class Being:
                 self.events.emit("kernel_refusal", message=str(violation))
                 continue
             ids = [memory.id for memory, _path in memories]
-            linked = link_together(store, ids) if self.research.dream_linking else []
+            linked = link_together(store, ids) if research.dream_linking else []
             dream = life.dreams.add(
                 title or text[:40], text, residue,
                 [{"id": memory.id, "title": memory.title, "path": path} for memory, path in memories],
@@ -487,18 +557,27 @@ class Being:
                              memories=ids, linked=linked)
             if life.mark("first_dream"):
                 self.events.emit("milestone", name="first_dream")
-            if residue and self.research.dream_residue:
+            if residue and research.dream_residue:
                 self._pending = [Proposal("dream", self.t["residue"].format(residue=residue), 0.6)]
 
         faded = 0
-        for memory in (store.headers() if self.research.forgetting else ()):
-            full = store.open(memory.id)
-            if decay(full, now):
-                faded += 1
-            store.save(full)
+        if begin <= 2:
+            self._phase("offline_consolidation")
+            for memory in (store.headers() if research.forgetting else ()):
+                full = store.open(memory.id)
+                if decay(full, now):
+                    faded += 1
+                store.save(full)
+            if self.affect.enabled:  # consolidation of what was lived; trains no model
+                self.affect.sleep(now)
+            if self.adapter:  # H4: the small module is trained on the day, and kept only if it helps
+                self.adapter.consolidate(grow=research.learner_growth)
+            if self.own:      # H4: its own network is trained, and may grow, under the ceiling
+                self.own.sleep(steps=research.own_model_steps, grow=research.own_model_growth,
+                               ceiling=int(research.own_model_max_millions * 1_000_000))
+        self._phase("wake")
+        life.state.pop("sleep", None)
         self.needs.fatigue = 0.0
-        if self.affect.enabled:  # consolidation of what was lived; trains no model
-            self.affect.sleep(now)
         self.events.emit("rest", faded=faded, dreams=dreams)
         self._save(now)
 
@@ -516,3 +595,6 @@ class Being:
         self.life.save()
         if self.affect.enabled:
             self.affect.commit(now)
+        for module in (self.monitor, self.agency, self.adapter):
+            if module:
+                module.save()

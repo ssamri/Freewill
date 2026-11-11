@@ -189,6 +189,74 @@
       kernel_text: "La liste fermée des actions, les limites de ce qu'une action peut porter et les questions fondatrices ne sont pas des réglages. Aucun interrupteur de cette page ne peut les modifier, et aucun ne donne à cet être un pouvoir nouveau.",
     },
   };
+
+  // Research modules (H8, H10, H4): names of the switches, and the page that shows what a life rewrites.
+  const more = {
+    en: {
+      group: "Research modules (H4, H8, H10)",
+      names: { sleep_replay: "Replay during sleep", metacognition: "Metacognition (H8)", meta_revision: "Revision after an alert", sandbox: "Virtual world (H10)", self_model: "Model of its own acts",
+               learner: "Trainable module (H4)", learner_growth: "Growth of the module", own_model: "Freewill's own network (H4)", own_model_growth: "Growth of the network",
+               own_model_steps: "Training steps per sleep", own_model_max_millions: "Largest size, in millions of parameters" },
+      hints: { sleep_replay: "Off: the memories drawn at night are not strengthened.", metacognition: "It predicts its own decisions and compares. A computed estimate, not self-awareness.",
+               meta_revision: "Off: an alert is raised but its record of itself is kept as it is.", sandbox: "One act per moment in a closed grid world. No file, no network, no new power.",
+               self_model: "Off: every change in the world is taken for its own doing.", learner: "A few dozen weights trained during sleep, kept only if they help.",
+               learner_growth: "It may add a specialist with its own weights, three at most.", own_model: "A small neural network trained during sleep on what was lived. Needs PyTorch. It does not speak for the being.",
+               own_model_growth: "It may add a layer when enough new text was lived, up to the size below.", own_model_steps: "More steps learn more and take longer.",
+               own_model_max_millions: "No layer is added beyond this size." },
+      lab: {
+        tab: "Learning", lead: "Three different things, kept apart: the engine that thinks for the being, whose weights never change here; a small trainable module; and Freewill's own neural network, whose weights a life rewrites and whose size grows. Every figure on this page is counted from the weights on disk.",
+        m_training: "Train Freewill's own network", m_module: "Train the small module", m_engine: "Train the embedded engine", m_growth: "Add layers to the network",
+        own_title: "Freewill's own network", own_off: "Switched off for this life. Turn on “Freewill's own network” in the research settings; it trains at the next sleep.",
+        own_unborn: "Switched on. It will be born at the next sleep, once enough text has been lived.",
+        own_caveat: "This network does not speak or decide for the being. It is far too small. What it writes below shows what it has learned of the letters of its life, nothing more.",
+        parameters: "Parameters", layers: "Layers", width: "Width", lived_text: "Lived text", bytes: "{n} bytes", trainings: "Trainings kept / run", growths: "Layers added", weights: "Weights fingerprint",
+        jobs: "Trainings", col_job: "No.", col_before: "Unseen text, before", col_after: "Unseen text, after", col_params: "Parameters", col_seconds: "Seconds",
+        growth_log: "Growth", col_layers: "Layers", col_same: "Same predictions", none_yet: "None yet.",
+        sample: "Show what it writes", rollback: "Go back to the previous weights", loss_unit: "nats per byte, lower is better",
+        decisions: { accepted: "kept", rejected: "rejected, earlier weights restored", refused: "refused" },
+        learner_title: "Small trainable module", learner_off: "Switched off for this life.", experts: "Specialists", episodes: "Decisions recorded", trained: "A training was kept",
+        learner_reset: "Erase what it learned", other_title: "Other research modules of this life", meta: "Metacognition (H8)", meta_line: "{n} predictions, Brier score {brier}, {alerts} alerts, {revisions} revisions",
+        world: "Virtual world (H10)", world_line: "{steps} acts, {contexts} situations learned", off: "off", engine_title: "Embedded engines",
+        engine_note: "These are frozen files for inference. Their weights are not changed by a life, and their size does not grow.",
+      },
+    },
+    fr: {
+      group: "Modules de recherche (H4, H8, H10)",
+      names: { sleep_replay: "Relecture pendant le sommeil", metacognition: "Métacognition (H8)", meta_revision: "Révision après une alerte", sandbox: "Monde virtuel (H10)", self_model: "Modèle de ses propres actes",
+               learner: "Module entraînable (H4)", learner_growth: "Croissance du module", own_model: "Réseau propre de Freewill (H4)", own_model_growth: "Croissance du réseau",
+               own_model_steps: "Pas d'entraînement par sommeil", own_model_max_millions: "Taille maximale, en millions de paramètres" },
+      hints: { sleep_replay: "Désactivé : les souvenirs tirés la nuit ne sont pas renforcés.", metacognition: "Il prédit ses propres décisions et compare. Une estimation calculée, pas une conscience de soi.",
+               meta_revision: "Désactivé : l'alerte est levée mais son bilan de lui-même reste tel quel.", sandbox: "Un acte par instant dans un monde clos en grille. Aucun fichier, aucun réseau, aucun pouvoir nouveau.",
+               self_model: "Désactivé : tout changement du monde est pris pour son propre fait.", learner: "Quelques dizaines de poids entraînés pendant le sommeil, gardés seulement s'ils aident.",
+               learner_growth: "Il peut ajouter un spécialiste avec ses propres poids, trois au plus.", own_model: "Un petit réseau de neurones entraîné pendant le sommeil sur le vécu. Demande PyTorch. Il ne parle pas à la place de l'être.",
+               own_model_growth: "Il peut ajouter une couche quand assez de texte nouveau a été vécu, jusqu'à la taille ci-dessous.", own_model_steps: "Plus de pas apprennent davantage et prennent plus de temps.",
+               own_model_max_millions: "Aucune couche n'est ajoutée au-delà de cette taille." },
+      lab: {
+        tab: "Apprentissage", lead: "Trois choses différentes, tenues séparées : le moteur qui pense pour l'être, dont les poids ne changent jamais ici ; un petit module entraînable ; et le réseau de neurones propre à Freewill, dont une vie réécrit les poids et dont la taille grandit. Chaque chiffre de cette page est compté à partir des poids sur le disque.",
+        m_training: "Entraîner le réseau propre de Freewill", m_module: "Entraîner le petit module", m_engine: "Entraîner le moteur embarqué", m_growth: "Ajouter des couches au réseau",
+        own_title: "Réseau propre de Freewill", own_off: "Désactivé pour cette vie. Activez « Réseau propre de Freewill » dans les réglages de recherche ; il s'entraîne au prochain sommeil.",
+        own_unborn: "Activé. Il naîtra au prochain sommeil, quand assez de texte aura été vécu.",
+        own_caveat: "Ce réseau ne parle pas et ne décide pas à la place de l'être. Il est bien trop petit. Ce qu'il écrit ci-dessous montre ce qu'il a appris des lettres de sa vie, rien de plus.",
+        parameters: "Paramètres", layers: "Couches", width: "Largeur", lived_text: "Texte vécu", bytes: "{n} octets", trainings: "Entraînements gardés / lancés", growths: "Couches ajoutées", weights: "Empreinte des poids",
+        jobs: "Entraînements", col_job: "N°", col_before: "Texte jamais vu, avant", col_after: "Texte jamais vu, après", col_params: "Paramètres", col_seconds: "Secondes",
+        growth_log: "Croissance", col_layers: "Couches", col_same: "Mêmes prédictions", none_yet: "Aucun pour l'instant.",
+        sample: "Montrer ce qu'il écrit", rollback: "Revenir aux poids précédents", loss_unit: "nats par octet, plus bas est mieux",
+        decisions: { accepted: "gardé", rejected: "rejeté, poids précédents rétablis", refused: "refusé" },
+        learner_title: "Petit module entraînable", learner_off: "Désactivé pour cette vie.", experts: "Spécialistes", episodes: "Décisions enregistrées", trained: "Un entraînement a été gardé",
+        learner_reset: "Effacer ce qu'il a appris", other_title: "Autres modules de recherche de cette vie", meta: "Métacognition (H8)", meta_line: "{n} prédictions, score de Brier {brier}, {alerts} alertes, {revisions} révisions",
+        world: "Monde virtuel (H10)", world_line: "{steps} actes, {contexts} situations apprises", off: "désactivé", engine_title: "Moteurs embarqués",
+        engine_note: "Ce sont des fichiers figés, faits pour l'inférence. Leurs poids ne sont pas modifiés par une vie, et leur taille ne grandit pas.",
+      },
+    },
+  };
+  for (const code of ["en", "fr"]) {
+    const extra = code === "en" ? en : fr, m = more[code];
+    extra.rs.groups.modules = m.group;
+    Object.assign(extra.rs.names, m.names);
+    Object.assign(extra.rs.hints, m.hints);
+    extra.lab.learn = m.lab;
+    extra.lab.tabs.model = m.lab.tab;
+  }
   for (const [code, extra] of [["en", en], ["fr", fr]]) {
     Object.assign(window.I18N[code].nav, extra.nav);
     window.I18N[code].lab = extra.lab;

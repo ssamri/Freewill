@@ -70,6 +70,7 @@ def recall(
     active: tuple[str, ...] = (),
     touch: bool = True,
     bias=None,
+    now=None,
 ) -> list[tuple[Memory, str]]:
     """Return up to `k` memories with the path that brought each one back.
 
@@ -137,7 +138,7 @@ def recall(
     for memory_id, path in list(chosen.items())[:k]:
         memory = store.open(memory_id)
         if touch:
-            revive(memory)
+            revive(memory, now)
             store.save(memory)
         result.append((memory, path))
     return result
