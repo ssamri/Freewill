@@ -24,7 +24,7 @@ from freewill.core.kernel.guard import Guard
 
 HEADER_FIELDS = (
     "title", "summary", "date", "compartment", "tags",
-    "importance", "strength", "last_recall", "links", "state", "kept",
+    "importance", "strength", "last_recall", "links", "state", "kept", "affect",
 )
 
 # Successive states of a memory as it fades (see structure.md, section 6.1).
@@ -56,6 +56,9 @@ class Memory:
     date: str = field(default_factory=_now)
     last_recall: str = ""
     id: str = ""        # "<compartment>/<slug>", set by the store
+    # The computed affective state at encoding (H7), if the research mode was on.
+    # Absent from memories written without it, which are read exactly as before.
+    affect: dict | None = None
 
     def header(self) -> dict:
         return {name: getattr(self, name) for name in HEADER_FIELDS}
@@ -64,6 +67,8 @@ class Memory:
 def _render(memory: Memory) -> str:
     lines = ["---"]
     for name, value in memory.header().items():
+        if name == "affect" and value is None:
+            continue
         lines.append(f"{name}: {json.dumps(value, ensure_ascii=False)}")
     lines.append("---")
     return "\n".join(lines) + "\n" + memory.body.strip() + "\n"

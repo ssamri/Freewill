@@ -69,18 +69,22 @@ def recall(
     rng: random.Random | None = None,
     active: tuple[str, ...] = (),
     touch: bool = True,
+    bias=None,
 ) -> list[tuple[Memory, str]]:
     """Return up to `k` memories with the path that brought each one back.
 
     Only headers are read to choose. The chosen memories are then opened in
     full, strengthened, and saved (unless `touch` is False).
     `active` holds the ids of memories recently in mind; the neighbourhood
-    path starts from them.
+    path starts from them. `bias`, if given, maps a memory to a weight close
+    to 1 that multiplies its score on every path; it reorders candidates that
+    relevance has already selected and brings back nothing by itself.
     """
     rng = rng or random.Random()
     headers = store.headers()
     if not headers:
         return []
+    weigh = bias or (lambda memory: 1.0)
     by_id = {memory.id: memory for memory in headers}
     total = mix.subject + mix.neighbourhood + mix.chance
     chosen: dict[str, str] = {}
@@ -99,7 +103,7 @@ def recall(
         title = tokens(memory.title)
         overlap = len(cue_words & (words | title)) + len(cue_words & title)
         if overlap:
-            scored.append((memory, overlap * (0.5 + memory.strength)))
+            scored.append((memory, overlap * (0.5 + memory.strength) * weigh(memory)))
     scored.sort(key=lambda pair: pair[1], reverse=True)
     n_subject = round(k * mix.subject / total)
     for memory, _ in scored[:n_subject]:
@@ -123,10 +127,11 @@ def recall(
             if shared:
                 neighbours[memory.id] = neighbours.get(memory.id, 0) + 0.5 * shared
     n_neighbour = round(k * mix.neighbourhood / total)
-    take([by_id[i] for i in neighbours], list(neighbours.values()), n_neighbour, "neighbourhood")
+    take([by_id[i] for i in neighbours], [w * weigh(by_id[i]) for i, w in neighbours.items()],
+         n_neighbour, "neighbourhood")
 
     # By chance: any memory, weighted by strength and importance. Fills the rest.
-    take(headers, [m.strength * (0.3 + m.importance) for m in headers], k - len(chosen), "chance")
+    take(headers, [m.strength * (0.3 + m.importance) * weigh(m) for m in headers], k - len(chosen), "chance")
 
     result = []
     for memory_id, path in list(chosen.items())[:k]:
