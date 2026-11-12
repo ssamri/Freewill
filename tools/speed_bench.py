@@ -226,7 +226,7 @@ def main() -> int:
     args = parser.parse_args()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    data = Path(args.data) if args.data else out / "data"
+    data = (Path(args.data) if args.data else out / "data").resolve()
     requests = record(out / "lives")
     (out / "requests.json").write_text(json.dumps(requests, indent=1, ensure_ascii=False), encoding="utf-8")
     print(f"{len(requests)} requests recorded from the life loop "

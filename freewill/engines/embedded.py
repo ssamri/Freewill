@@ -61,7 +61,10 @@ class EmbeddedEngine(CompatibleEngine):
         self.can_see = mmproj_path is not None
         self.key_env = None
         self.base_url = ""
-        self._runtime, self._model_path, self._mmproj_path = Path(runtime), Path(model_path), mmproj_path
+        # Absolute: llama-server is started with its own folder as working directory, where a relative
+        # path would no longer point at the program or the model.
+        self._runtime, self._model_path = Path(runtime).resolve(), Path(model_path).resolve()
+        self._mmproj_path = Path(mmproj_path).resolve() if mmproj_path else None
         self._context = context
         # Leave room for the instructions, the memories and the answer: about two characters per spare token.
         self.reading_chars = max(2_500, (context - 3_500) * 2)
