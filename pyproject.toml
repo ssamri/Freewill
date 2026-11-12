@@ -16,6 +16,7 @@ anthropic = ["anthropic>=1.0"]
 app = ["pywebview>=5", "keyring>=24", "pypdf>=4"]
 dev = ["pytest>=8"]
 learn = ["torch>=2.2"]
+own-model = ["torch>=2.2", "transformers>=4.51", "safetensors>=0.4", "huggingface_hub>=0.23", "pillow>=10", "numpy>=1.24"]  # Freewill 1.8B-V: reads books, sees images, watches videos (freewill/vlm)
 lora = ["torch>=2.2", "peft>=0.10", "transformers>=4.51", "safetensors>=0.4", "gguf>=0.10"]  # trains adapters for the engine a life converses with (Qwen3); learn trains its own network
 
 [project.scripts]
@@ -26,7 +27,7 @@ freewill-app = "freewill.desktop:main"
 include = ["freewill*"]
 
 [tool.setuptools.package-data]
-freewill = ["ui/*", "models.json", "credits.json", "runtime.json", "learning/reference.json", "learning/rehearsal.json"]
+freewill = ["ui/*", "models.json", "credits.json", "runtime.json", "learning/reference.json", "learning/rehearsal.json", "vlm/spec.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

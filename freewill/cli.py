@@ -237,6 +237,56 @@ def cmd_live(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_own_model(args: argparse.Namespace) -> int:
+    """Freewill 1.8B-V: fetch its bases, count it, set its ceiling, see what a size needs, or train it."""
+    if args.action in ("settings", "requirements"):
+        from freewill.vlm import capacity
+        try:
+            from freewill.paths import data_dir
+            root = Path(args.dir) if args.dir else data_dir() / "own-model"
+            if args.action == "settings" and args.max_parameters:
+                capacity.save_settings(root, int(float(args.max_parameters)), args.who or "", capacity.present(root)["parameters"])
+            if args.action == "settings":
+                print(json.dumps({**capacity.load_settings(root), "present": capacity.present(root)}, indent=1))
+                return 0
+        except ValueError as error:
+            print(error)
+            return 2
+        target = int(float(args.target or capacity.load_settings(root)["max_parameters"]))
+        req = capacity.requirements(target, capacity.present(root)["parameters"])
+        here = capacity.machine()
+        print(json.dumps({**req, "this_computer": here, "fits_here": capacity.verdict(req, here)}, indent=1))
+        return 0
+    try:
+        from freewill.vlm import books as bookshelf, pipeline, store
+    except ImportError:
+        print("Freewill's own model needs PyTorch and Transformers: pip install \"freewill[own-model]\"")
+        return 2
+    root = Path(args.dir) if args.dir else store.home()
+    if args.action == "fetch":
+        store.fetch_bases(root)
+        return 0
+    model, manifest = store.load(root, args.dtype)
+    if args.action == "count":
+        print(json.dumps({"checkpoint": manifest["version"] if manifest else None, **model.count()}, indent=1))
+        return 0
+    if manifest:
+        print("this model already has a checkpoint; training continues from it")
+    shelf = [bookshelf.from_file(Path(p)) for p in args.books]
+    if args.gutenberg:
+        fetched, left = bookshelf.shelf(root / "books")
+        shelf += fetched
+        for reason in left:
+            print("left out:", reason)
+    plan = pipeline.Plan(grow=0 if manifest else args.grow, grow_to=0 if manifest else int(float(args.grow_to or 0)),
+                         rank=0 if manifest else 16,
+                         read_steps=args.read_steps, see_steps=args.see_steps, watch_steps=args.watch_steps)
+    summary = pipeline.run(model, root, shelf, plan)
+    for stage in summary["stages"]:
+        print(f"{stage['stage']}: {stage['decision']} ({stage['reason']})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="freewill", description=__doc__)
     parser.add_argument("--version", action="version", version=f"freewill {__version__}")
@@ -275,6 +325,22 @@ def main(argv: list[str] | None = None) -> int:
     affect.add_argument("--off", dest="switch", action="store_const", const="off")
     affect.add_argument("--json", action="store_true")
     affect.set_defaults(run=cmd_affect)
+
+    own = commands.add_parser("own-model", help="Freewill's own model (1.8B-V): fetch, count, train")
+    own.add_argument("action", choices=("fetch", "count", "settings", "requirements", "train"))
+    own.add_argument("--max-parameters", help="settings: the ceiling the model may grow to, e.g. 2e9, 5e9, 50e9")
+    own.add_argument("--who", help="settings: your name, kept beside the ceiling")
+    own.add_argument("--target", help="requirements: the size to estimate (default: the ceiling)")
+    own.add_argument("--grow-to", help="train: grow towards this many parameters first (neurons, then layers), under the ceiling")
+    own.add_argument("--dir", help="where the model lives (default: the application's data folder)")
+    own.add_argument("--books", nargs="*", default=[], help="books to read: text, PDF, EPUB or DOCX files")
+    own.add_argument("--gutenberg", action="store_true", help="also read the public-domain shelf of freewill/vlm/books.py")
+    own.add_argument("--grow", type=int, default=1, help="layers to add before the first training (under the ceiling chosen in the settings)")
+    own.add_argument("--read-steps", type=int, default=200)
+    own.add_argument("--see-steps", type=int, default=600)
+    own.add_argument("--watch-steps", type=int, default=400)
+    own.add_argument("--dtype", default="float32", choices=("float32", "bfloat16"))
+    own.set_defaults(run=cmd_own_model)
 
     args = parser.parse_args(argv)
     return args.run(args)

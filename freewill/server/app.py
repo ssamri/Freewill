@@ -490,6 +490,13 @@ def make_handler(app: App):
                 return self._json({"models": app.models.listing(), "runtime": app.runtime_status()})
             if path == "/api/engine-learning":
                 return self._json(app.require_runner().engine_learning_state())
+            if path == "/api/own-model":
+                from freewill.vlm import capacity, store as own_store
+                target = (query.get("target") or [""])[0]
+                try:
+                    return self._json(capacity.public(own_store.home(), int(float(target)) if target else None))
+                except ValueError as error:
+                    raise ApiError(400, str(error)) from error
             if path == "/api/credits":
                 return self._json(app.credits())
             if path == "/api/dreams":
@@ -575,6 +582,15 @@ def make_handler(app: App):
             if path == "/api/message":
                 app.receive(body)
                 return self._json({"ok": True})
+            if path == "/api/own-model/settings":
+                from freewill.vlm import capacity, store as own_store
+                root = own_store.home()
+                try:
+                    capacity.save_settings(root, int(float(body.get("max_parameters"))), str(body.get("who") or ""),
+                                           capacity.present(root)["parameters"])
+                except (TypeError, ValueError) as error:
+                    raise ApiError(400, str(error)) from error
+                return self._json(capacity.public(root))
             if path == "/api/settings":
                 runner = app.require_runner()
                 try:

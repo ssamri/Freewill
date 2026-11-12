@@ -1,0 +1,24 @@
+{
+  "id": "freewill-1.8b-v",
+  "name": "Freewill 1.8B-V",
+  "summary": "Freewill's own model: a language model, an eye, and a bridge between them that Freewill trains; it reads books, looks at images and watches videos as sequences of frames.",
+  "language": {
+    "repo": "Qwen/Qwen3-1.7B",
+    "revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+    "licence": "Apache-2.0",
+    "role": "reads and writes text; knows language at birth"
+  },
+  "vision": {
+    "repo": "google/siglip2-base-patch16-224",
+    "revision": null,
+    "licence": "Apache-2.0",
+    "role": "turns an image into 196 patch vectors; frozen"
+  },
+  "projector": {"shuffle": 2, "hidden": 2048},
+  "image_size": 224,
+  "max_frames": 8,
+  "floor_parameters": 1500000000,
+  "ceiling_parameters": 2000000000,
+  "ceiling_note": "default only: the person sets the ceiling in the settings (capacity.py), with no upper limit",
+  "lora": {"rank": 16, "alpha": 32, "targets": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]}
+}
