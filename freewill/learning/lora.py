@@ -252,7 +252,7 @@ class Workbench:
                 tensor = torch.tensor([ids], dtype=torch.long, device=self.device)
                 loss = self.model(input_ids=tensor, labels=tensor).loss / accumulate
                 loss.backward()
-                total += float(loss)
+                total += float(loss.detach())
             optimiser.step()
             losses.append(round(total, 6))
         for p in trainable:

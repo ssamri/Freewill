@@ -165,28 +165,35 @@ def _wanted(name: str, windows: bool) -> bool:
 
 
 def _unpack(buffer: io.BytesIO, name: str, folder: Path, *, windows: bool) -> None:
-    def safe(member_name: str) -> str | None:
-        base = member_name.replace("\\", "/").rsplit("/", 1)[-1]
-        return base if _wanted(member_name.replace("\\", "/"), windows) else None
+    """Keep, from the folder of the archive that holds llama-server, the programs and libraries; flatten
+    nothing else in, never follow a link out, and never write outside `folder`."""
+    server = "llama-server.exe" if windows else "llama-server"
+
+    def split(member_name: str) -> tuple[str, str]:
+        clean = member_name.replace("\\", "/")
+        head, _, base = clean.rpartition("/")
+        return head, base
 
     if name.endswith(".zip"):
         with zipfile.ZipFile(buffer) as archive:
-            for info in archive.infolist():
-                base = safe(info.filename)
-                if base and not info.is_dir():
+            members = [(info, *split(info.filename)) for info in archive.infolist() if not info.is_dir()]
+            home = next((head for _info, head, base in members if base == server), None)
+            for info, head, base in members:
+                if head == home and _wanted(base, windows):
                     (folder / base).write_bytes(archive.read(info))
     else:
         with tarfile.open(fileobj=buffer, mode="r:*") as archive:
+            members = [(m, *split(m.name)) for m in archive.getmembers()]
+            home = next((head for m, head, base in members if base == server and m.isfile()), None)
             links = []
-            for member in archive.getmembers():
-                base = safe(member.name)
-                if not base:
+            for member, head, base in members:
+                if head != home or not _wanted(base, windows):
                     continue
                 if member.issym() or member.islnk():
-                    links.append((base, member.linkname.rsplit("/", 1)[-1]))
+                    links.append((base, member.linkname.replace("\\", "/").rsplit("/", 1)[-1]))
                 elif member.isfile():
                     (folder / base).write_bytes(archive.extractfile(member).read())
-            for base, points_to in links:  # versioned shared libraries: copy, never follow a path out
+            for base, points_to in links:  # versioned shared libraries: copied, never followed out
                 if (folder / points_to).is_file() and not (folder / base).exists():
                     shutil.copyfile(folder / points_to, folder / base)
     if not windows:
