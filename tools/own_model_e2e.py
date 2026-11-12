@@ -84,7 +84,8 @@ def main() -> int:
         root = out / "model"
         step("count at birth", lambda: model.count())
         summary = step("grow, read, see, watch", lambda: pipeline.run(model, root, books, plan, log),
-                       lambda r: {k: r[k] for k in ("passages", "parameters", "checkpoint", "seconds", "significance")}
+                       lambda r: {k: r.get(k) for k in ("passages", "parameters", "checkpoint", "seconds", "sealed_test",
+                                                       "test_at_birth", "test_at_end", "significance", "growth_refused")}
                        | {"stages": [{k: h[k] for k in ("stage", "decision", "reason", "before", "after", "training")}
                                      for h in r["stages"]]})
         step("answers about unseen images and videos", lambda: _answers(model))
@@ -114,17 +115,18 @@ def _books(cache: Path) -> dict:
 
 
 def _answers(model) -> list[dict]:
+    """Free answers on items of the sealed test (other seeds than training and validation), shown, never scored."""
     out = []
     for seed in (3, 7, 11):
-        item = synthetic.image_item(seed)
+        item = synthetic.image_item(seed, split="test")
         for q in ("colour", "shape"):
             out.append({"seed": seed, "question": synthetic.QUESTIONS[q], "truth": item[q],
                         "answer": model.answer([("image", item["image"]), "\n" + synthetic.QUESTIONS[q]], max_new_tokens=8)})
     for seed in (3, 7):
-        item = synthetic.video_item(seed)
+        item = synthetic.video_item(seed, split="test")
         out.append({"seed": seed, "question": synthetic.QUESTIONS["motion"], "truth": item["direction"],
                     "answer": model.answer([("video", item["frames"]), "\n" + synthetic.QUESTIONS["motion"]], max_new_tokens=8)})
-    item = synthetic.image_item(15)
+    item = synthetic.image_item(15, split="test")
     out.append({"seed": 15, "question": "Describe this picture in one sentence.", "truth": f"{item['colour']} {item['shape']}",
                 "answer": model.answer([("image", item["image"]), "\nDescribe this picture in one sentence."], max_new_tokens=40)})
     return out

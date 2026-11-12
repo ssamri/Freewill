@@ -56,6 +56,15 @@ def fetch_bases(root: Path, spec: dict | None = None, log=print) -> dict:
     return record
 
 
+def make_guard(root: Path, dtype: str = "float32"):
+    """The check every growth goes through: the memory and disk this computer has now (capacity.py)."""
+    from freewill.vlm import capacity
+    per = {"float32": 4.0, "bfloat16": 2.0, "float16": 2.0}.get(dtype, 4.0)
+    def guard(total_now: int, adding: int) -> None:
+        capacity.check_growth(total_now, adding, per, root)
+    return guard
+
+
 def load(root: Path | None = None, dtype: str = "float32"):
     """The model as it is now: the bases, then the checkpoint in use (growth, adapters, trained weights)."""
     from freewill.vlm.model import build
@@ -66,6 +75,7 @@ def load(root: Path | None = None, dtype: str = "float32"):
     from freewill.vlm import capacity
     model = build(root / "bases", dtype=dtype)
     model.spec["ceiling_parameters"] = capacity.load_settings(root)["max_parameters"]  # the person's choice
+    model.guard = make_guard(root, dtype)
     folder = current(root)
     manifest = restore(model, folder) if folder else None
     return model, manifest

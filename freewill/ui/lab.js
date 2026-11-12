@@ -42,6 +42,42 @@
   // ---------- research settings: each switch is one mechanism of the life loop ----------
 
   // Freewill's own model: the ceiling the person chooses, and what each size asks of a computer.
+  // Configured, available, proven: three separate columns, each read from its own source (capacity.status).
+  function ownStatus(st, k, billions, gb) {
+    if (!st) return null;
+    const yes = (v, good, bad) => h("span", {}, tag(v ? good : bad, v ? "good" : "bad"));
+    const c = st.configured, a = st.available, p = st.proven, room = a.growth_to_ceiling;
+    const pct = (x) => num(x * 100, 0) + " %";
+    const roomLine = !room.adding ? k("st.nothing_to_grow")
+      : room.fits ? k("st.room_fits", { n: billions(room.adding) })
+      : k("st.room_refused", { n: billions(room.adding), reasons: room.reasons.map((r) => k("st.reason." + r)).join(", "),
+          need: gb(room.memory_needed_gb), have: room.memory_available_gb == null ? t("lab.na") : gb(room.memory_available_gb),
+          step: billions(room.largest_step_that_fits || 0) });
+    const skill = (name) => {
+      const s = p.skills[name];
+      if (!s) return [k("st.skill." + name), tag(k("st.not_run"), "neutral"), ""];
+      const fmt = (v) => v == null ? "—" : name === "read" ? num(v, 3) + " " + k("st.nats") : pct(v);
+      const kept = s.kept == null ? tag(k("st.not_run"), "neutral") : yes(s.kept, k("st.kept"), k("st.refused"));
+      return [k("st.skill." + name), kept,
+        h("span", {}, yes(s.confirmed, k("st.confirmed"), k("st.not_confirmed")), " ", fmt(s.test_birth) + " → " + fmt(s.test_end)
+          + (s.p_by_chance != null ? " · p = " + num(s.p_by_chance, 4) : ""))];
+    };
+    return h("div", { class: "grid-2", style: "grid-template-columns:repeat(auto-fit,minmax(240px,1fr))" },
+      h("div", {}, h("b", {}, k("st.configured")), h("p", { class: "hint" }, k("st.configured_hint")),
+        h("div", { class: "kv" }, h("b", {}, k("ceiling")), h("span", {}, billions(c.max_parameters) + (c.is_default ? " · " + k("st.default") : "")
+          + (c.set_by ? " · " + c.set_by : "") + (c.set_utc ? " · " + c.set_utc.slice(0, 10) : "")))),
+      h("div", {}, h("b", {}, k("st.available")), h("p", { class: "hint" }, k("st.available_hint")),
+        h("div", { class: "kv" },
+          h("b", {}, "PyTorch"), yes(a.torch, k("st.installed"), k("st.missing")),
+          h("b", {}, "Transformers"), yes(a.transformers, k("st.installed"), k("st.missing")),
+          h("b", {}, k("st.bases")), yes(a.bases, k("st.installed"), k("st.missing")),
+          h("b", {}, k("st.room")), h("span", {}, roomLine))),
+      h("div", {}, h("b", {}, k("st.proven")), h("p", { class: "hint" }, k("st.proven_hint")),
+        p.summary ? table([k("st.col_skill"), k("st.col_validation"), k("st.col_test")], ["read", "see", "watch"].map(skill))
+          : h("p", { class: "small" }, k("st.no_run")),
+        h("div", { class: "kv", style: "margin-top:6px" }, h("b", {}, k("st.nights")), h("span", {}, tag(k("st.not_shown"), "neutral")))));
+  }
+
   function ownCapacityCard(own, choose, saveCeiling) {
     const k = (name, vars) => t("own.cap." + name, vars);
     if (!own) return h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, k("title")), h("p", { class: "hint" }, "…"));
@@ -55,11 +91,11 @@
     const options = own.presets.map((p) => [String(p), billions(p)]);
     if (!own.presets.includes(chosen)) options.push([String(chosen), billions(chosen)]);
     const custom = h("input", { type: "number", min: own.present.parameters / 1e9, step: 0.5, value: chosen / 1e9, "aria-label": k("custom") });
-    return h("section", { class: "card", style: "margin-top:0" },
+    return h("section", { class: "card", style: "margin-top:0;grid-column:1 / -1" },
       h("div", { class: "section-title" }, k("title")),
       h("p", { class: "hint", style: "margin-bottom:10px" }, k("lead")),
-      h("div", { class: "kv" }, h("b", {}, k("present")), h("span", {}, num(own.present.parameters, 0) + (own.present.checkpoint ? " · " + own.present.checkpoint : " · " + k("at_birth"))),
-        h("b", {}, k("ceiling")), h("span", {}, num(own.settings.max_parameters, 0) + (own.settings.set_by ? " · " + own.settings.set_by : ""))),
+      ownStatus(own.status, k, billions, gb),
+      h("div", { class: "kv", style: "margin-top:12px" }, h("b", {}, k("present")), h("span", {}, num(own.present.parameters, 0) + (own.present.checkpoint ? " · " + own.present.checkpoint : " · " + k("at_birth")))),
       h("div", { class: "row", style: "margin-top:12px" },
         h("div", { class: "field" }, h("label", {}, k("choose")), select(String(chosen), options, (v) => choose(Number(v)))),
         h("div", { class: "field" }, h("label", {}, k("custom")), custom),
