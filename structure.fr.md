@@ -79,6 +79,8 @@ Le cœur est le seul composant qui pense. L'interface peut être fermée sans qu
 >
 > **La vue Cerveau en 3D (construite).** `ui/brain.js` dessine désormais avec Three.js, livré dans le paquet sous `ui/three.bundle.js` (aucun CDN, aucune étape de compilation pour l'utilisateur ; `tooling/brain/` permet de le reconstruire), sur une silhouette illustrative (`ui/brain-shape.js`) et avec un rendu de secours Canvas (`ui/brain-canvas.js`). Les notices des composants tiers sont dans `ui/THIRD_PARTY_NOTICES.txt`. L'icône se trouve dans `docs/assets/` (avec les captures des README dans `docs/assets/screenshots/`, en clair et en sombre, une série par langue), `ui/logo.png`, `ui/favicon.png` et `packaging/windows/freewill.ico`. Voir [`docs/brain-view.fr.md`](docs/brain-view.fr.md).
 
+> **Version 1.2, après l'audit du 12 novembre 2026 (construit).** `freewill/build.py` dit quel code tourne (version, commit, date de construction) et l'état réel de chaque capacité d'apprentissage ; `freewill/core/language.py` vérifie la langue dans laquelle écrit le moteur d'une vie ; `freewill/core/evolution.py` transforme les insuffisances récurrentes en propositions qu'une personne nommée décide, et qui n'exécutent rien ; `freewill/research/observer_audit.py` note les observateurs sur des cas piégés à vérité connue ; EXP-10, dans `freewill/research/experiments.py`, est un protocole longitudinal préenregistré, avec des vagues évaluées sur des copies et une sonde scellée. `tools/release_notes.py`, `tools/observer_audit.py` et le workflow `observer-audit.yml` les accompagnent. Voir [`docs/audit-followup.fr.md`](docs/audit-followup.fr.md).
+
 ```
 freewill/
 ├── README.md · README.fr.md     Thèse et cadre théorique

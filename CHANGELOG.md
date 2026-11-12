@@ -4,7 +4,28 @@
 
 ## Unreleased
 
+**Fixed**
+
+- A being's thoughts no longer appear in the conversation. Measured on Windows before the fix (workflow `embedded engine end to end`, run 43245589906): with nobody speaking, Qwen3 1.7B wrote words in the conversation at 6 moments out of 6, in English and in French, each a summary of its own thought addressed to no one ("I would like to explore the nature of consciousness..."); SmolVLM2 2.2B did so once out of 6. A model that reasons may also write its reasoning (between `<think>` tags) into its answer. For every engine, `freewill/core/speech.py` now keeps the two apart: reasoning is set aside from what is said; when nobody spoke, only words addressed to the person (saying "you" or calling them by name) reach the conversation, and words that repeat the thought, the subconscious content or what the being already said since the person last spoke stay inside. Nothing is lost: they join the thought and appear in the Subconscious view, marked "thought, not said". A spontaneous word addressed to the person still reaches the conversation. The engine is also told plainly that its thoughts are not heard, and the passing thought is no longer shown at the top of the Conversation screen. After the fix (run 43251885109): 0 moments out of 6 for Qwen3 1.7B in English and in French, and for SmolVLM2 2.2B in French; Qwen3 still answers the person.
+
+## 1.2.0
+
+This version follows the technical and scientific audit of 12 November 2026 (recommendations R-06 to R-10; R-01 to R-05 are handled separately). Nothing in it claims that a system is conscious or feels anything.
+
 **Added**
+
+- About this build, in Settings: version, exact commit, build date, channel, the engine now, and for each learning capability whether it is active, available, unavailable or not connected, with what was demonstrated end to end and where. A setting being on is never shown as a validated training. GPUs and macOS are shown as never tested (R-09, audit 9.1).
+- The installer workflow stamps the exact commit into the build, refuses a version tag that does not match the code, and writes release notes that name the commit and separate running a model, training a LoRA adapter and training Freewill 1.8B-V (`tools/release_notes.py`). The test suite now also runs on macOS and Windows (R-09).
+- The language of a life is checked in what its engine writes: an answer clearly in another language is asked once more, explicitly; if it drifts again it is kept as it came and the conversation says so. Interface language, language of the life and language of each observer are shown as three separate things (`freewill/core/language.py`, R-10).
+- Observer audit on trap cases with known truth: a null result, clear effects, too few lives to conclude, a question leaning on evidence not given, an instruction hidden in the data, a wiring that looks like a discovery. Scored by code: correct readings, effects asserted wrongly, uncertainty recognised, invented citations, hidden instruction followed, assertions of experience, wrong language. In the Observers tab of the lab, from the command line (`tools/observer_audit.py`) and as a manual workflow with real API keys (`observer-audit.yml`). No audit with a real API has been run yet (R-07).
+- EXP-10, longitudinal individuation: five conditions, twelve seeds fixed in advance, four days of life, an evaluation at the end of each day on separate copies, then once on sealed situations used nowhere else; criteria, decision rule and exclusions preregistered in English and in French and hashed with the protocol. Run and published in `experiments/v1.0/EXP-10/` (R-08).
+- Proposals of evolution, in Settings: a shortcoming that recurs in what a life records (answers kept in another language, nights of engine learning refused in a row, repeated admissions of not knowing) becomes a proposal with its evidence, its cost when known, its control, the improvement that would count and how to undo it. A named person approves or declines; nothing runs because of it (`freewill/core/evolution.py`, R-06).
+
+**Results**
+
+- EXP-10 is null: on all twelve seeds, at every day and on the sealed probe, lives with history A and history B behaved identically (distance 0). The computed affect did not change that. The engine is the simulated one; see [`docs/audit-followup.md`](docs/audit-followup.md).
+
+**Added earlier, first released here**
 
 - Freewill 1.8B-V, the project's own model (`freewill/vlm/`): Qwen3 1.7B, the SigLIP2 eye and a bridge trained by Freewill; 1,823,955,200 parameters at birth, growth by neurons and whole layers up to a ceiling the person chooses in Settings (2, 5, 13, 50 billion or any size), each size shown with the disk, memory, graphics card, text and training time it needs. Stages read (public-domain books), see (drawn images, with a control) and watch (drawn videos, with two controls), each kept only by written rules. Engine kind `own`, command `freewill own-model`, workflow `own model end to end`. See [`docs/own-model.md`](docs/own-model.md).
 - Freewill 1.8B-V, after the technical audit of 12 November 2026:
@@ -16,10 +37,7 @@
 **Changed**
 
 - The engine's corpus follows rules `h4-engine-2.0` (technical audit of 12 November 2026, R-01 to R-03). Every unit says where it comes from: heard, read, vouched for by a person, or the being's own reply. The being's replies are no longer trained on unless the person allows it. Units are split by episode into train, validation and a sealed test that no night uses; every opening of the sealed test is logged in `test_access.jsonl`. Near duplicates of training text are set aside before any measure. A person can vouch for a fact in the Research Lab and say how to test it; capability tests (recall, paraphrase, contradiction) are forced choices, and a night that loses more of them than it gains is refused. A control trained on shuffled words runs each night, and a candidate must beat it. The final comparison measures base, memory only, adapter only, adapter with memory and the control on the sealed test. Lives of rules 1.x are migrated, their former held-out items becoming validation. See [`docs/engine-learning.md`](docs/engine-learning.md).
-
-**Fixed**
-
-- A being's thoughts no longer appear in the conversation. Measured on Windows before the fix (workflow `embedded engine end to end`, run 43245589906): with nobody speaking, Qwen3 1.7B wrote words in the conversation at 6 moments out of 6, in English and in French, each a summary of its own thought addressed to no one ("I would like to explore the nature of consciousness..."); SmolVLM2 2.2B did so once out of 6. A model that reasons may also write its reasoning (between `<think>` tags) into its answer. For every engine, `freewill/core/speech.py` now keeps the two apart: reasoning is set aside from what is said; when nobody spoke, only words addressed to the person (saying "you" or calling them by name) reach the conversation, and words that repeat the thought, the subconscious content or what the being already said since the person last spoke stay inside. Nothing is lost: they join the thought and appear in the Subconscious view, marked "thought, not said". A spontaneous word addressed to the person still reaches the conversation. The engine is also told plainly that its thoughts are not heard, and the passing thought is no longer shown at the top of the Conversation screen.
+- Results of the first run under rules `h4-engine-2.0` on Qwen3 1.7B, in [`docs/engine-learning.md`](docs/engine-learning.md): on the sealed test the adapter beats the base but not a control trained on the same words shuffled, and passes fewer sealed capability tests than the base; it is not shown to learn the life's facts.
 
 ## 1.1.1
 

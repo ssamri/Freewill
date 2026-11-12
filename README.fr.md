@@ -294,6 +294,7 @@ Le projet prend au sérieux l'éventualité de sa propre réussite. Si un systè
 - Écart entre les états internes que le système rapporte et ceux que l'on observe.
 - H7 : effet de l'état affectif calculé sur la saillance, le rappel et l'encodage, mesuré contre trois témoins (sans affect, émotions seulement dites, ablations) ; divergence après des vécus distincts ; retour à l'équilibre ; effet de la consolidation sur la prédiction du lendemain. Premiers résultats, sur moteur simulé, dans [`experiments/h7/results/`](experiments/h7/results/).
 - H4, H8, H9, H10 et de nouveau H5, dans la version 1.0 : six campagnes de six graines chacune sur le moteur simulé, avec leurs rapports et leurs packs de reproduction dans [`experiments/v1.0/`](experiments/v1.0/). L'individuation (H5) et l'effet de l'affect calculé sur le comportement (H7) sont sortis nuls et sont rapportés comme tels ; les autres testent des mécanismes sur des cas construits pour être faciles. La lecture de chaque chiffre, et ses limites, sont dans [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md).
+- H5 et H7 dans la durée, dans la version 1.2 : EXP-10, préenregistrée, douze graines, quatre jours de vie évalués chaque jour sur des copies et une seule fois sur des situations scellées. Résultat nul : des vies ayant reçu des histoires différentes se sont comportées de façon identique. Ce que la version 1.2 a fait de l'audit du 12 novembre 2026 est dans [`docs/audit-followup.fr.md`](docs/audit-followup.fr.md).
 
 **Questions ouvertes.**
 

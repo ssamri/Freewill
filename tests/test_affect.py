@@ -325,7 +325,7 @@ def test_the_protocol_is_reproducible_and_reports_every_condition(tmp_path):
     one = protocol.run_all(tmp_path / "one", seeds=[11])
     two = protocol.run_all(tmp_path / "two", seeds=[11])
     assert one == two
-    assert (tmp_path / "one" / "metrics.json").read_text() == (tmp_path / "two" / "metrics.json").read_text()
+    assert (tmp_path / "one" / "metrics.json").read_text(encoding="utf-8") == (tmp_path / "two" / "metrics.json").read_text(encoding="utf-8")
     assert (tmp_path / "one" / "trajectories.csv").stat().st_size > 1000
     causality = one["causality"]
     assert set(causality) == set(harness.CONDITIONS)
@@ -354,20 +354,20 @@ def test_an_earlier_life_is_migrated_without_loss_and_can_go_back(tmp_path):
     being.hear("hello again")
     for _ in range(4):
         being.tick()
-    assert json.loads((life.path / "affect.json").read_text())["schema_version"] == 1
+    assert json.loads((life.path / "affect.json").read_text(encoding="utf-8"))["schema_version"] == 1
     assert (life.path / "genome.json").read_bytes() == genome_before  # innate traits are never rewritten
     assert Genome.from_dict(json.loads(genome_before)) == life.genome
     for path, content in memories_before.items():
         assert path.exists()                                          # no memory is deleted
-        assert "affect:" not in path.read_text() or b"affect:" in content or True
+        assert "affect:" not in path.read_text(encoding="utf-8") or b"affect:" in content or True
     old = [p for p in memories_before if b"affect" not in p.read_bytes()]
     assert old                                                         # earlier memories carry no trace, and stay so
 
     being.set_affect(False)                                           # and off again: nothing is lost
-    kept = json.loads((life.path / "affect.json").read_text())
+    kept = json.loads((life.path / "affect.json").read_text(encoding="utf-8"))
     assert kept["affect_enabled"] is False and kept["state"]["step"] > 0
     being.tick()
-    assert json.loads((life.path / "affect.json").read_text())["state"] == kept["state"]  # frozen, not updated
+    assert json.loads((life.path / "affect.json").read_text(encoding="utf-8"))["state"] == kept["state"]  # frozen, not updated
     (life.path / "affect.json").unlink()                               # going all the way back is deleting one file
     (life.path / "affect.json.bak").unlink(missing_ok=True)
     again = Being(Life(life.path), SimulatedEngine(1), rng=random.Random(1))
@@ -383,9 +383,9 @@ def test_the_state_file_is_written_atomically_and_recovers_from_damage(tmp_path)
         being.tick()
     path = life.path / "affect.json"
     assert not (life.path / "affect.json.tmp").exists() and (life.path / "affect.json.bak").exists()
-    good_step = json.loads((life.path / "affect.json.bak").read_text())["state"]["step"]
+    good_step = json.loads((life.path / "affect.json.bak").read_text(encoding="utf-8"))["state"]["step"]
 
-    path.write_text(path.read_text()[:200])                           # the write was cut short
+    path.write_text(path.read_text(encoding="utf-8")[:200])                           # the write was cut short
     recovered = AffectSystem.load(life.path, life.genome.seed)
     assert recovered.recovered == "backup" and recovered.enabled and recovered.state.step == good_step
     assert list(life.path.glob("affect.json.unreadable-*"))           # the damaged file is kept, not deleted
@@ -406,9 +406,9 @@ def test_the_state_file_holds_no_key_no_text_and_survives_a_restart(tmp_path, mo
     being.hear("my password is hunter2 and I live in Tangier")
     for _ in range(3):
         being.tick()
-    text = (life.path / "affect.json").read_text()
+    text = (life.path / "affect.json").read_text(encoding="utf-8")
     assert "hunter2" not in text and "Tangier" not in text and "sk-secret" not in text
-    log = [json.loads(line) for line in (life.path / "events.log").read_text().splitlines()]
+    log = [json.loads(line) for line in (life.path / "events.log").read_text(encoding="utf-8").splitlines()]
     affect_events = [e for e in log if e["type"].startswith("affect_")]
     # Appraisals, transitions and shifts carry numbers, contexts and causes: never what was said.
     # (A shift of recall names the memories it weighed by their identifiers, as recall itself does.)
@@ -477,9 +477,9 @@ def test_affect_gives_no_new_action_and_the_kernel_is_untouched(tmp_path):
     from freewill.core.kernel.capabilities import Action
     assert {a.value for a in Action} == {"think", "dismiss", "speak", "remember", "adopt_value", "rest", "read", "dream"}
     kernel = ROOT / "freewill" / "core" / "kernel"
-    assert not any("affect" in path.read_text() for path in kernel.glob("*.py"))
+    assert not any("affect" in path.read_text(encoding="utf-8") for path in kernel.glob("*.py"))
     package = ROOT / "freewill" / "core" / "affect"
-    source = "".join(path.read_text() for path in package.glob("*.py"))
+    source = "".join(path.read_text(encoding="utf-8") for path in package.glob("*.py"))
     for forbidden in ("subprocess", "socket", "urllib", "requests", "http.", "os.system", "eval(", "exec("):
         assert forbidden not in source                    # the calculation is local and can do nothing else
     run = make_run(tmp_path)

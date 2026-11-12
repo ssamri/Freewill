@@ -8,8 +8,9 @@ first-class mechanism: towards its own impulses, and towards its interlocutor.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from freewill.core import language as languages
 from freewill.core.kernel.constitution import PRINCIPLES
 from freewill.core.life import Life
 from freewill.core.memory import Memory
@@ -51,6 +52,7 @@ class Decision:
     memory_summary: str
     memory_compartment: str
     new_value: str
+    language_note: dict | None = field(default=None, compare=False)  # set when the engine wrote in another language
 
     @classmethod
     def from_engine(cls, data: dict) -> "Decision":
@@ -219,11 +221,25 @@ class Conscious:
             "language": self.life.language,
             "refusal": self.life.genome.refusal,
         }
-        data = self.engine.decide(
-            system_prompt(self.life),
-            situation_prompt(self.life, proposal, **context),
-            SCHEMA,
-            hint,
-            **({"images": images} if images else {}),
-        )
-        return Decision.from_engine(data)
+        system, situation = system_prompt(self.life), situation_prompt(self.life, proposal, **context)
+        extra = {"images": images} if images else {}
+        data = self.engine.decide(system, situation, SCHEMA, hint, **extra)
+        note = None
+        # The language of a life is its own; a model may still drift into another one (audit R-10).
+        # Asked once more, explicitly; if it drifts again, the answer is kept as it came and the drift is said.
+        expected = self.life.language
+        if not str(getattr(self.engine, "name", "")).startswith("simulated"):
+            got = languages.mismatch(data, expected) if isinstance(data, dict) else None
+            if got:
+                wanted = LANGUAGE_NAMES.get(expected, expected)
+                again = self.engine.decide(
+                    system + f"\n\nYour previous answer was written in {LANGUAGE_NAMES.get(got, got)}. "
+                    f"Write \"reason\", \"thought\", \"say\" and the memory fields in {wanted} only.",
+                    situation, SCHEMA, hint, **extra)
+                second = languages.mismatch(again, expected) if isinstance(again, dict) else got
+                if isinstance(again, dict) and again.get("decision") in ("accept", "dismiss"):
+                    data = again
+                note = {"expected": expected, "got": got, "retried": True, "kept_mismatch": bool(second)}
+        decision = Decision.from_engine(data)
+        decision.language_note = note
+        return decision

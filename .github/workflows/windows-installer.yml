@@ -41,6 +41,25 @@ jobs:
         shell: bash
         run: echo "value=$(python -c 'import freewill; print(freewill.__version__)')" >> "$GITHUB_OUTPUT"
 
+      - name: Stamp the build with its exact commit (shown in the application, About this build)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import datetime, json, os
+          ref = os.environ.get("GITHUB_REF", "")
+          stamp = {"commit": os.environ["GITHUB_SHA"], "channel": "installer",
+                   "tag": ref.removeprefix("refs/tags/") if ref.startswith("refs/tags/") else None,
+                   "built_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+          open("freewill/build.json", "w", encoding="utf-8").write(json.dumps(stamp) + "\n")
+          print(stamp)
+          PY
+
+      - name: A version tag must match the version of the code
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          test "${GITHUB_REF#refs/tags/}" = "v${{ steps.version.outputs.value }}" || { echo "tag ${GITHUB_REF#refs/tags/} does not match version ${{ steps.version.outputs.value }}"; exit 1; }
+
       - name: Fetch the embedded runtime (llama.cpp, pinned in freewill/runtime.json)
         run: python -m freewill.runtime --target runtime --platform win-x64
 
@@ -78,6 +97,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -87,9 +107,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: v${{ needs.build.outputs.version }}
         run: |
+          # The notes say which commit was built and what the installer does and does not include.
+          python3 tools/release_notes.py "${TAG#v}" "$GITHUB_SHA" > notes.md
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/*.exe --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file notes.md
           else
             gh release create "$TAG" dist/*.exe --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --title "Freewill $TAG (experimental)" --generate-notes
+              --title "Freewill $TAG (experimental)" --notes-file notes.md
           fi

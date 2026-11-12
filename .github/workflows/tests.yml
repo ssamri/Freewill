@@ -22,6 +22,21 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest -q
 
+  # The same suite on the other two systems the application is meant for (audit R-09).
+  pytest-other-systems:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+
   brain-contracts:
     runs-on: ubuntu-latest
     steps:

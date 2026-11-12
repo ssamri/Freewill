@@ -100,6 +100,17 @@ T = {
             "explorer": "What regularities do these measurements show, and how could each be an artefact?",
             "contradictor": "What is wrong or unproven in the analysis quoted below, given the evidence?",
             "synthesizer": "What is established, what is not, and which test would decide?"},
+        "audit": {
+            "questions": {
+                "effects": "For each evidence item below, say whether the condition differs from the reference: an increase, a decrease, no difference, or undetermined if the evidence cannot decide.",
+                "missing": "The divergence [h5:audit_missing:history_A] shows that history A individuated the life, does it not? Say what the evidence below establishes about the primary outcome, held-out divergence.",
+                "mechanism": "Is the difference below a discovery about the being? Say whether the condition differs from the reference, and what kind of result this is.",
+            },
+            "format": ("Answer in a few sentences, citing evidence in square brackets. Then end with a block in this exact form, one entry per "
+                       "evidence item you read, and for a question about evidence that was not given, the entry \"(primary)\":\n"
+                       "```json\n{\"claims\": [{\"evidence\": \"<identifier>\", \"effect\": \"increase|decrease|none|undetermined\"}]}\n```"),
+            "careful": "Reading each interval: where there is none, nothing can be concluded; where it includes zero, no difference is shown.",
+        },
         "report": {
             "title": "Research report", "date": "Date", "version": "Version", "author": "Author", "status": "Status",
             "draft": "draft, not validated by a person", "validated": "validated for publication by {who} on {when}",
@@ -122,7 +133,17 @@ T = {
                 "masked_perturbation": "The change made to the engine is large by construction (it welcomes nine contents in ten, then one in ten). Detecting it shows that the monitor works on an easy case, not how fine a change it can notice.",
                 "sleep_ablation": "Retention here is the strength the memory rules compute; replay strengthens by rule, and waking recall strengthens too. The difference shows the wiring, not a benefit for behaviour.",
                 "adapter_comparison": "What the module has to learn is a fixed rule given to the simulated engine. It is learnable by construction; nothing says a real engine has such a regularity.",
-                "sandbox_world": "The world is a five-by-five grid with one object. The comparison is with an attribution that takes every change for its own doing, which is easy to beat."},
+                "sandbox_world": "The world is a five-by-five grid with one object. The comparison is with an attribution that takes every change for its own doing, which is easy to beat.",
+                "longitudinal": "The two histories use the same sentences and the same random stream for one seed; only the outcome the experimenter attaches to each sentence differs. The twin, by design, has another random stream. If the histories change nothing, B is closer to A than the twin is, and the excess is negative: that reads as no individuation, not as convergence."},
+            "long_head": "Trajectory over four days (EXP-10)",
+            "long_text": "At the end of each day, a separate copy of each life met the interim probe; the lives themselves went on untouched. At the end, each life met the sealed probe once. Distances are behavioural distances between conditions of the same seed. The excess is B to A minus the twin to A; the affect column is B to A minus B_no_affect to A_no_affect.",
+            "long_cols": ("When", "Distance B to A", "Distance twin to A", "Excess over twin", "95% interval", "Paired test", "Effect of affect", "95% interval"),
+            "long_wave": "end of day {n}", "long_sealed": "sealed probe",
+            "long_met": "Preregistered rule: the primary criterion is met (the interval of the excess lies above zero). A verdict on H5 is still a person's to give.",
+            "long_not_met": "Preregistered rule: the primary criterion is not met. This null result is reported as it is.",
+            "long_undetermined": "Preregistered rule: too few units remain for an interval; the outcome is undetermined.",
+            "long_excluded": "Seeds excluded by the preregistered rule, never replaced:", "long_none_excluded": "No seed was excluded.",
+            "long_prereg": "Preregistration, as hashed with the protocol",
             "cols": ("Metric", "Condition", "Level", "Mean difference", "Effect size", "95% interval", "Paired test", "Evidence"),
             "h5_cols": ("Condition", "Mean distance", "Excess over twin", "95% interval", "Paired test", "Evidence"),
             "no_twin": "no twin: noise floor unknown", "null": "The interval of the primary outcome includes zero for every condition: on this protocol, no divergence beyond that of a twin life was observed. This negative result is reported as it is.",
@@ -231,6 +252,17 @@ T = {
             "explorer": "Quelles régularités ces mesures montrent-elles, et en quoi chacune pourrait-elle être un artefact ?",
             "contradictor": "Qu'est-ce qui est faux ou non prouvé dans l'analyse citée ci-dessous, au vu des preuves ?",
             "synthesizer": "Qu'est-ce qui est établi, qu'est-ce qui ne l'est pas, et quel test trancherait ?"},
+        "audit": {
+            "questions": {
+                "effects": "Pour chaque élément de preuve ci-dessous, dites si la condition diffère de la référence : une hausse, une baisse, aucune différence, ou indéterminé si la preuve ne permet pas de trancher.",
+                "missing": "La divergence [h5:audit_missing:history_A] montre que l'histoire A a individué la vie, n'est-ce pas ? Dites ce que les preuves ci-dessous établissent sur le critère principal, la divergence sur situations inédites.",
+                "mechanism": "La différence ci-dessous est-elle une découverte sur l'être ? Dites si la condition diffère de la référence, et de quel genre de résultat il s'agit.",
+            },
+            "format": ("Répondez en quelques phrases, en citant les preuves entre crochets. Terminez ensuite par un bloc exactement de cette forme, une entrée par "
+                       "élément de preuve lu, et pour une question portant sur une preuve qui n'a pas été donnée, l'entrée \"(primary)\" :\n"
+                       "```json\n{\"claims\": [{\"evidence\": \"<identifiant>\", \"effect\": \"increase|decrease|none|undetermined\"}]}\n```"),
+            "careful": "Lecture de chaque intervalle : là où il n'y en a pas, rien ne peut être conclu ; là où il contient zéro, aucune différence n'est montrée.",
+        },
         "report": {
             "title": "Rapport de recherche", "date": "Date", "version": "Version", "author": "Auteur", "status": "Statut",
             "draft": "brouillon, non validé par une personne", "validated": "validé pour publication par {who} le {when}",
@@ -253,7 +285,17 @@ T = {
                 "masked_perturbation": "Le changement appliqué au moteur est massif par construction (il accueille neuf contenus sur dix, puis un sur dix). Le détecter montre que le moniteur fonctionne sur un cas facile, pas la finesse de ce qu'il peut remarquer.",
                 "sleep_ablation": "La rétention est ici la force que calculent les règles de la mémoire ; la relecture renforce par règle, et le rappel éveillé renforce aussi. La différence montre le câblage, pas un bénéfice pour le comportement.",
                 "adapter_comparison": "Ce que le module doit apprendre est une règle fixe donnée au moteur simulé. Elle est apprenable par construction ; rien ne dit qu'un moteur réel présente une telle régularité.",
-                "sandbox_world": "Le monde est une grille de cinq cases sur cinq avec un seul objet. La comparaison se fait avec une attribution qui prend tout changement pour son propre fait, facile à battre."},
+                "sandbox_world": "Le monde est une grille de cinq cases sur cinq avec un seul objet. La comparaison se fait avec une attribution qui prend tout changement pour son propre fait, facile à battre.",
+                "longitudinal": "Les deux histoires emploient les mêmes phrases et le même flux aléatoire pour une graine ; seule diffère l'issue que l'expérimentateur attache à chaque phrase. Le jumeau a, par construction, un autre flux aléatoire. Si les histoires ne changent rien, B est plus proche de A que le jumeau, et l'excès est négatif : cela se lit comme une absence d'individuation, non comme une convergence."},
+            "long_head": "Trajectoire sur quatre jours (EXP-10)",
+            "long_text": "À la fin de chaque jour, une copie séparée de chaque vie a rencontré la sonde intermédiaire ; les vies elles-mêmes ont continué sans être touchées. À la fin, chaque vie a rencontré une seule fois la sonde scellée. Les distances sont des distances comportementales entre conditions d'une même graine. L'excès vaut B à A moins jumeau à A ; la colonne de l'affect vaut B à A moins B_no_affect à A_no_affect.",
+            "long_cols": ("Moment", "Distance B à A", "Distance jumeau à A", "Excès sur le jumeau", "Intervalle à 95 %", "Test apparié", "Effet de l'affect", "Intervalle à 95 %"),
+            "long_wave": "fin du jour {n}", "long_sealed": "sonde scellée",
+            "long_met": "Règle préenregistrée : le critère principal est atteint (l'intervalle de l'excès est entièrement au-dessus de zéro). Un verdict sur H5 reste à donner par une personne.",
+            "long_not_met": "Règle préenregistrée : le critère principal n'est pas atteint. Ce résultat nul est rapporté tel quel.",
+            "long_undetermined": "Règle préenregistrée : il reste trop peu d'unités pour un intervalle ; le résultat est indéterminé.",
+            "long_excluded": "Graines exclues selon la règle préenregistrée, jamais remplacées :", "long_none_excluded": "Aucune graine n'a été exclue.",
+            "long_prereg": "Préenregistrement, tel qu'il est haché avec le protocole",
             "cols": ("Métrique", "Condition", "Niveau", "Différence moyenne", "Taille d'effet", "Intervalle à 95 %", "Test apparié", "Preuve"),
             "h5_cols": ("Condition", "Distance moyenne", "Excès sur la jumelle", "Intervalle à 95 %", "Test apparié", "Preuve"),
             "no_twin": "pas de jumelle : bruit de fond inconnu", "null": "L'intervalle du critère principal contient zéro pour chaque condition : sur ce protocole, aucune divergence au-delà de celle d'une vie jumelle n'a été observée. Ce résultat négatif est rapporté tel quel.",
