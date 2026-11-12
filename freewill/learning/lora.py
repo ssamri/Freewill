@@ -106,12 +106,36 @@ class Workbench:
         return str(item.get("text") or "")
 
     def tokens(self, items: list[dict], max_len: int = 256) -> list[list[int]]:
+        """Token ids of each item. For a conversation in the model's chat format, only the words of the
+        messages count in the loss (training and measures alike): the tokens of the format itself
+        (<|im_start|>, roles, an empty <think></think>) are predicted but not scored. Without this, an
+        adapter "gains" mostly by learning the format, which says nothing about what a life lived."""
         out = []
         for item in items:
-            ids = list(self.encode(self.render(item)))[:max_len]
-            if len(ids) >= 2:
-                out.append(ids)
+            rendered = self.render(item)
+            seq = self._masked(item, rendered)
+            if seq is None:
+                seq = Seq(self.encode(rendered))
+            seq = seq.cut(max_len)
+            if len(seq) >= 2 and seq.scored() >= 1:
+                out.append(seq)
         return out
+
+    def _masked(self, item: dict, rendered: str):
+        if not item.get("messages") or self.tokenizer is None or not getattr(self.tokenizer, "is_fast", False):
+            return None
+        spans, start = [], 0
+        for message in item["messages"]:
+            content = str(message.get("content") or "")
+            at = rendered.find(content, start) if content else -1
+            if at < 0:
+                return None  # the template changed the text: score everything rather than guess
+            spans.append((at, at + len(content)))
+            start = at + len(content)
+        encoded = self.tokenizer(rendered, add_special_tokens=False, return_offsets_mapping=True)
+        ids, offsets = encoded["input_ids"], encoded["offset_mapping"]
+        keep = [any(a < e and b > s for s, e in spans) for a, b in offsets]
+        return Seq(ids, [i if k else -100 for i, k in zip(ids, keep)])
 
     def base_hash(self) -> str:
         return _hash(self._frozen)
@@ -223,8 +247,9 @@ class Workbench:
         with torch.no_grad(), self._use(name):
             for ids in sequences:
                 tensor = torch.tensor([ids], dtype=torch.long, device=self.device)
-                loss = model(input_ids=tensor, labels=tensor).loss
-                out.append({"nll": float(loss), "tokens": len(ids) - 1})
+                labels = torch.tensor([_labels(ids)], dtype=torch.long, device=self.device)
+                loss = model(input_ids=tensor, labels=labels).loss
+                out.append({"nll": float(loss), "tokens": _scored(ids)})
         return out
 
     def train(self, name: str, sequences: list[list[int]], *, steps: int, lr: float = 3e-4, seed: int = 0,
@@ -251,7 +276,8 @@ class Workbench:
             for _ in range(accumulate):
                 ids = sequences[rng.randrange(len(sequences))]
                 tensor = torch.tensor([ids], dtype=torch.long, device=self.device)
-                loss = self.model(input_ids=tensor, labels=tensor).loss / accumulate
+                labels = torch.tensor([_labels(ids)], dtype=torch.long, device=self.device)
+                loss = self.model(input_ids=tensor, labels=labels).loss / accumulate
                 loss.backward()
                 total += float(loss.detach())
             optimiser.step()
@@ -262,6 +288,30 @@ class Workbench:
         return {"steps": int(steps), "train_loss_first": losses[0] if losses else None,
                 "train_loss_last": losses[-1] if losses else None,
                 "seconds": round(time.monotonic() - started, 2), "lr": lr, "accumulate": accumulate}
+
+
+class Seq(list):
+    """Token ids, with the labels to score (-100: predicted but not scored). No labels: all are scored."""
+
+    def __init__(self, ids, labels=None) -> None:
+        super().__init__(ids)
+        self.labels = list(labels) if labels is not None else None
+
+    def cut(self, n: int) -> "Seq":
+        return Seq(self[:n], self.labels[:n] if self.labels is not None else None)
+
+    def scored(self) -> int:
+        return _scored(self)
+
+
+def _labels(ids) -> list[int]:
+    labels = getattr(ids, "labels", None)
+    return list(ids) if labels is None else labels
+
+
+def _scored(ids) -> int:
+    """Tokens that count in the loss: every one after the first that has a label."""
+    return sum(1 for label in _labels(ids)[1:] if label != -100)
 
 
 class _Null:

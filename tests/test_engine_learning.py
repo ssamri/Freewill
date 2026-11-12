@@ -278,7 +278,7 @@ def test_the_embedded_engine_starts_llama_server_with_the_adapter(tmp_path, monk
     with pytest.raises(Stop):
         engine._start()
     command = seen["command"]
-    assert command[command.index("--lora-scaled") + 1] == str(adapter)
+    assert command[command.index("--lora") + 1] == str(adapter) and "--lora-scaled" not in command
     assert "--reasoning-budget" in command
     plain = embedded.EmbeddedEngine(models.find("smolvlm2-2.2b"), model_file, runtime=tmp_path / "llama-server")
     assert plain.adapter is None and "adapter" not in plain.name and not plain.can_learn
@@ -373,3 +373,18 @@ def test_rehearsal_texts_are_never_the_reference_texts():
     words = lambda t: {w for w in t.lower().split() if len(w) > 6}  # noqa: E731
     for item in rehearsal:  # not a light rewording of a reference passage either
         assert all(len(words(item["text"]) & words(ref)) < 5 for ref in reference)
+
+
+def test_only_the_words_of_a_conversation_are_scored_not_its_format(toy_base):
+    from freewill.learning.lora import Workbench, _scored
+    bench = Workbench(toy_base, device="cpu")
+    item = {"messages": [{"role": "user", "content": "the lighthouse is green"},
+                         {"role": "assistant", "content": "green, then"}]}
+    [seq] = bench.tokens([item])
+    assert seq.labels is not None and 0 < _scored(seq) < len(seq) - 1
+    kept = bench.tokenizer.decode([t for t in seq.labels if t != -100])
+    assert "lighthouse" in kept and "green" in kept and "<|im_start|>" not in kept
+    [plain] = bench.tokens([{"text": "the lighthouse is green"}])
+    assert plain.labels is None and _scored(plain) == len(plain) - 1
+    rows = bench.losses(None, [seq, plain])
+    assert all(r["nll"] == r["nll"] and r["tokens"] > 0 for r in rows)  # finite, not NaN

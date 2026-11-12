@@ -42,7 +42,7 @@ from pathlib import Path
 from freewill.core.kernel.constitution import PRINCIPLES
 
 FOLDER = "engine"
-RULES_VERSION = "h4-engine-1.1"
+RULES_VERSION = "h4-engine-1.2"
 HELD_OUT_EVERY = 4          # one item in four is never trained on (chosen by the hash of its text)
 MIN_HELD_OUT = 3            # fewer held-out items than this: no decision can be made, nothing is trained
 MIN_TRAIN = 4

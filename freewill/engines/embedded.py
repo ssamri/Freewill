@@ -79,7 +79,10 @@ class EmbeddedEngine(CompatibleEngine):
         if self._mmproj_path:
             command += ["--mmproj", str(self._mmproj_path)]
         if self.adapter:
-            command += ["--lora-scaled", self.adapter["gguf"], str(self.adapter["scale"])]
+            # llama.cpp b12306 takes "--lora FNAME" and "--lora-scaled FNAME:SCALE" (one argument). A path
+            # on Windows holds a colon, so the scale is not put in the path: the adapter is loaded at 1 and
+            # any other scale is set on each request (see _extra_body), which llama-server allows.
+            command += ["--lora", self.adapter["gguf"]]
         if self._reasoning_off:
             command += ["--reasoning-budget", "0"]
         self._log = tempfile.NamedTemporaryFile(prefix="freewill-engine-", suffix=".log", delete=False)
@@ -159,6 +162,8 @@ class EmbeddedEngine(CompatibleEngine):
             extra["chat_template_kwargs"] = {"enable_thinking": False}
         if self.adapter and self.lora_override is not None:
             extra["lora"] = [{"id": 0, "scale": float(self.lora_override)}]
+        elif self.adapter and float(self.adapter.get("scale", 1.0)) != 1.0:
+            extra["lora"] = [{"id": 0, "scale": float(self.adapter["scale"])}]
         return extra
 
     def _ask(self, system: str, prompt: str, schema: dict, images: list[dict] | None) -> dict:

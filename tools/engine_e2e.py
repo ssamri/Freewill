@@ -224,9 +224,12 @@ def main(argv=None) -> int:
                     rendered = bench.render(item)
                     chat = bench.losses(None, bench.tokens([item], 256))
                     plain = bench.losses(None, bench.tokens([{"text": item_text(item)}], 256))
-                    rows.append({"rendered": rendered[:600], "tokens": chat[0]["tokens"] if chat else 0,
+                    scored = bench.tokens([item], 256)
+                    kept = [t for t in (scored[0].labels or scored[0])] if scored else []
+                    words = bench.tokenizer.decode([t for t in kept if t != -100])
+                    rows.append({"rendered": rendered[:600], "scored_tokens": chat[0]["tokens"] if chat else 0,
                                  "nll_chat_format": chat[0]["nll"] if chat else None,
-                                 "nll_plain_text": plain[0]["nll"] if plain else None})
+                                 "nll_plain_text": plain[0]["nll"] if plain else None, "scored_text": words[:400]})
                 return {"chat_template": bool(getattr(bench.tokenizer, "chat_template", None)), "items": rows}
             finally:
                 del bench
@@ -303,6 +306,8 @@ def main(argv=None) -> int:
             shutil.copytree(learning.root / "adapters", adapters)
     except Exception:
         steps.failed = True
+        steps.data.setdefault("ledger", learning.ledger() if "learning" in locals() else [])
+        steps.data.setdefault("versions", learning.versions() if "learning" in locals() else [])
     finally:
         steps.data["finished"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         steps.data["failed"] = steps.failed

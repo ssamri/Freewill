@@ -27,10 +27,10 @@ jour : conversations à travers la boucle de vie
 | Entraînement | `freewill/learning/lora.py` (`Workbench`) | LoRA (PEFT) sur les projections d'attention. Les poids de la base sont hachés avant et après : ils doivent être identiques |
 | Décision | `EngineLearning.night` | Voir les règles ci-dessous. Chaque nuit est écrite dans `engine/ledger.jsonl`, gardée ou non |
 | Conversion | `freewill/learning/gguf_lora.py` | L'adaptateur est écrit au format LoRA GGUF de llama.cpp puis relu (noms, formes, architecture) |
-| Chargement | `freewill/engines/embedded.py` | `llama-server --lora-scaled` ; le nom du moteur porte la version et le hachage de l'adaptateur ; `/lora-adapters` est relu |
+| Chargement | `freewill/engines/embedded.py` | `llama-server --lora` ; le nom du moteur porte la version et le hachage de l'adaptateur ; `/lora-adapters` est relu |
 | Comparaison | `freewill/learning/compare.py`, EXP-09 | Base, adapté, et deux témoins entraînés de la même façon sur un texte mélangé ou aléatoire |
 
-## Règles pour garder un adaptateur (`h4-engine-1.1`)
+## Règles pour garder un adaptateur (`h4-engine-1.2`)
 
 Un candidat n'est gardé que si tout ceci est vrai :
 

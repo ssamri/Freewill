@@ -27,10 +27,10 @@ day: conversations through the life loop
 | Training | `freewill/learning/lora.py` (`Workbench`) | PEFT LoRA on the attention projections. The base weights are hashed before and after: they must be identical |
 | Decision | `EngineLearning.night` | See the rules below. Every night is written to `engine/ledger.jsonl`, kept or not |
 | Conversion | `freewill/learning/gguf_lora.py` | The adapter is written in llama.cpp's LoRA GGUF format and read back (names, shapes, architecture) |
-| Loading | `freewill/engines/embedded.py` | `llama-server --lora-scaled`; the engine's name carries the adapter version and hash; `/lora-adapters` is read back |
+| Loading | `freewill/engines/embedded.py` | `llama-server --lora`; the engine's name carries the adapter version and hash; `/lora-adapters` is read back |
 | Comparison | `freewill/learning/compare.py`, EXP-09 | Base, adapted, and two controls trained the same way on shuffled or random text |
 
-## Rules for keeping an adapter (`h4-engine-1.1`)
+## Rules for keeping an adapter (`h4-engine-1.2`)
 
 A candidate is kept only if all of these hold:
 
