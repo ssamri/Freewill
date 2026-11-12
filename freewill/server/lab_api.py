@@ -11,7 +11,7 @@ from __future__ import annotations
 import webbrowser
 
 from freewill import learning
-from freewill.research import metrics, reports, texts
+from freewill.research import metrics, observer_audit, reports, texts
 from freewill.research.experiments import HISTORIES, Lab, LabError
 from freewill.research.observers import ACCESS, ENGINES, MODES, ROLES, ObserverError, ObserverStore
 
@@ -61,7 +61,8 @@ class LabApi:
                     "reviews": self.observers.reviews(one("id"))}
         if path == "/api/lab/observer":
             return {"profile": self.observers._public(self.observers.get(one("id"))),
-                    "chat": self.observers.chat(one("id")), "notes": self.observers.notes(one("id"))}
+                    "chat": self.observers.chat(one("id")), "notes": self.observers.notes(one("id")),
+                    "audits": [{k: v for k, v in a.items() if k != "answers"} for a in observer_audit.audits(self.observers, one("id"))]}
         if path == "/api/lab/reports":
             return {"reports": reports.list_reports(self.lab)}
         if path == "/api/lab/learning":
@@ -114,6 +115,8 @@ class LabApi:
             return {"ok": True}
         if path == "/api/lab/observer/key":
             return {"stored": observers.set_key(str(body.get("id")), str(body.get("key") or "").strip())}
+        if path == "/api/lab/observer/audit":  # trap cases with known truth, scored by code (audit R-07)
+            return observer_audit.run(observers, str(body.get("id")))
         if path == "/api/lab/observer/test":
             return observers.test_connection(str(body.get("id")))
         if path == "/api/lab/observer/ask":

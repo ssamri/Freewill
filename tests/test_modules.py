@@ -399,7 +399,7 @@ def catalogues() -> dict:
         pytest.skip("node is not installed")
     script = ("global.window={};require(process.argv[1]+'/i18n.js');require(process.argv[1]+'/i18n-lab.js');"
               "console.log(JSON.stringify(window.I18N))")
-    return json.loads(subprocess.run([node, "-e", script, str(UI)], capture_output=True, text=True, check=True).stdout)
+    return json.loads(subprocess.run([node, "-e", script, str(UI)], capture_output=True, text=True, encoding="utf-8", check=True).stdout)
 
 
 def leaves(node, prefix="") -> dict:

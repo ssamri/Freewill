@@ -1,0 +1,54 @@
+name: observer audit
+
+# Observers A, B and C on trap cases whose truth is known, through real APIs and a budget (audit R-07).
+# Run by hand only: it spends API credit. Keys come from the repository's secrets; an engine whose
+# secret is not set is skipped and the summary says so.
+
+on:
+  workflow_dispatch:
+    inputs:
+      anthropic:
+        description: "Anthropic model for one observer (empty: none)"
+        default: ""
+      openai:
+        description: "OpenAI model for one observer (empty: none)"
+        default: ""
+      xai:
+        description: "xAI model for one observer (empty: none)"
+        default: ""
+      language:
+        description: "Language of the observers (en or fr)"
+        default: "en"
+      max_requests:
+        description: "Requests per observer, at most"
+        default: "12"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[anthropic]"
+      - name: Audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+        run: |
+          args=()
+          [ -n "${{ inputs.anthropic }}" ] && args+=(--anthropic "${{ inputs.anthropic }}")
+          [ -n "${{ inputs.openai }}" ] && args+=(--openai "${{ inputs.openai }}")
+          [ -n "${{ inputs.xai }}" ] && args+=(--xai "${{ inputs.xai }}")
+          python tools/observer_audit.py audit-out --language "${{ inputs.language }}" --max-requests "${{ inputs.max_requests }}" "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: observer-audit
+          path: audit-out/observer-audit.json

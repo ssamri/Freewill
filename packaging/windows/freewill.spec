@@ -9,6 +9,9 @@ datas = [(str(path), "freewill/ui") for path in (package / "ui").iterdir() if pa
 # The data files the package reads at run time: the catalogue of models, the credits, the pinned runtime
 # and the reference texts of engine learning. (Version 1.0 shipped without the first two.)
 datas += [(str(package / name), "freewill") for name in ("models.json", "credits.json", "runtime.json")]
+# The exact commit this build comes from, written by the workflow (freewill/build.py reads it)
+if (package / "build.json").exists():
+    datas += [(str(package / "build.json"), "freewill")]
 datas += [(str(package / "learning" / "reference.json"), "freewill/learning")]
 datas += [(str(package / "learning" / "rehearsal.json"), "freewill/learning")]
 # llama.cpp, fetched and checked against runtime.json by the workflow before this recipe runs

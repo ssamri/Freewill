@@ -72,7 +72,7 @@ def main() -> int:
         else:
             bases = data / "bases-root"
             step("fetch the two bases", lambda: {k: {"repo": v["repo"], "revision": v["revision"], "files": len(v["files"])}
-                                                 for k, v in (json.loads((bases / "bases.json").read_text())
+                                                 for k, v in (json.loads((bases / "bases.json").read_text(encoding="utf-8"))
                                                               if store.bases_ready(bases) and (bases / "bases.json").is_file()
                                                               else store.fetch_bases(bases, log=log)).items()})
             fetched = step("fetch the books", lambda: _books(data / "books"),

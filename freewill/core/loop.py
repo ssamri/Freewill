@@ -25,6 +25,7 @@ from freewill.core.metacognition import Monitor
 from freewill.core.memory.strength import decay
 from freewill.core.research import Research
 from freewill.core.sleep import DREAM_SCHEMA, dream_prompt, dream_system, link_together
+from freewill.core.speech import separate
 from freewill.core.subconscious import Proposal, Subconscious
 from freewill.core.subconscious.drift import Drift
 from freewill.core.workspace import compete
@@ -316,6 +317,8 @@ class Being:
             kind = "engine_refusal" if isinstance(error, EngineRefusal) else "engine_error"
             self.events.emit(kind, message=str(error), retryable=error.retryable)
             raise
+        if decision.language_note:
+            self.events.emit("language_mismatch", **decision.language_note)
 
         # What was read is read: the first passage of a document given with a message,
         # or the next passage of the book in hand if the being chose to go on.
@@ -413,6 +416,20 @@ class Being:
         """Carry out the decision. Returns True if the kernel refused one of its effects."""
         life, is_message = self.life, winner.source == "message"
         refused = False
+        # Only what is said to the person reaches the conversation; a thought written as speech
+        # is kept inside, with the thought, where the Subconscious view shows it (freewill/core/speech.py).
+        since_they_spoke = []
+        for turn in reversed(self.dialogue):
+            if turn["who"] != "self":
+                break
+            since_they_spoke.append(turn["text"])
+        said, decision.thought, kept_inside = separate(
+            decision.say, thought=decision.thought, content=winner.text, spoken_to=is_message,
+            addressee=life.identity.get("interlocutor"), said_before=tuple(since_they_spoke))
+        if kept_inside:
+            self.events.emit("withheld", what="inner_speech", why=kept_inside,
+                             text=decision.say[:2000], thought=decision.thought)
+        decision.say = said
         try:
             self.guard.check(Action.THINK if decision.accepted else Action.DISMISS)
             self.events.emit("decision", accepted=decision.accepted, reason=decision.reason,
