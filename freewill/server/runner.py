@@ -62,6 +62,8 @@ class Runner:
         config = {**self.life.identity.get("engine", {}), **self._engine_options}
         if config.get("kind") == "embedded":
             config["adapter"] = self.engine_learning.active(config.get("model"))
+        if config.get("kind") == "own":
+            config["life"] = str(self.life.path)   # the engine loads this life's latest kept night, if any
         return config
 
     def _store_and_model(self):
@@ -113,8 +115,48 @@ class Runner:
             self.reload_engine("restore")
         return self.engine_learning_state()
 
+    def _own_engine(self) -> bool:
+        return self.life.identity.get("engine", {}).get("kind") == "own"
+
+    def _own_night_run(self, force: bool) -> dict:
+        """A night for Freewill's own model (freewill/vlm/nights.py). It trains the model this life thinks with,
+        in memory, so the being waits between two moments until the night is over."""
+        if self._night_thread and self._night_thread.is_alive():
+            raise EngineLearningError("a night of engine learning is already running")
+        if not force and not self.engine_learning.settings.enabled:
+            raise EngineLearningError("engine learning is off for this life")
+
+        def work():
+            from freewill.vlm import nights
+            if not self._living.acquire(timeout=600):
+                self._push({"type": "engine_learning", "time": "", "data": {"decision": "failed", "error": "busy"}})
+                return
+            try:
+                self.engine_learning.progress = {"state": "running", "step": "night"}
+                row = nights.night(self.engine.model(), self.life.path, force=force)
+                if row.get("decision") == "accepted":
+                    folder = nights.folder(self.life.path) / "checkpoints" / row["checkpoint"]
+                    self.engine.adopt(json.loads((folder / "manifest.json").read_text(encoding="utf-8")))
+                    self.being.events.emit("engine_changed", engine=self.engine.name, why="night:" + row["night"],
+                                           adapter=row["checkpoint"], adapter_sha256=None)
+                self._push({"type": "engine_learning", "time": row["time"],
+                            "data": {"decision": row.get("decision"), "version": row.get("checkpoint")}})
+            except Exception as error:  # the life goes on; the reason is kept
+                self.engine_learning.record("failed", engine="own", error=f"{type(error).__name__}: {error}")
+                self._push({"type": "engine_learning", "time": "", "data": {"decision": "failed", "error": str(error)}})
+            finally:
+                self.engine_learning.progress = {"state": "idle"}
+                self._living.release()
+                self._refresh_snapshot()
+
+        self._night_thread = threading.Thread(target=work, name="freewill-own-night", daemon=True)
+        self._night_thread.start()
+        return self.engine_learning_state()
+
     def engine_learning_run(self, force: bool = False) -> dict:
         """Start a night of engine learning in the background, now."""
+        if self._own_engine():
+            return self._own_night_run(force)
         store, model = self._store_and_model()
         if model is None or not model.get("trainable"):
             raise EngineLearningError("this life does not converse with a model that can learn")
@@ -177,6 +219,9 @@ class Runner:
     def _after_sleep(self) -> None:
         settings = self.engine_learning.settings
         if not (settings.enabled and settings.nightly):
+            return
+        if self._own_engine():
+            threading.Thread(target=self._try_run, daemon=True).start()
             return
         store, model = self._store_and_model()
         if model is None or not model.get("trainable") or not store.training_installed(model):

@@ -55,19 +55,35 @@ At birth (1.82 billion), here is what each preset asks for:
 | 13 billion | 135 GB | 8.7 / 31.2 GB | 210 GB | 224 billion (~1,862,675 books) | 9 × 24 GB: 345 days · 3 × H100: 168 days |
 | 50 billion | 505 GB | 33.6 / 120 GB | 891 GB | 964 billion (~8,029,341 books) | 38 × 24 GB: 3.7 years · 12 × H100: 1.9 years |
 
+**Before any growth, a guard.** The ceiling is a choice; the guard checks what this computer can hold now. Before parameters are added, it reads the memory available at that moment (not the memory installed), the free disk where the model lives, and the free memory of each graphics card. It estimates what the growth needs: the new weights, the activations, the gradient and optimiser state to train them, and two checkpoints on disk, with a 15 % margin. If that does not fit, the growth is refused before anything changes. The refusal says what was needed, what was free, the largest step that would fit, and the alternatives: a smaller step, adapters instead of growth, quantising to run, or waiting for a larger machine. During training, a refused growth is written to the ledger, and the run goes on at the size the model already has.
+
+**Configured, available, proven.** The settings card keeps three things apart, each read from its own source:
+
+- **Configured**: what is written in the settings, which is a choice and not a capacity.
+- **Available on this computer**: whether PyTorch, Transformers and the two bases are installed, and whether growing to the ceiling would pass the guard right now.
+- **Proven**: for reading, seeing and watching, whether a training run kept the stage on validation, and whether the sealed test confirms it. Confirmation means: better than at birth, better than every control, and less than a 1 in 100 chance of happening by luck. Learning during a life's nights is listed separately, and stays "not shown yet" until an end-to-end run shows it.
+
 **What this means.** A model can be made as large as the person wants: growth is mechanical and verified. But the new parameters are worth something only once they are trained on enough text. Beyond about 2 billion, books alone are far from enough (Project Gutenberg holds about 75,000), and other open corpora would be needed. Growing the width of the feed-forward blocks and the depth, while the model's own width (2,048) stays fixed, is also less efficient than a model designed at that size.
 
 ## 3. How it is trained
 
 There are three stages. Each one is a separate decision written to an append-only ledger (`ledger.jsonl`), with what was measured before and after.
 
-| Stage | What is trained | Measured on (never trained on) | Kept only if |
+| Stage | What is trained | Decided on the validation set (never trained on) | Kept only if |
 |---|---|---|---|
-| **read** | adapters + grown layers | 1 passage in 10 of the books, chosen by hash | held-out passages are predicted better by at least 0.01 nats/token |
-| **see** | the bridge | 1 drawn image in 4: colour (6 choices) and shape (4) | accuracy rises by at least 5 points **and** beats, by at least 5 points, the same questions asked about another item's image |
-| **watch** | bridge + adapters | 1 drawn video in 4: direction of motion (4 choices) | accuracy rises by at least 5 points **and** beats both the reversed-frames control and the single-frame control; seeing loses at most 5 points; reading gets worse by at most 0.05 nats/token |
+| **read** | adapters + grown layers | 24 passages from the validation blocks of the books | validation passages are predicted better by at least 0.01 nats/token |
+| **see** | the bridge | 50 drawn images: colour (6 choices) and shape (4) | accuracy rises by at least 5 points **and** beats, by at least 5 points, the same questions asked about another item's image |
+| **watch** | bridge + adapters | 30 drawn videos: direction of motion (4 choices) | accuracy rises by at least 5 points **and** beats both the reversed-frames control and the single-frame control; seeing loses at most 5 points; reading gets worse by at most 0.05 nats/token |
 
 When a stage is refused, the weights from before it are restored.
+
+**Three separate sets.** The data are split three ways, and the split is made by construction, not by chance at run time:
+
+- **Train**: what the model learns from.
+- **Validation**: what each rule above reads to keep or refuse a stage.
+- **Sealed test**: measured once at birth and once at the end, written to the summary and the ledger, and read by no rule. It is what the results report.
+
+Drawn images and videos of each set come from their own seed namespace (`image-train-N`, `image-validation-N`, `image-test-N`), so an item can never be in two sets. Books are cut into blocks of 20 consecutive passages, and each block is assigned by the hash of the book and the block number: 1 in 10 to the test, 1 in 10 to validation, the rest to training. Neighbouring passages, which share names and sentences, stay together. At the first run, the test set is fixed by a SHA-256 hash in `sealed_test.json`; a later run whose test set differs is refused, so the test cannot be changed after results were seen. For each multiple-choice result of the sealed test, the summary gives the probability of reaching it by chance alone.
 
 - **Books.** The books are public-domain titles from Project Gutenberg, in English and French (see the shelf in [`books.py`](../freewill/vlm/books.py)). The licence header is removed, and the language written in each book's header is checked: a book that does not match is left out, and the run says so. The person can also give their own text, PDF, EPUB or DOCX files.
 - **Drawn images and videos.** They exist because their answers are known exactly and every item can be reproduced from its seed. Passing these tests shows that colour, shape and motion reach the language model through the eye and the bridge. It does not show that the model understands the world.
@@ -86,7 +102,8 @@ python -m freewill own-model train --gutenberg --books my-book.pdf
 
 - **Engine.** As the engine a being thinks with, use kind `own` (`freewill/engines/own_model.py`). It runs inside the process with PyTorch, needs about 8 GB of memory in float32 (4 GB in bfloat16), and can be shown images.
 - **Speed.** On a processor alone, one training step on four images takes about 10 seconds. That figure was measured here on 4 cores, with the full-size architecture and random weights. A graphics card makes it much faster.
-- **What it does not do yet.** It is not yet trained by a life's nights (`can_learn = False`), and llama.cpp does not run it, so it has no GGUF file.
+- **A life's nights.** When a being thinks with this model and the person turns engine learning on for that life (their name is the approval), each night trains the model's adapters on what the being heard and answered ([`nights.py`](../freewill/vlm/nights.py)). It uses the same corpus and rules as the nights of the local model ([engine-learning.md](engine-learning.md)): units are kept by provenance and split by episode into train, validation and a sealed test that no night reads; the being's own replies are not trained on unless the person allows it; earlier units and ordinary passages are replayed. A night is kept only if the validation units of this life are predicted better by 0.01 nats/token, and by 0.01 more than a control trained on the same words in a random order, while the reference texts (against the model before that night) and earlier nights get worse by at most 0.05. A kept night is saved in the life's own folder (`engine/own/checkpoints/`), and that life's engine loads it next time. The being waits between two moments while the night trains. `python -m freewill own-model night --life <folder>` runs one night by hand.
+- **What it does not claim yet.** The engine still says `can_learn = False`, so the interface does not present it as a model that learns. It will say so only once the end-to-end run with the real bases has kept a night (the last step of the workflow). llama.cpp does not run it, so it has no GGUF file.
 
 ## 5. Training from zero: what it would take
 
@@ -100,4 +117,21 @@ That is why the chosen route starts from open pretrained bases.
 
 ## 6. Results
 
-Pending: the `own model end to end` workflow on pull request 13 is running. Only the numbers from its logs will be written here.
+**First real run, 12 November 2026** ([run 43204057091](https://github.com/ssamri/Freewill/actions/runs/43204057091), commit 85f5624, GitHub runner with 4 cores and no graphics card, float32). Every number below is copied from its log.
+
+This run predates the sealed test. Its figures are **validation figures**: they were measured on the same items that decided whether to keep each stage, so they are optimistic. Results to rely on will come from a run with the sealed test.
+
+| | Before | After | Decision |
+|---|---|---|---|
+| Size | 1,823,955,200 at birth | 1,874,291,200 after one grown layer (at position 15) | |
+| **read**: nats/token on 1 passage in 10 of the books (40 steps, 521 s) | 3.5000 | 2.9074 | kept |
+| **see**: accuracy on 120 drawn images (300 steps, 3,804 s) | 15.8 % | 100 % (colour 100 %, shape 100 %) | kept |
+| control: the same questions about another item's image | 15.8 % | 23.3 % | |
+| **watch**: accuracy on 40 drawn videos (200 steps, 3,420 s) | 27.5 % | 15.0 % | refused, weights restored |
+| controls: reversed frames / one frame | 25 % / 30 % | 15 % / 15 % | |
+
+**What this shows.** Within this protocol, on validation items, the bridge carries colour and shape from the eye to the language model. The answers depend on the image shown: about another item's image, accuracy stays near chance (20.8 %). The books are predicted better after reading. Motion was not learned: the watch stage did worse than chance and as badly as its controls, and was refused. During that stage, reading had worsened to 3.1889 nats/token before the weights were restored.
+
+**What it does not show.** Nothing was measured on a sealed test. The drawn images are simple and generated by the same code, so passing them is not understanding the world.
+
+**Where it stopped.** The run was stopped while rebuilding the model from its checkpoint (exit code 143, the runner's shutdown signal). The most likely cause is memory: a second full-size model in float32 was being loaded beside the first one on a 16 GB runner. This is an inference from the moment it stopped, not something the log states. The end-to-end script now lets the first model go before loading the second. The answers to free questions were computed but never printed, because the results step did not run.

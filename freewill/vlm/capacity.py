@@ -174,4 +174,171 @@ def public(root: Path, target: int | None = None) -> dict:
     for size in sizes:
         req = requirements(size, now["parameters"])
         rows.append({**req, "fits_here": verdict(req, here)})
-    return {"settings": settings, "present": now, "machine": here, "sizes": rows, "birth": BIRTH, "presets": PRESETS}
+    return {"settings": settings, "present": now, "machine": here, "sizes": rows, "birth": BIRTH, "presets": PRESETS,
+            "status": status(root, settings, now)}
+
+
+# -- configured, available, proven: three different things, never shown as one ------------
+
+PROOF_P = 0.01   # a sealed-test result counts as shown only if chance alone would give it less than once in a hundred
+
+
+def _installed(name: str) -> bool:
+    import importlib.util
+    try:
+        return importlib.util.find_spec(name) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def status(root: Path, settings: dict | None = None, now: dict | None = None) -> dict:
+    """What is configured (a choice written in the settings), what is available on this computer now (libraries,
+    bases, room to grow to the ceiling), and what is proven (stages kept on validation and confirmed on the sealed
+    test). Each is read from files or from this computer; nothing here is inferred from the others."""
+    root = Path(root)
+    settings = settings or load_settings(root)
+    now = now or present(root)
+    configured = {"max_parameters": settings["max_parameters"], "set_by": settings["set_by"], "set_utc": settings["set_utc"],
+                  "is_default": not settings["set_utc"]}
+    bases = (root / "bases" / "language" / "config.json").is_file() and (root / "bases" / "vision" / "config.json").is_file()
+    room = {"adding": max(0, settings["max_parameters"] - now["parameters"])}
+    if room["adding"]:
+        try:   # as a fresh start would load it: in bfloat16, not yet in memory
+            room.update(check_growth(now["parameters"], room["adding"], BYTES["bf16"], root,
+                                     ceiling=settings["max_parameters"], loaded=False), fits=True)
+        except GrowthRefused as refusal:
+            room.update(refusal.details, fits=False)
+    available = {"torch": _installed("torch"), "transformers": _installed("transformers"), "bases": bases,
+                 "bases_recorded": (root / "bases.json").is_file(), "growth_to_ceiling": room}
+    available["ready"] = available["torch"] and available["transformers"] and bases
+    return {"configured": configured, "available": available, "proven": proven(root)}
+
+
+def proven(root: Path) -> dict:
+    """For each skill: whether a stage was kept on validation, and whether the sealed test confirms it at the end
+    (books: fewer nats per token than at birth by the reading margin; images and videos: better than at birth,
+    better than every control, and unlikely by chance, p < PROOF_P). Learning during a life's nights is listed
+    and stays false until an end-to-end run shows it."""
+    root = Path(root)
+    try:
+        summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        summary = None
+    out = {"checkpoint": present(root)["checkpoint"], "summary": summary is not None, "skills": {},
+           "learns_in_nights": False, "sealed_test": None}
+    if not summary:
+        return out
+    from freewill.vlm.train import MIN_ACCURACY_GAIN, MIN_READING_GAIN
+    kept = {h["stage"]: h["decision"] == "kept" for h in summary.get("stages", [])}
+    birth, end = summary.get("test_at_birth") or {}, summary.get("test_at_end") or {}
+    significance = summary.get("significance") or {}
+    out["sealed_test"] = summary.get("sealed_test")
+
+    def skill(stage, key, controls):
+        row = {"stage": stage, "kept": kept.get(stage), "test_birth": None, "test_end": None, "p_by_chance": None}
+        if key not in end or key not in birth:
+            return {**row, "confirmed": False}
+        if key == "books":
+            row.update(test_birth=birth[key], test_end=end[key])
+            return {**row, "confirmed": bool(kept.get(stage)) and birth[key] - end[key] >= MIN_READING_GAIN}
+        a, b = end[key]["accuracy"], birth[key]["accuracy"]
+        p = (significance.get(f"test_at_end:{key}") or {}).get("p_by_chance")
+        lead = min([a - end[c]["accuracy"] for c in controls if c in end] or [0.0])
+        row.update(test_birth=b, test_end=a, p_by_chance=p, lead_over_controls=round(lead, 4))
+        return {**row, "confirmed": bool(kept.get(stage)) and a - b >= MIN_ACCURACY_GAIN and lead >= MIN_ACCURACY_GAIN
+                and p is not None and p < PROOF_P}
+    out["skills"] = {"read": skill("read", "books", []),
+                     "see": skill("see", "images", ["images_other_image"]),
+                     "watch": skill("watch", "videos", ["videos_reversed", "videos_one_frame"])}
+    return out
+
+
+# -- the guard: what this computer can hold now, checked before any growth ----------
+
+SAFETY = 1.15        # ask for 15 % more than the estimate before allowing a growth
+
+
+class GrowthRefused(ValueError):
+    """A growth that this computer cannot hold, or that passes the ceiling. `details` says why, what was
+    needed, what is available, and what could be done instead."""
+
+    def __init__(self, message: str, details: dict) -> None:
+        super().__init__(message)
+        self.details = details
+
+
+def available(root: Path | None = None) -> dict:
+    """Memory free now (not installed), disk free where the model lives, and free memory of each GPU."""
+    out = {"ram_available_gb": None, "disk_free_gb": None, "gpu_free_gb": []}
+    try:
+        with open("/proc/meminfo", encoding="ascii") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    out["ram_available_gb"] = round(int(line.split()[1]) * 1024 / 1e9, 2)
+    except OSError:
+        try:
+            import ctypes
+
+            class Status(ctypes.Structure):
+                _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong), ("total", ctypes.c_ulonglong),
+                            ("avail", ctypes.c_ulonglong), ("tp", ctypes.c_ulonglong), ("ap", ctypes.c_ulonglong),
+                            ("tv", ctypes.c_ulonglong), ("av", ctypes.c_ulonglong), ("ae", ctypes.c_ulonglong)]
+            status = Status()
+            status.length = ctypes.sizeof(Status)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+            out["ram_available_gb"] = round(status.avail / 1e9, 2)
+        except Exception:
+            try:  # macOS and others: free pages only, an underestimate
+                out["ram_available_gb"] = round(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_AVPHYS_PAGES") / 1e9, 2)
+            except (AttributeError, ValueError, OSError):
+                pass
+    try:
+        import shutil
+        target = Path(root) if root and Path(root).exists() else Path.home()
+        out["disk_free_gb"] = round(shutil.disk_usage(target).free / 1e9, 2)
+    except OSError:
+        pass
+    try:
+        import torch
+        if torch.cuda.is_available():
+            out["gpu_free_gb"] = [round(torch.cuda.mem_get_info(i)[0] / 1e9, 2) for i in range(torch.cuda.device_count())]
+    except Exception:
+        pass
+    return out
+
+
+def check_growth(total_now: int, adding: int, bytes_per_parameter: float, root: Path | None = None,
+                 on_gpu: bool = False, ceiling: int = 0, have: dict | None = None, loaded: bool = True) -> dict:
+    """Whether adding `adding` parameters to a model of `total_now` fits under the ceiling and in this computer,
+    counting the memory the growth itself takes (the new weights) and what training them would take (gradient
+    and optimiser state), plus a margin. loaded=True when the model is already in memory: what it uses is then
+    already missing from the memory available, and only the growth and the training activations are counted.
+    Raises GrowthRefused with alternatives; returns the check otherwise."""
+    have = have or available(root)
+    after = total_now + adding
+    resident = 0 if loaded else total_now * bytes_per_parameter
+    need_memory = (resident + adding * bytes_per_parameter + after * bytes_per_parameter * ACTIVATION_SHARE
+                   + adding * TRAIN_BYTES_PER_TRAINED) * SAFETY / 1e9
+    need_disk = (adding * 4.0 * 2 + 1e9) * SAFETY / 1e9      # two checkpoints of what grew, and a margin
+    memory = max(have["gpu_free_gb"] or [0]) if on_gpu else have["ram_available_gb"]
+    details = {"parameters_now": total_now, "adding": adding, "after": after, "ceiling": ceiling,
+               "memory_needed_gb": round(need_memory, 2), "memory_available_gb": memory,
+               "memory_kind": "gpu" if on_gpu else "ram", "disk_needed_gb": round(need_disk, 2),
+               "disk_available_gb": have["disk_free_gb"], "reasons": [], "alternatives": []}
+    if ceiling and after > ceiling:
+        details["reasons"].append("ceiling")
+    if memory is not None and need_memory > memory:
+        details["reasons"].append("memory")
+    if have["disk_free_gb"] is not None and need_disk > have["disk_free_gb"]:
+        details["reasons"].append("disk")
+    if memory is None:
+        details["unknown"] = "memory"     # cannot be read here: allowed, and said
+    if details["reasons"]:
+        spare = (memory or 0) / SAFETY * 1e9 - resident - total_now * bytes_per_parameter * ACTIVATION_SHARE
+        fits = max(0, int(spare / (bytes_per_parameter * (1 + ACTIVATION_SHARE) + TRAIN_BYTES_PER_TRAINED)))
+        if ceiling:
+            fits = min(fits, max(0, ceiling - total_now))
+        details["largest_step_that_fits"] = fits
+        details["alternatives"] = (["smaller_step"] if fits > 0 else []) + ["adapters_instead", "quantise_to_run", "defer_to_bigger_machine"]
+        raise GrowthRefused("growth refused: " + ", ".join(details["reasons"]), details)
+    return details

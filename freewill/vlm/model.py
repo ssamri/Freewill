@@ -135,6 +135,7 @@ class FreewillVLM(nn.Module):
         self.grown: list[int] = []      # positions of the layers added by growth, in the current stack
         self.growth_log: list[dict] = []  # every growth, in order: {"kind": "layers"|"neurons", "count": n}
         self.widened = 0                # neurons added to each feed-forward block
+        self.guard = None               # callable(total_now, adding): raises if this computer cannot hold it (capacity.py)
         for p in list(self.vision.parameters()) + list(self.language.parameters()):
             p.requires_grad_(False)
         self.bridge.to(next(language.parameters()).dtype)
@@ -221,8 +222,15 @@ class FreewillVLM(nn.Module):
         return int(self.spec.get("ceiling_parameters") or 0)
 
     def _check_ceiling(self, adding: int, what: str) -> None:
-        if self.ceiling and self.count()["total"] + adding > self.ceiling:
-            raise ValueError(f"growing by {what} would pass the ceiling of {self.ceiling:,} parameters chosen in the settings")
+        """Before any growth: the ceiling the person chose, then what this computer can hold (the guard)."""
+        from freewill.vlm.capacity import GrowthRefused, check_growth
+        total = self.count()["total"]
+        if self.ceiling and total + adding > self.ceiling:
+            raise GrowthRefused(f"growing by {what} would pass the ceiling of {self.ceiling:,} parameters chosen in the settings",
+                                {"reasons": ["ceiling"], "parameters_now": total, "adding": adding, "ceiling": self.ceiling,
+                                 "alternatives": ["smaller_step", "raise_ceiling"]})
+        if self.guard is not None:
+            self.guard(total, adding)
 
     def _mlps(self):
         for layer in self.layers():

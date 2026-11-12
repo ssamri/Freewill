@@ -17,7 +17,7 @@ on:
       read_steps: {description: "Reading steps", default: "40"}
       see_steps: {description: "Seeing steps", default: "300"}
       watch_steps: {description: "Watching steps", default: "200"}
-      budget_minutes: {description: "Training minutes per stage, at most", default: "75"}
+      budget_minutes: {description: "Training minutes per stage, at most", default: "60"}
 
 permissions:
   contents: read
@@ -55,11 +55,11 @@ jobs:
         with:
           path: own-data
           key: own-model-bases-${{ hashFiles('freewill/vlm/spec.json', 'freewill/vlm/books.py') }}
-      - name: Assemble, grow, read, see, watch, save, rebuild
+      - name: Assemble, grow, read, see, watch, save, rebuild, one night
         run: |
           python tools/own_model_e2e.py own-out --data own-data \
             --read-steps "${{ inputs.read_steps || '40' }}" --see-steps "${{ inputs.see_steps || '300' }}" \
-            --watch-steps "${{ inputs.watch_steps || '200' }}" --budget-minutes "${{ inputs.budget_minutes || '75' }}"
+            --watch-steps "${{ inputs.watch_steps || '200' }}" --budget-minutes "${{ inputs.budget_minutes || '60' }}"
       - name: Results
         if: always()
         run: |
@@ -79,4 +79,7 @@ jobs:
             own-out/model/summary.json
             own-out/model/ledger.jsonl
             own-out/model/checkpoints/*/manifest.json
+            own-out/model/sealed_test.json
+            own-out/life/engine/ledger.jsonl
+            own-out/life/engine/own/ledger.jsonl
           if-no-files-found: warn
