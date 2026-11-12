@@ -447,6 +447,12 @@
       case "affect_transition": case "affect_consolidation": case "affect_mode":
         S.affectStale = true;  // H7: the computed state moved; the view reloads it
         break;
+      case "language_mismatch": {  // the engine wrote in another language than this life's (audit R-10)
+        const names = { en: t("set.langs.en"), fr: t("set.langs.fr") };
+        S.chat.push({ who: "note", text: t(d.kept_mismatch ? "lang_notice.kept" : "lang_notice.mismatch",
+          { name: S.snap.name, got: names[d.got] || d.got, want: names[d.expected] || d.expected }) });
+        break;
+      }
       case "kernel_refusal": case "engine_error": case "engine_refusal":
         if (m) m.extras.push(d.message);
         break;
@@ -615,7 +621,7 @@
     ui.name.textContent = snap.name;
     ui.age.textContent = t("born_ago", { age: ageOf(snap) });
     ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
-    ui.engine.title = ui.engine.textContent;
+    ui.engine.title = ui.engine.textContent + (S.build ? " · Freewill " + S.build.version + (S.build.short ? " · " + S.build.short : "") : "");
     ui.tickerText.textContent = S.ticker;
     ui.banner.hidden = !snap.paused;
     ui.banner.textContent = snap.paused ? t("paused", { reason: snap.paused }) : "";
@@ -1182,7 +1188,10 @@
               (v) => { S.theme = v; store.set("fw-theme", v); applyTheme(); })),
           h("div", { class: "field" }, h("label", { for: "s-lang" }, t("set.language")),
             select("s-lang", S.lang, [["fr", "Français"], ["en", "English"]],
-              (v) => { S.lang = v; store.set("fw-lang", v); drawShell(); }))),
+              (v) => { S.lang = v; store.set("fw-lang", v); drawShell(); })),
+          h("div", { class: "field" }, h("label", {}, t("set.life_language", { name: snap.name })),
+            h("p", {}, t("set.langs." + (snap.language === "fr" ? "fr" : "en"))),
+            h("span", { class: "hint" }, t("set.life_language_hint", { name: snap.name, lang: t("set.langs." + (snap.language === "fr" ? "fr" : "en")) })))),
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.rhythm")),
           h("div", { class: "row" },
             h("div", { class: "field" }, h("label", { for: "s-tempo" }, t("set.tempo")), number("s-tempo", snap.tempo, 2, 3600, "tempo")),
@@ -1201,12 +1210,38 @@
         h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, t("set.being")),
           h("button", { class: "btn", onclick: async () => { S.run++; try { await api("/api/rest", {}); } catch (_) { /* already resting */ } showWelcome(); } },
             t("set.rest")))));
+      const about = h("section", { class: "card about-build" }, h("div", { class: "section-title" }, t("about.title")), h("p", { class: "muted" }, "…"));
+      ui.view.append(about);
+      api("/api/about").then((data) => drawAbout(about, data)).catch((e) => about.append(h("p", { class: "error" }, t("errors.generic", { message: e.message }))));
       const research = h("div", { class: "research-settings" });
       ui.view.append(research);
       if (window.FWLab) window.FWLab.settings(research);
       return {};
     },
   };
+
+  // Which code runs, and what can really learn: never a setting shown as a validated training (audit R-09, 9.1).
+  function drawAbout(box, data) {
+    const b = data.build, unknown = t("about.unknown");
+    const row = (label, value) => h("div", { class: "about-row" }, h("span", { class: "muted" }, label), h("span", {}, value));
+    const engine = data.engine;
+    fill(box, h("div", { class: "section-title" }, t("about.title")),
+      row(t("about.version"), b.version + (b.tag ? " (" + b.tag + ")" : "")),
+      row(t("about.commit"), h("code", { title: b.commit || "" }, b.short || unknown)),
+      b.dirty ? h("p", { class: "hint" }, t("about.dirty")) : null,
+      b.tag_matches === false ? h("p", { class: "error" }, t("about.tag_mismatch", { tag: b.tag })) : null,
+      row(t("about.built"), b.built_utc ? new Date(b.built_utc).toLocaleString(S.lang) : unknown),
+      row(t("about.channel"), t("about.channels." + (b.channel === "installer" ? "installer" : "source"))),
+      engine ? row(t("about.engine"), (engine.name || engine.kind) + " · " + (engine.can_learn ? t("about.learns") : t("about.frozen"))
+        + (engine.adapter ? " · " + t("about.adapter", { v: engine.adapter }) : "")) : null,
+      h("div", { class: "section-title", style: "margin-top:14px" }, t("about.caps")),
+      h("table", { class: "about-caps" }, h("tbody", {}, data.capabilities.map((c) => h("tr", {},
+        h("td", {}, t("about.ids." + c.id)),
+        h("td", {}, h("span", { class: "state-pill " + c.state }, t("about.states." + c.state))),
+        h("td", { class: "small muted" }, [t("about.reasons." + c.reason), t("about.evidence." + c.evidence)].filter(Boolean).join(" · ")))))),
+      h("p", { class: "hint", style: "margin-top:8px" }, t("about.caps_hint")),
+      data.untested.length ? h("p", { class: "hint" }, t("about.untested", { list: data.untested.map((k) => t("about.untested_items." + k)).join(", ") })) : null);
+  }
 
   // What the Research Lab's own file builds on.
   window.FW = { S, h, t, tr, api, bar, pct, icon, link, store, go: (id) => go(id), refresh: () => refresh(),
@@ -1221,6 +1256,7 @@
       if (!consent.accepted) return showGate(consent);
       const info = await api("/api/lives");
       S.keys = info.keys || {};
+      S.build = info.build || null;
       if (info.awake) return enter(await api("/api/snapshot"));
     } catch (_) { /* fall through to the welcome screen */ }
     showWelcome();

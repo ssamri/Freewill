@@ -316,6 +316,8 @@ class Being:
             kind = "engine_refusal" if isinstance(error, EngineRefusal) else "engine_error"
             self.events.emit(kind, message=str(error), retryable=error.retryable)
             raise
+        if decision.language_note:
+            self.events.emit("language_mismatch", **decision.language_note)
 
         # What was read is read: the first passage of a document given with a message,
         # or the next passage of the book in hand if the being chose to go on.

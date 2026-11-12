@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from freewill import __version__, keys, models, runtime
+from freewill.build import info as build_info
 from freewill.core.library import LibraryError
 from freewill.core.affect import AffectError
 from freewill.core.life import Life
@@ -497,6 +498,9 @@ def make_handler(app: App):
                     return self._json(capacity.public(own_store.home(), int(float(target)) if target else None))
                 except ValueError as error:
                     raise ApiError(400, str(error)) from error
+            if path == "/api/about":
+                from freewill import build
+                return self._json(build.about(app.runner, app.models))
             if path == "/api/credits":
                 return self._json(app.credits())
             if path == "/api/dreams":
@@ -504,7 +508,7 @@ def make_handler(app: App):
             if path == "/api/lives":
                 return self._json({"lives": app.lives(), "keys": app.key_status(),
                                    "awake": app.runner.life.name if app.runner else None,
-                                   "version": __version__})
+                                   "version": __version__, "build": build_info()})
             if path == "/api/snapshot":
                 return self._json(app.require_runner().snapshot)
             if path == "/api/events":

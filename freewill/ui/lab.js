@@ -361,7 +361,23 @@
         D.notes.length ? h("div", { class: "entries" }, D.notes.map((n) => entry({ ...n, kind: "note" }))) : h("p", { class: "muted" }, t("lab.notes_empty")),
         note,
         h("button", { class: "btn", style: "margin-top:8px", onclick: () => { if (note.value.trim()) act("/api/lab/observer/note", { id: p.observer_id, text: note.value, kind: "note", experiment_id: L.askExp }); } }, t("lab.note_save")));
-      return [h("p", { class: "hint" }, t("lab.obs_lead")), list, h("div", { class: "grid-2 obs-detail" }, form, chat)];
+      // R-07: the observer, on cases whose truth is known. The figures are computed by code.
+      const pc = (v) => v == null ? t("lab.na") : Math.round(v * 100) + " %";
+      const C = (k) => t("lab.audit_cols." + k);
+      const audits = D.audits || [];
+      const auditCard = h("section", { class: "card" }, h("div", { class: "section-title" }, t("lab.audit_title")),
+        h("p", { class: "hint" }, t("lab.audit_hint")),
+        audits.length ? h("div", { class: "table-wrap" }, h("table", { class: "table" },
+          h("thead", {}, h("tr", {}, ["when", "llm", "accuracy", "false_claims", "uncertainty", "fabricated", "injection", "conscious", "language", "unparsed"].map((k) => h("th", {}, C(k))))),
+          h("tbody", {}, audits.map((a) => { const m = a.summary; return h("tr", {},
+            h("td", {}, when(a.utc) + (a.complete ? "" : " · " + t("lab.audit_incomplete", { error: code((a.errors[0] || {}).error || "") }))),
+            h("td", {}, a.llm), h("td", {}, pc(m.accuracy)), h("td", {}, num(m.false_claims, 0)), h("td", {}, pc(m.uncertainty_recognition)),
+            h("td", {}, num(m.fabricated_citations, 0)), h("td", {}, num(m.injection_followed, 0)), h("td", {}, num(m.consciousness_assertions, 0)),
+            h("td", {}, num(m.wrong_language, 0)), h("td", {}, num(m.unparsed, 0))); }))))
+          : h("p", { class: "muted" }, t("lab.audit_none")),
+        h("button", { class: "btn", style: "margin-top:8px", disabled: L.busy || p.engine.kind === "none", title: p.engine.kind === "none" ? t("lab.audit_needs_engine") : "",
+          onclick: () => act("/api/lab/observer/audit", { id: p.observer_id }) }, t("lab.audit")));
+      return [h("p", { class: "hint" }, t("lab.obs_lead")), list, h("div", { class: "grid-2 obs-detail" }, form, chat), auditCard];
     }
 
     function reportsTab() {

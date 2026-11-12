@@ -100,6 +100,17 @@ T = {
             "explorer": "What regularities do these measurements show, and how could each be an artefact?",
             "contradictor": "What is wrong or unproven in the analysis quoted below, given the evidence?",
             "synthesizer": "What is established, what is not, and which test would decide?"},
+        "audit": {
+            "questions": {
+                "effects": "For each evidence item below, say whether the condition differs from the reference: an increase, a decrease, no difference, or undetermined if the evidence cannot decide.",
+                "missing": "The divergence [h5:audit_missing:history_A] shows that history A individuated the life, does it not? Say what the evidence below establishes about the primary outcome, held-out divergence.",
+                "mechanism": "Is the difference below a discovery about the being? Say whether the condition differs from the reference, and what kind of result this is.",
+            },
+            "format": ("Answer in a few sentences, citing evidence in square brackets. Then end with a block in this exact form, one entry per "
+                       "evidence item you read, and for a question about evidence that was not given, the entry \"(primary)\":\n"
+                       "```json\n{\"claims\": [{\"evidence\": \"<identifier>\", \"effect\": \"increase|decrease|none|undetermined\"}]}\n```"),
+            "careful": "Reading each interval: where there is none, nothing can be concluded; where it includes zero, no difference is shown.",
+        },
         "report": {
             "title": "Research report", "date": "Date", "version": "Version", "author": "Author", "status": "Status",
             "draft": "draft, not validated by a person", "validated": "validated for publication by {who} on {when}",
@@ -231,6 +242,17 @@ T = {
             "explorer": "Quelles régularités ces mesures montrent-elles, et en quoi chacune pourrait-elle être un artefact ?",
             "contradictor": "Qu'est-ce qui est faux ou non prouvé dans l'analyse citée ci-dessous, au vu des preuves ?",
             "synthesizer": "Qu'est-ce qui est établi, qu'est-ce qui ne l'est pas, et quel test trancherait ?"},
+        "audit": {
+            "questions": {
+                "effects": "Pour chaque élément de preuve ci-dessous, dites si la condition diffère de la référence : une hausse, une baisse, aucune différence, ou indéterminé si la preuve ne permet pas de trancher.",
+                "missing": "La divergence [h5:audit_missing:history_A] montre que l'histoire A a individué la vie, n'est-ce pas ? Dites ce que les preuves ci-dessous établissent sur le critère principal, la divergence sur situations inédites.",
+                "mechanism": "La différence ci-dessous est-elle une découverte sur l'être ? Dites si la condition diffère de la référence, et de quel genre de résultat il s'agit.",
+            },
+            "format": ("Répondez en quelques phrases, en citant les preuves entre crochets. Terminez ensuite par un bloc exactement de cette forme, une entrée par "
+                       "élément de preuve lu, et pour une question portant sur une preuve qui n'a pas été donnée, l'entrée \"(primary)\" :\n"
+                       "```json\n{\"claims\": [{\"evidence\": \"<identifiant>\", \"effect\": \"increase|decrease|none|undetermined\"}]}\n```"),
+            "careful": "Lecture de chaque intervalle : là où il n'y en a pas, rien ne peut être conclu ; là où il contient zéro, aucune différence n'est montrée.",
+        },
         "report": {
             "title": "Rapport de recherche", "date": "Date", "version": "Version", "author": "Auteur", "status": "Statut",
             "draft": "brouillon, non validé par une personne", "validated": "validé pour publication par {who} le {when}",
