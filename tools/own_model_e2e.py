@@ -91,18 +91,27 @@ def main() -> int:
                                      for h in r["stages"]]})
         step("answers about unseen images and videos", lambda: _answers(model))
 
+        held = {}
+
         def rebuilt():
-            again = tiny() if args.tiny else build(bases / "bases", dtype=args.dtype)
-            folder = root / "checkpoints" / summary["checkpoint"]
-            manifest = restore(again, folder)
+            # The trained model is scored, then let go before the rebuild: two full-size models in float32
+            # do not fit in a 16 GB runner (the first real run was stopped here).
+            nonlocal model
             items = synthetic.image_choices([3, 7])
-            a, b = Trainer(model, root, log).choose(items), Trainer(again, root, log).choose(items)
+            a = Trainer(model, root, log).choose(items)
+            model = None
+            import gc
+            gc.collect()
+            again = tiny() if args.tiny else build(bases / "bases", dtype=args.dtype)
+            manifest = restore(again, root / "checkpoints" / summary["checkpoint"])
+            b = Trainer(again, root, log).choose(items)
+            held["model"] = again
             same = abs(a["truth_nats"] - b["truth_nats"]) < 1e-4
             if not same:
                 raise AssertionError(f"rebuilt model scores {b['truth_nats']}, trained one {a['truth_nats']}")
             return {"version": manifest["version"], "parameters": again.count(), "same_scores": same}
         step("rebuild from the checkpoint", rebuilt)
-        step("a night of a life", lambda: _night(model, out / "life", args.tiny))
+        step("a night of a life", lambda: _night(held["model"], out / "life", args.tiny))
     except Exception:
         return 1
     return 0

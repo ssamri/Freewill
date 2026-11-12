@@ -117,4 +117,21 @@ C'est pourquoi la voie choisie part de bases ouvertes déjà pré-entraînées.
 
 ## 6. Résultats
 
-En attente. Seuls les chiffres des journaux du workflow `own model end to end` seront inscrits ici. L'essai lancé sur la pull request 13 est antérieur au test scellé : ses chiffres sont des chiffres de validation, sur les exemples mêmes qui ont décidé chaque étape, et seront présentés comme tels. Les résultats sur lesquels s'appuyer sont ceux d'un essai avec le test scellé, qui se termine aussi par une nuit d'une vie.
+**Premier essai réel, 12 novembre 2026** ([exécution 43204057091](https://github.com/ssamri/Freewill/actions/runs/43204057091), commit 85f5624, machine GitHub à 4 cœurs sans carte graphique, float32). Chaque nombre ci-dessous est recopié de son journal.
+
+Cet essai est antérieur au test scellé. Ses chiffres sont des **chiffres de validation** : ils ont été mesurés sur les exemples mêmes qui ont décidé de garder chaque étape, ils sont donc optimistes. Les résultats sur lesquels s'appuyer viendront d'un essai avec le test scellé.
+
+| | Avant | Après | Décision |
+|---|---|---|---|
+| Taille | 1 823 955 200 à la naissance | 1 874 291 200 après une couche ajoutée (en position 15) | |
+| **lire** : nats par jeton sur 1 passage sur 10 des livres (40 pas, 521 s) | 3,5000 | 2,9074 | gardée |
+| **voir** : justesse sur 120 images dessinées (300 pas, 3 804 s) | 15,8 % | 100 % (couleur 100 %, forme 100 %) | gardée |
+| contrôle : les mêmes questions sur l'image d'un autre exemple | 15,8 % | 23,3 % | |
+| **regarder** : justesse sur 40 vidéos dessinées (200 pas, 3 420 s) | 27,5 % | 15,0 % | refusée, poids restaurés |
+| contrôles : images inversées / une seule image | 25 % / 30 % | 15 % / 15 % | |
+
+**Ce que cela montre.** Dans ce protocole, sur les exemples de validation, le pont transmet la couleur et la forme de l'œil au modèle de langue. Les réponses dépendent de l'image montrée : sur l'image d'un autre exemple, la justesse reste près du hasard (20,8 %). Les livres sont mieux prédits après la lecture. Le mouvement n'a pas été appris : l'étape regarder a fait moins bien que le hasard et aussi mal que ses contrôles, et elle a été refusée. Pendant cette étape, la lecture s'était dégradée à 3,1889 nats par jeton avant que les poids soient restaurés.
+
+**Ce que cela ne montre pas.** Rien n'a été mesuré sur un test scellé. Les images dessinées sont simples et produites par le même code : les réussir n'est pas comprendre le monde.
+
+**Où il s'est arrêté.** L'essai a été arrêté pendant la reconstruction du modèle depuis son point de reprise (code de sortie 143, signal d'arrêt de la machine). La cause la plus probable est la mémoire : un second modèle à taille réelle en float32 se chargeait à côté du premier, sur une machine de 16 Go. C'est une déduction tirée du moment de l'arrêt, le journal ne le dit pas. Le script de bout en bout libère désormais le premier modèle avant de charger le second. Les réponses aux questions libres ont été calculées mais jamais affichées, parce que l'étape des résultats n'a pas tourné.
