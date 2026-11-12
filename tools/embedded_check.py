@@ -29,7 +29,7 @@ sys.path.insert(0, str(ROOT))
 from freewill import models, runtime  # noqa: E402
 from freewill.core.life import Life  # noqa: E402
 from freewill.core.loop import Being  # noqa: E402
-from freewill.engines.base import make_engine  # noqa: E402
+from freewill.engines.base import EngineError, make_engine  # noqa: E402
 from freewill.engines.embedded import EmbeddedEngine  # noqa: E402
 
 
@@ -56,7 +56,11 @@ def talk(being: Being, text: str, attachments=()) -> str | None:
                                                        if k in ("accepted", "reason", "source", "message", "spontaneous", "text")}}))
     being.hear(text, attachments)
     for _ in range(6):
-        being.tick()
+        try:
+            being.tick()
+        except EngineError:  # already in TRACE as engine_error; the message waits in the inbox
+            being.inbox.clear()
+            break
         if not being.inbox:
             break
     said = [e.get("text") for e in TRACE if e["type"] == "speech" and e.get("spontaneous") is False]
@@ -71,8 +75,8 @@ def chat(engine, text: str, image: bytes | None = None, max_tokens: int = 60) ->
         engine._start()
     content = text if image is None else [{"type": "text", "text": text}, {"type": "image_url", "image_url": {
         "url": "data:image/png;base64," + base64.b64encode(image).decode()}}]
-    body = {"messages": [{"role": "user", "content": content}], "max_tokens": max_tokens, "temperature": 0,
-            **engine._extra_body()}
+    body = {**engine._extra_body(), "messages": [{"role": "user", "content": content}], "max_tokens": max_tokens,
+            "temperature": 0}
     request = urllib.request.Request(engine.base_url + "/chat/completions", data=json.dumps(body).encode("utf-8"),
                                      headers=engine._headers(), method="POST")
     with engine._opener.open(request, timeout=600) as response:

@@ -147,8 +147,14 @@ class EmbeddedEngine(CompatibleEngine):
 
     lora_override: float | None = None  # set by the lab to compare base and adapted answers in one process
 
+    # A decision is a short JSON object. Without a ceiling, a small model held to the schema can go on
+    # producing blank space inside it for as long as the request lasts (seen with SmolVLM2 on Windows:
+    # ten minutes without an answer). Past the ceiling the answer is incomplete, the engine says so, and
+    # the message waits in the inbox as it does after any engine error.
+    max_tokens = 512
+
     def _extra_body(self) -> dict:
-        extra = {}
+        extra = {"max_tokens": self.max_tokens}
         if self._reasoning_off:
             extra["chat_template_kwargs"] = {"enable_thinking": False}
         if self.adapter and self.lora_override is not None:

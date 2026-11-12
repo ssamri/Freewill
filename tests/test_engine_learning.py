@@ -282,6 +282,8 @@ def test_the_embedded_engine_starts_llama_server_with_the_adapter(tmp_path, monk
     assert "--reasoning-budget" in command
     plain = embedded.EmbeddedEngine(models.find("smolvlm2-2.2b"), model_file, runtime=tmp_path / "llama-server")
     assert plain.adapter is None and "adapter" not in plain.name and not plain.can_learn
+    # A decision always has a ceiling: a small model held to the schema cannot hold a request for ever.
+    assert plain._extra_body()["max_tokens"] > 0 and engine._extra_body()["max_tokens"] > 0
 
 
 # -- the catalogue and the runtime ----------------------------------------------------------------------
