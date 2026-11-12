@@ -2,7 +2,7 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
-## Unreleased
+## 1.1.1
 
 **Fixed**
 

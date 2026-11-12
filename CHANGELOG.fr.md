@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 1.1.1
 
 **Corrigé**
 
