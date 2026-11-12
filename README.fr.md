@@ -4,10 +4,48 @@
 
 [English](README.md) · **Français**
 
+<p align="center">
+  <a href="https://github.com/ssamri/freewill/releases/latest"><img alt="Version" src="https://img.shields.io/github/v/release/ssamri/freewill?label=version&color=5b4ee6"></a>
+  <a href="https://github.com/ssamri/freewill/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-installateur%20.exe%20(non%20sign%C3%A9)-0078D6?logo=windows&logoColor=white"></a>
+  <a href="https://github.com/ssamri/freewill/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/ssamri/freewill/actions/workflows/tests.yml/badge.svg?branch=main"></a>
+  <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%20%7C%203.13-3776AB?logo=python&logoColor=white"></a>
+  <a href="LICENSE"><img alt="Licence" src="https://img.shields.io/badge/licence-recherche%20non%20commerciale-blue"></a>
+  <br>
+  <a href="docs/"><img alt="Documentation" src="https://img.shields.io/badge/documentation-lire-8a63d2?logo=readthedocs&logoColor=white"></a>
+  <a href="structure.fr.md"><img alt="Structure" src="https://img.shields.io/badge/structure-carte%20du%20projet-6f42c1"></a>
+  <a href="docs/research/FREEWILL_Programme_Recherche_V1.0.fr.pdf"><img alt="Article" src="https://img.shields.io/badge/article%20scientifique-PDF-b31b1b?logo=adobeacrobatreader&logoColor=white"></a>
+  <a href="#3-hypothèses-de-travail"><img alt="Hypothèses" src="https://img.shields.io/badge/hypoth%C3%A8ses-H1%E2%80%93H10-0f766e"></a>
+  <a href="docs/own-model.fr.md"><img alt="Modèle" src="https://img.shields.io/badge/mod%C3%A8le%20propre-Freewill%201.8B--V-7c3aed"></a>
+  <br>
+  <a href="docs/research/IMPLEMENTATION_STATUS.fr.md"><img alt="État" src="https://img.shields.io/badge/%C3%A9tat-exp%C3%A9rimental-orange"></a>
+  <a href="#8-maîtrise-et-sûreté"><img alt="Internet" src="https://img.shields.io/badge/internet-coup%C3%A9%20par%20d%C3%A9faut-2ea44f"></a>
+  <a href="README.fr.md"><img alt="Langues" src="https://img.shields.io/badge/langues-English%20%7C%20Fran%C3%A7ais-555"></a>
+  <a href="LICENSE"><img alt="Gratuit" src="https://img.shields.io/badge/prix-gratuit-2ea44f"></a>
+</p>
+
 **Programme de recherche ouvert et expérimental sur la conscience, le libre arbitre, le subconscient et le rêve dans les systèmes d'intelligence artificielle.**
 
 > *« Au lieu d'essayer de produire un programme qui simule l'esprit de l'adulte, pourquoi ne pas tenter d'en produire un qui simule celui de l'enfant ? »*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/brain-fr-dark.jpg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/screenshots/brain-fr-light.jpg">
+    <img alt="La vue Cerveau de l'application Freewill, en thème clair et sombre" src="docs/assets/screenshots/brain-fr-light.jpg" width="900">
+  </picture>
+</p>
+
+<p align="center"><em>La vue Cerveau, dessinée en direct à partir du vrai journal d'événements de l'être (ici un nouveau-né sur le moteur simulé). Elle suit le thème clair ou sombre de votre système.</em></p>
+
+<details>
+<summary>Les deux thèmes côte à côte</summary>
+
+| Clair | Sombre |
+|---|---|
+| <img alt="Thème clair" src="docs/assets/screenshots/brain-fr-light.jpg"> | <img alt="Thème sombre" src="docs/assets/screenshots/brain-fr-dark.jpg"> |
+
+</details>
 
 **État du projet : expérimental.** Une première application existe : un être peut naître, converser, lire les documents et regarder les images qu'on lui donne, garder les souvenirs qu'il choisit, dormir et rêver, et tout ce qui se passe en lui peut être observé. Un mode recherche, désactivé par défaut, calcule un état affectif (hypothèse H7) : des variables de régulation qui modifient réellement son attention, son rappel et l'encodage de ses souvenirs, sans que cela prouve le moindre ressenti. Il pense avec un modèle existant ou avec un moteur simulé. La version 1.0 ajoute un **laboratoire de recherche** : dix hypothèses (H1 à H10), chacune avec des interrupteurs qui retirent son mécanisme, des protocoles verrouillés avant d'être exécutés, des campagnes menées sur des copies isolées d'une vie, des chiffres calculés par du code et jamais par un modèle de langage, des observateurs qui peuvent lire et jamais agir, et des rapports que seule une personne peut valider. Elle ajoute aussi le petit réseau de neurones propre à Freewill, entraîné pendant le sommeil sur ce qu'un être a vécu et capable de grandir ; ce réseau ne pense pas encore à la place de l'être. Depuis, le moteur embarqué Qwen3 1.7B peut être adapté par la vie d'un être : chaque nuit, un adaptateur est entraîné à côté du modèle figé, gardé seulement si des règles écrites montrent qu'il prédit mieux des échanges vécus jamais vus sans oublier des textes de référence, puis chargé par llama.cpp ; dans les essais de bout en bout, il a surtout changé la façon dont le modèle parle, sans rappel fiable des faits ([`docs/engine-learning.fr.md`](docs/engine-learning.fr.md)). Freewill a aussi son propre modèle, **Freewill 1.8B-V** (1,82 milliard de paramètres à la naissance, capable de grandir jusqu'à un plafond que la personne choisit dans les réglages, chaque taille étant présentée avec l'ordinateur qu'elle demande) : Qwen3 1.7B pour la langue, l'œil SigLIP2, et un pont entre les deux que Freewill entraîne ; il lit des livres du domaine public, regarde des images et suit des vidéos comme des suites d'images, grandit par neurones et par couches entières, et ne garde chaque étape que si des mesures sur des données mises de côté et des contrôles le justifient ([`docs/own-model.fr.md`](docs/own-model.fr.md)). Rien ici n'est un produit fini, et rien ici n'affirme que le système est conscient. Ce qui existe, ce qui a été testé et ce qui manque est détaillé ligne par ligne dans [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md) ; les premiers résultats, dont deux négatifs, sont dans [`experiments/v1.0/`](experiments/v1.0/). Voir [`QUICKSTART.fr.md`](QUICKSTART.fr.md) pour l'essayer. Ce document expose la thèse, le cadre théorique, l'architecture envisagée et les garanties de maîtrise. L'organisation technique est détaillée dans [`structure.fr.md`](structure.fr.md).
 
