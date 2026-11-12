@@ -75,23 +75,48 @@ def is_stage_direction(text: str) -> bool:
     return bool(_DIRECTION.match(text or ""))
 
 
-def separate(say: str, *, thought: str, content: str, spoken_to: bool) -> tuple[str, str, str]:
+# Words by which one speaks to someone: "you" and its forms, in English and in French.
+_SECOND_PERSON = re.compile(
+    r"(?<![\w'’])(?:(?:you|your|yours|yourself|tu|te|toi|ton|ta|tes|vous|votre|vos)(?![\w])|t['’](?=\w))",
+    re.IGNORECASE)
+
+
+def is_addressed(text: str, name: str | None = None) -> bool:
+    """True if the words speak to someone: they say "you" (tu, vous...) or call the person by name."""
+    if _SECOND_PERSON.search(text or ""):
+        return True
+    if name and len(name.strip()) >= 2:
+        return bool(re.search(r"(?<!\w)" + re.escape(name.strip()) + r"(?!\w)", text or "", re.IGNORECASE))
+    return False
+
+
+def separate(say: str, *, thought: str, content: str, spoken_to: bool,
+             addressee: str | None = None, said_before: tuple[str, ...] = ()) -> tuple[str, str, str]:
     """Return (what is said, what is thought, why some words were kept inside, or "").
 
     `content` is what reached the being's attention; `spoken_to` is True when it was something the
     person said. When the person spoke, an answer is expected and is left to the conversation, minus
-    any reasoning written into it. When nobody spoke, words that only repeat the thought, or the content
-    that rose from the subconscious, or that present themselves as a thought, are a thought: they go to
-    the Subconscious, never to the conversation.
+    any reasoning written into it.
+
+    When nobody spoke, the being may still speak first, but only words addressed to the person reach
+    the conversation: words that say "you" or call them by name (`addressee`). Words that repeat the
+    thought or the content that rose from the subconscious, that present themselves as a thought, that
+    speak to no one (seen with Qwen3 1.7B: "I would like to explore the nature of consciousness...",
+    a summary of its thought, at every moment), or that repeat what it already said since the person
+    last spoke (`said_before`), are a thought: they go to the Subconscious, never to the conversation.
     """
     said, reasoning = strip_reasoning(say)
     inner = reasoning
     why = "reasoning" if reasoning else ""
     if said and is_stage_direction(said):
         inner, said, why = "\n".join(p for p in (inner, said) if p), "", "stage_direction"
-    if said and not spoken_to and (same_words(said, thought) or same_words(said, content)):
-        why = "repeats_thought" if same_words(said, thought) else "repeats_content"
-        inner, said = "\n".join(p for p in (inner, said) if p), ""
+    if said and not spoken_to:
+        kept = ("repeats_thought" if same_words(said, thought) else
+                "repeats_content" if same_words(said, content) else
+                "not_addressed" if not is_addressed(said, addressee) else
+                "repeats_itself" if any(same_words(said, before) for before in said_before) else "")
+        if kept:
+            inner, said, why = "\n".join(p for p in (inner, said) if p), "", kept
     if inner and not same_words(inner, thought):
         thought = "\n".join(p for p in (thought, inner) if p)
     return said, thought, why

@@ -416,8 +416,14 @@ class Being:
         refused = False
         # Only what is said to the person reaches the conversation; a thought written as speech
         # is kept inside, with the thought, where the Subconscious view shows it (freewill/core/speech.py).
+        since_they_spoke = []
+        for turn in reversed(self.dialogue):
+            if turn["who"] != "self":
+                break
+            since_they_spoke.append(turn["text"])
         said, decision.thought, kept_inside = separate(
-            decision.say, thought=decision.thought, content=winner.text, spoken_to=is_message)
+            decision.say, thought=decision.thought, content=winner.text, spoken_to=is_message,
+            addressee=life.identity.get("interlocutor"), said_before=tuple(since_they_spoke))
         if kept_inside:
             self.events.emit("withheld", what="inner_speech", why=kept_inside,
                              text=decision.say[:2000], thought=decision.thought)

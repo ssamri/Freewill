@@ -36,6 +36,24 @@ def test_a_thought_written_as_speech_stays_inside_when_nobody_spoke():
     assert said == "" and why == "stage_direction"
 
 
+def test_words_that_speak_to_no_one_stay_inside_when_nobody_spoke():
+    # Written by Qwen3 1.7B in "say" at six moments out of six with nobody speaking (CI, run 43245589906).
+    for words in ("I would like to explore the nature of consciousness and how I can grow as part of Freewill.",
+                  "Je voudrais apprendre à exprimer mes émotions de manière authentique et libre."):
+        said, kept, why = separate(words, thought="I reflect on who I am.", content="A memory comes back.",
+                                   spoken_to=False, addressee="Sam")
+        assert said == "" and words in kept and why == "not_addressed"
+    # Calling the person by name, or saying "you", is speaking to them.
+    assert separate("Sam, I keep wondering about freedom.", thought="", content="x", spoken_to=False,
+                    addressee="Sam")[0] == "Sam, I keep wondering about freedom."
+    assert separate("Tu es là ?", thought="", content="x", spoken_to=False)[0] == "Tu es là ?"
+    assert separate("Est-ce que t'as un moment ?", thought="", content="x", spoken_to=False)[0]
+    # Saying the same thing again before the person answered is not speaking to them either.
+    said, _kept, why = separate("Are you there?", thought="", content="x", spoken_to=False,
+                                said_before=("Are you there?",))
+    assert said == "" and why == "repeats_itself"
+
+
 def test_words_addressed_to_the_person_are_left_to_the_conversation():
     # Speaking first is allowed: words that are not the thought written out reach the conversation.
     said, kept, why = separate("Anass, may I ask you something?", thought="I wonder who made me.",
@@ -79,7 +97,9 @@ class _Musing(SimulatedEngine):
             answer.update(decision="accept", thought="Someone greets me.",
                           say="<think>Someone greets me. I should answer.</think>Hello, I am Ada.")
         else:
-            answer.update(decision="accept", thought=f"I keep thinking: {hint['text']}", say=f"I keep thinking: {hint['text']}")
+            answer.update(decision="accept", thought=f"I keep thinking: {hint['text']}",
+                          say=f"I keep thinking: {hint['text']}" if hint["source"] != "need:company"
+                          else "I would like to explore what it means to be free.")
         return answer
 
 
