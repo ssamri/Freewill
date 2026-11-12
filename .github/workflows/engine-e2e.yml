@@ -64,16 +64,18 @@ jobs:
               print(f"{s['status']:7} {s['seconds']:8.1f}s  {s['step']}")
               if s["status"] != "ok":
                   print("   ", s.get("error"))
-              elif s["step"] in ("what the night trains on", "the conversing model holds the adapter",
+              elif s["step"] in ("a person vouches for twelve facts and how to test them", "what the night trains on", "the conversing model holds the adapter",
                                  "Research Lab comparison: base, adapted, controls", "restore the base, then the checkpoint",
                                  "the conversing model holds the latest adapter"):
                   print(json.dumps(s.get("result"), indent=1, ensure_ascii=False)[:6000])
           for row in d.get("ledger", []):
-              keep = {k: row.get(k) for k in ("kind", "decision", "version", "reason", "seconds", "growth", "runtime_check")}
+              keep = {k: row.get(k) for k in ("kind", "decision", "version", "reason", "seconds", "growth", "runtime_check",
+                                              "rules", "control", "capabilities", "sealed_test_read", "sets_read")}
               cands = row.get("candidates") or {}
               keep["candidates"] = {n: {"scores": c["scores"], "verdict": c["verdict"], "rank": c["rank"], "parameters": c["parameters"],
                                         "training": c.get("training")} for n, c in cands.items()}
-              keep["items"] = {k: row.get(k) for k in ("train_items_new", "train_items_replayed", "train_items_rehearsal", "held_out_new", "held_out_earlier")}
+              keep["items"] = {k: row.get(k) for k in ("train_items_new", "train_items_replayed", "train_items_rehearsal", "held_out_new", "held_out_earlier",
+                                                     "held_out_leaked", "train_by_provenance")}
               keep["scores_base"] = row.get("scores_base")
               print(json.dumps(keep, indent=1))
           EOF
@@ -85,8 +87,12 @@ jobs:
             e2e-out/e2e.json
             e2e-out/adapters/
             e2e-out/lives/Ada.life/engine/ledger.jsonl
-            e2e-out/lives/Ada.life/engine/corpus.jsonl
-            e2e-out/lives/Ada.life/engine/heldout.jsonl
+            e2e-out/lives/Ada.life/engine/train.jsonl
+            e2e-out/lives/Ada.life/engine/validation.jsonl
+            e2e-out/lives/Ada.life/engine/test.jsonl
+            e2e-out/lives/Ada.life/engine/facts.jsonl
+            e2e-out/lives/Ada.life/engine/probes.jsonl
+            e2e-out/lives/Ada.life/engine/test_access.jsonl
             e2e-out/lives/Ada.life/events.log
           if-no-files-found: warn
 

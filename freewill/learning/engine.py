@@ -23,6 +23,15 @@ Growth of the adapter (a larger rank) is possible only under a budget the
 person sets, and is kept only if it does better than the same night without
 growth, on held-out data. More parameters are never counted as progress.
 
+Rules h4-engine-2.0 (audit of 12 November 2026, R-01 to R-03) add three things.
+The corpus is kept by provenance and split by episode into train, validation
+and a sealed test that no night ever reads (see freewill/learning/corpus.py).
+The being's own replies are not trained on unless the person allows it. And a
+night is kept only if, beyond predicting the validation episodes better, it
+beats a control trained the same way on the same words shuffled, and does not
+lose any capability test (questions about facts a person vouched for) that the
+adapter in use passed, net of those it gains (freewill/learning/capabilities.py).
+
 This module decides by rules written below; it does not judge whether the
 being "learned" anything in a wider sense. Nothing here measures or implies
 experience. The kernel stays outside the weights: it is enforced by the
@@ -40,15 +49,16 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from freewill.core.kernel.constitution import PRINCIPLES
+from freewill.learning import capability_tests as caps
+from freewill.learning import corpus as lived
 
 FOLDER = "engine"
-RULES_VERSION = "h4-engine-1.2"
-HELD_OUT_EVERY = 4          # one item in four is never trained on (chosen by the hash of its text)
-MIN_HELD_OUT = 3            # fewer held-out items than this: no decision can be made, nothing is trained
+RULES_VERSION = "h4-engine-2.0"
+MIN_HELD_OUT = 3            # fewer validation units than this: no decision can be made, nothing is trained
 MIN_TRAIN = 4
-MIN_GAIN = 0.01             # nats per token, on the life's new held-out items, against the adapter in use
+MIN_GAIN = 0.01             # nats per token, on new validation episodes, against the adapter in use and the control
 MAX_FORGETTING = 0.05       # nats per token, on the reference texts, against the base model at birth
-MAX_LIFE_FORGETTING = 0.05  # nats per token, on earlier nights' held-out items, against the adapter in use
+MAX_LIFE_FORGETTING = 0.05  # nats per token, on earlier nights' validation episodes, against the adapter in use
 GROWTH_MARGIN = 0.01        # nats per token a grown adapter must win by over the same night without growth
 MAX_ITEM_CHARS = 2000
 MAX_ITEMS_PER_NIGHT = 200
@@ -78,6 +88,8 @@ class Settings:
     max_rank: int = 32
     max_adapter_parameters: int = 40_000_000
     rehearsal: bool = True               # mix ordinary passages (never the reference texts) into training
+    learn_from_own_replies: bool = False  # the being's replies are model output: not trained on unless allowed
+    control_each_night: bool = True      # train a shuffled-words control each night; the candidate must beat it
 
     @classmethod
     def from_dict(cls, data: dict) -> "Settings":
@@ -116,45 +128,20 @@ def rehearsal_items() -> list[dict]:
     return [{"text": text, "set": "rehearsal", "lang": lang} for lang, texts in data["general"].items() for text in texts]
 
 
-# -- the corpus: what a life lived, gathered under control -----------------------------------------------
+# -- the corpus ------------------------------------------------------------------------------------------
 
-def gather(life_path: Path, since: int = 0) -> tuple[list[dict], int, dict]:
-    """Read the life's event log from byte `since`: each message heard and the reply the being spoke.
-    Returns the items, the new offset, and counts of what was left out and why."""
-    log = Path(life_path) / "events.log"
-    if not log.exists():
-        return [], since, {}
-    items, skipped = [], {"too_long": 0, "unanswered": 0, "unreadable": 0}
-    heard: str | None = None
-    with log.open("rb") as handle:
-        handle.seek(since)
-        for raw in handle:
-            try:
-                event = json.loads(raw.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                skipped["unreadable"] += 1
-                continue
-            kind = event.get("type")
-            if kind == "stage" and event.get("source") == "message":
-                if heard is not None:
-                    skipped["unanswered"] += 1
-                heard = str(event.get("text") or "")
-            elif kind == "speech" and event.get("spontaneous") is False and heard is not None:
-                said = str(event.get("text") or "")
-                if len(heard) + len(said) > MAX_ITEM_CHARS:
-                    skipped["too_long"] += 1
-                else:
-                    items.append({"messages": [{"role": "user", "content": heard}, {"role": "assistant", "content": said}],
-                                  "time": event.get("time")})
-                heard = None
-            elif kind in ("silence",) and heard is not None:
-                heard = None
-        offset = handle.tell()
-    return items, offset, skipped
+SPLIT_FILES = {"train": "train.jsonl", "validation": "validation.jsonl", "test": "test.jsonl"}
 
 
-def held_out(item: dict) -> bool:
-    return int(_sha(item_text(item))[:8], 16) % HELD_OUT_EVERY == 0
+def unit_sha(unit: dict) -> str:
+    return _sha(unit.get("provenance", "") + "\n" + unit["text"])
+
+
+def shuffled_words(text: str, seed: str) -> str:
+    import random
+    words = text.split()
+    random.Random(seed).shuffle(words)
+    return " ".join(words)
 
 
 class EngineLearning:
@@ -269,40 +256,123 @@ class EngineLearning:
 
     def public(self) -> dict:
         state = self._read("state.json", {})
+        counts = state.get("units", {})
         return {"settings": asdict(self.settings), "active": self._read("active.json", {"version": None}).get("version"),
                 "versions": self.versions(), "ledger": self.ledger()[-60:], "progress": self.progress,
-                "corpus_items": state.get("train_items", 0), "held_out_items": state.get("held_out_items", 0),
-                "pending_items": state.get("pending_items", 0), "rules": RULES_VERSION,
+                "corpus_items": counts.get("train", 0), "held_out_items": counts.get("validation", 0),
+                "test_items": counts.get("test", 0), "pending_items": state.get("pending_items", 0),
+                "by_provenance": state.get("by_provenance", {}), "facts": len(self._rows("facts.jsonl")),
+                "test_readings": len(self._rows("test_access.jsonl")), "rules": RULES_VERSION,
                 "thresholds": {"min_gain": MIN_GAIN, "max_forgetting": MAX_FORGETTING,
                                "max_life_forgetting": MAX_LIFE_FORGETTING, "growth_margin": GROWTH_MARGIN,
                                "min_held_out": MIN_HELD_OUT}}
 
     # -- the corpus ------------------------------------------------------------------------------
 
+    def _split_rows(self, split: str) -> list[dict]:
+        if split == "test":
+            raise EngineLearningError("the sealed test is read only through open_test()")
+        return self._rows(SPLIT_FILES[split])
+
+    def _migrate(self, state: dict) -> None:
+        """Lives that learned under rules 1.x: their pairs become units; held-out pairs become validation.
+        None of them can become sealed test units, since they were already used to decide nights."""
+        if state.get("migrated") or not ((self.root / "corpus.jsonl").exists() or (self.root / "heldout.jsonl").exists()):
+            return
+        for old, split in (("corpus.jsonl", "train"), ("heldout.jsonl", "validation")):
+            units = []
+            for row in self._rows(old):
+                for unit in lived.legacy_units(row, split):
+                    units.append({**unit, "sha256": unit_sha(unit), "collected": row.get("collected") or _now()})
+            self._append(SPLIT_FILES[split], units)
+            if (self.root / old).exists():
+                (self.root / old).replace(self.root / (old[:-6] + ".v1.jsonl"))
+        state["migrated"] = _now()
+        self.record("migrated", note="rules 1.x pairs kept as units; former held-out items are validation, never test")
+
     def collect(self) -> dict:
-        """Add to the corpus what was lived since the last collection. Held-out items are set aside for good."""
+        """Add to the corpus what was lived since the last collection, each unit in the split of its episode."""
         state = self._read("state.json", {})
-        items, offset, skipped = gather(self.life_path, int(state.get("log_offset", 0)))
-        known = {row["sha256"] for row in self._rows("corpus.jsonl")} | {row["sha256"] for row in self._rows("heldout.jsonl")}
-        fresh_train, fresh_held = [], []
-        for item in items:
-            digest = _sha(item_text(item))
+        self._migrate(state)
+        units, offset, skipped, cursor = lived.gather(self.life_path, int(state.get("log_offset", 0)), state.get("episodes"))
+        known = {r["sha256"] for split in SPLIT_FILES for r in self._rows(SPLIT_FILES[split])}
+        fresh = {split: [] for split in SPLIT_FILES}
+        for unit in units:
+            digest = unit_sha(unit)
             if digest in known:
                 skipped["duplicate"] = skipped.get("duplicate", 0) + 1
                 continue
             known.add(digest)
-            row = {**item, "sha256": digest, "collected": _now(), "night": None}
-            (fresh_held if held_out(item) else fresh_train).append(row)
-        self._append("corpus.jsonl", fresh_train)
-        self._append("heldout.jsonl", fresh_held)
-        corpus, heldout = self._rows("corpus.jsonl"), self._rows("heldout.jsonl")
-        state.update(log_offset=offset, train_items=len(corpus), held_out_items=len(heldout),
-                     pending_items=sum(1 for r in corpus if r["night"] is None))
+            split = lived.split_of(unit["episode"])
+            fresh[split].append({**unit, "sha256": digest, "split": split, "collected": _now(), "night": None})
+        for split, rows in fresh.items():
+            self._append(SPLIT_FILES[split], rows)
+        state.update(log_offset=offset, episodes=cursor)
+        self._count(state)
+        if any(fresh.values()):
+            self.record("corpus", added_train=len(fresh["train"]), added_held_out=len(fresh["validation"]),
+                        added_test=len(fresh["test"]), skipped=skipped,
+                        by_provenance={p: sum(1 for rows in fresh.values() for r in rows if r["provenance"] == p)
+                                       for p in lived.PROVENANCES},
+                        train_sha256=[r["sha256"] for r in fresh["train"]],
+                        validation_sha256=[r["sha256"] for r in fresh["validation"]],
+                        test_sha256=[r["sha256"] for r in fresh["test"]])
+        return {"added_train": len(fresh["train"]), "added_held_out": len(fresh["validation"]),
+                "added_test": len(fresh["test"]), "skipped": skipped}
+
+    def _count(self, state: dict) -> None:
+        rows = {split: [r for r in self._rows(name) if r.get("kind") != "probe"] for split, name in SPLIT_FILES.items()}
+        state["units"] = {split: len(r) for split, r in rows.items()}
+        state["by_provenance"] = {p: sum(1 for r in rows["train"] + rows["validation"] + rows["test"] if r.get("provenance") == p)
+                                  for p in lived.PROVENANCES}
+        own = self.settings.learn_from_own_replies
+        state["pending_items"] = sum(1 for r in rows["train"] if r["night"] is None and lived.trainable(r, own_replies=own))
         self._write("state.json", state)
-        if fresh_train or fresh_held:
-            self.record("corpus", added_train=len(fresh_train), added_held_out=len(fresh_held), skipped=skipped,
-                        train_sha256=[r["sha256"] for r in fresh_train], held_out_sha256=[r["sha256"] for r in fresh_held])
-        return {"added_train": len(fresh_train), "added_held_out": len(fresh_held), "skipped": skipped}
+
+    def teach(self, fact: str, *, question: str = "", answer: str = "", wrong: str = "", paraphrase: str = "",
+              false_premise: str = "", who: str = "") -> dict:
+        """A fact a person vouches for, and how to test it. The fact is trained on; its tests are either
+        validation (they take part in deciding nights) or sealed test, chosen by the hash of the fact."""
+        fact = " ".join(str(fact or "").split())
+        if not str(who).strip():
+            raise EngineLearningError("a vouched fact needs the name of the person who vouches for it")
+        if not fact or len(fact) > lived.MAX_UNIT_CHARS:
+            raise EngineLearningError("write the fact in one to two thousand characters")
+        if question and not (answer and wrong):
+            raise EngineLearningError("a test needs the right answer and a wrong one")
+        fact_id = _sha(fact)[:12]
+        if any(r["id"] == fact_id for r in self._rows("facts.jsonl")):
+            raise EngineLearningError("this fact is already vouched for")
+        split = lived.probe_split(fact_id)
+        probe = {"id": fact_id, "question": str(question).strip(), "answer": str(answer).strip(),
+                 "wrong": str(wrong).strip(), "paraphrase": str(paraphrase).strip(),
+                 "false_premise": str(false_premise).strip(), "split": split}
+        unit = {"provenance": "verified", "text": fact, "episode": f"fact:{fact_id}", "fact_id": fact_id,
+                "who": str(who).strip()[:80], "time": _now()}
+        self._append("train.jsonl", [{**unit, "sha256": unit_sha(unit), "split": "train", "collected": _now(), "night": None}])
+        self._append("facts.jsonl", [{"id": fact_id, "fact": fact, "who": unit["who"], "time": unit["time"],
+                                      "tests": len(caps.tests_of(probe)), "tests_split": split}])
+        if probe["question"]:
+            if split == "test":
+                self._append("test.jsonl", [{**probe, "kind": "probe", "sha256": _sha(json.dumps(probe, sort_keys=True))}])
+            else:
+                self._append("probes.jsonl", [probe])
+        state = self._read("state.json", {})
+        self._count(state)
+        return self.record("taught", fact_id=fact_id, who=unit["who"], tests=len(caps.tests_of(probe)), tests_split=split)
+
+    def validation_tests(self) -> list[dict]:
+        return [test for probe in self._rows("probes.jsonl") for test in caps.tests_of(probe)]
+
+    def open_test(self, purpose: str, who: str = "", version: str | None = None) -> dict:
+        """The sealed test, for a final measure only. Every reading is written down, with its purpose."""
+        rows = self._rows("test.jsonl")
+        self._append("test_access.jsonl", [{"time": _now(), "purpose": str(purpose)[:200], "who": str(who)[:80] or None,
+                                            "adapter": version, "units": sum(1 for r in rows if r.get("kind") != "probe"),
+                                            "probes": sum(1 for r in rows if r.get("kind") == "probe")}])
+        units = [r for r in rows if r.get("kind") != "probe"]
+        tests = [t for r in rows if r.get("kind") == "probe" for t in caps.tests_of(r)]
+        return {"units": units, "tests": tests}
 
     # -- one night ---------------------------------------------------------------------------------
 
@@ -313,7 +383,8 @@ class EngineLearning:
         """Run one night of engine learning. Returns the ledger row of the decision.
 
         `store` is the ModelStore; `runtime_check(gguf_path, texts) -> dict` measures the converted
-        adapter through llama.cpp (see compare.runtime_losses). `workbench` lets tests pass a toy base."""
+        adapter through llama.cpp (see compare.runtime_losses). `workbench` lets tests pass a toy base.
+        A night reads the train and validation splits only, never the sealed test."""
         if not self._lock.acquire(blocking=False):
             raise EngineLearningError("a night of engine learning is already running")
         self._cancel.clear()
@@ -329,6 +400,14 @@ class EngineLearning:
                 self.progress = {"state": "idle"}
             self._lock.release()
 
+    @staticmethod
+    def training_item(unit: dict) -> dict:
+        """What a unit trains: the text itself; for an allowed reply, the reply with what was heard as context."""
+        if unit["provenance"] == "reply":
+            return {"messages": [{"role": "user", "content": unit.get("heard") or "", "scored": False},
+                                 {"role": "assistant", "content": unit["text"]}]}
+        return {"text": unit["text"]}
+
     def _night(self, model, store, runtime_check, workbench, force) -> dict:
         settings = self.settings
         if not settings.enabled and not force:
@@ -336,15 +415,21 @@ class EngineLearning:
         if not model.get("trainable"):
             raise EngineLearningError(f"{model['name']} has no trainable base in the catalogue")
         self.collect()
-        corpus, heldout = self._rows("corpus.jsonl"), self._rows("heldout.jsonl")
-        new_items = [r for r in corpus if r["night"] is None][:MAX_ITEMS_PER_NIGHT]
-        old_items = [r for r in corpus if r["night"] is not None]
-        new_held = [r for r in heldout if r["night"] is None]
-        old_held = [r for r in heldout if r["night"] is not None]
+        own = settings.learn_from_own_replies
+        train_rows = [r for r in self._split_rows("train") if lived.trainable(r, own_replies=own)]
+        new_items = [r for r in train_rows if r["night"] is None][:MAX_ITEMS_PER_NIGHT]
+        old_items = [r for r in train_rows if r["night"] is not None]
+        # Evaluation: what the person said and what the being read; never the being's own replies (unless they are
+        # trained on), and never a near duplicate of a training unit.
+        measured = [r for r in self._split_rows("validation") if lived.trainable(r, own_replies=own)]
+        clean, leaked = lived.without_leaks(measured, train_rows)
+        new_held = [r for r in clean if r["night"] is None]
+        old_held = [r for r in clean if r["night"] is not None]
+        tests = self.validation_tests()
         if len(new_items) < MIN_TRAIN or len(new_held) + len(old_held) < MIN_HELD_OUT:
             return self.record("skipped", reason="not_enough_lived",
                                new_items=len(new_items), held_out_items=len(new_held) + len(old_held),
-                               needs={"train": MIN_TRAIN, "held_out": MIN_HELD_OUT})
+                               leaked=len(leaked), needs={"train": MIN_TRAIN, "held_out": MIN_HELD_OUT})
         night_id = self._next_version()
         active = self.active(model["id"])
         started = time.monotonic()
@@ -359,15 +444,18 @@ class EngineLearning:
         from freewill.learning.lora import mean_nll
         base_hash_before = bench.base_hash()
 
-        # Replay: a share of earlier training items, chosen by their hashes (reproducible).
-        replay = sorted(old_items, key=lambda r: _sha(night_id + r["sha256"]))[:int(len(new_items) * REPLAY_SHARE)]
+        # Replay: every vouched fact, and a share of earlier training units chosen by their hashes (reproducible).
+        facts = [r for r in old_items if r["provenance"] == "verified"]
+        others = [r for r in old_items if r["provenance"] != "verified"]
+        replay = facts + sorted(others, key=lambda r: _sha(night_id + r["sha256"]))[:int(len(new_items) * REPLAY_SHARE)]
         rehearsal = []
         if settings.rehearsal:
             pool = sorted(rehearsal_items(), key=lambda r: _sha(night_id + r["text"]))
             rehearsal = pool[:max(1, int(len(new_items) * REHEARSAL_SHARE))]
-        train_seq = bench.tokens(new_items + replay + rehearsal, settings.max_len)
-        eval_new = bench.tokens(new_held if new_held else old_held, settings.max_len)
-        eval_old = bench.tokens(old_held, settings.max_len) if new_held else []
+        training_items = [self.training_item(r) for r in new_items + replay] + rehearsal
+        train_seq = bench.tokens(training_items, settings.max_len)
+        eval_new = bench.tokens([self.training_item(r) for r in (new_held if new_held else old_held)], settings.max_len)
+        eval_old = bench.tokens([self.training_item(r) for r in old_held], settings.max_len) if new_held else []
         reference = reference_items()
         eval_ref = bench.tokens(reference, settings.max_len)
 
@@ -380,22 +468,41 @@ class EngineLearning:
         else:
             bench.fresh("candidate", settings.rank, seed=settings.seed)
 
-        def measure(name):
-            return {"life_new": mean_nll(bench.losses(name, eval_new)),
-                    "life_old": mean_nll(bench.losses(name, eval_old)) if eval_old else None,
-                    "reference": mean_nll(bench.losses(name, eval_ref))}
+        def measure(name, with_tests=True):
+            scores = {"life_new": mean_nll(bench.losses(name, eval_new)),
+                      "life_old": mean_nll(bench.losses(name, eval_old)) if eval_old else None,
+                      "reference": mean_nll(bench.losses(name, eval_ref))}
+            rows = caps.measure(bench, name, tests, max_len=settings.max_len) if (tests and with_tests) else []
+            return scores, rows
 
         self.progress.update(step="measure_before")
-        base_scores = measure(None)
-        active_scores = measure("active") if active else dict(base_scores)
+        base_scores, base_rows = measure(None)
+        active_scores, active_rows = measure("active") if active else (dict(base_scores), base_rows)
 
         self.progress.update(step="train")
         training = bench.train("candidate", train_seq, steps=settings.steps, lr=settings.lr, seed=settings.seed,
                                cancel=self._cancel)
         self.progress.update(step="measure_after")
-        candidate_scores = measure("candidate")
-        candidates = {"candidate": {"scores": candidate_scores, "training": training,
+        candidate_scores, candidate_rows = measure("candidate")
+        candidates = {"candidate": {"scores": candidate_scores, "training": training, "tests": candidate_rows,
                                     "rank": bench.ranks["candidate"]["rank"], "parameters": bench.parameters("candidate")}}
+
+        # The control of the night: the same start, the same steps, the same words in a random order.
+        control = None
+        if settings.control_each_night:
+            self.progress.update(step="train_control")
+            bench.delete("control")
+            if active:
+                bench.copy("active", "control")
+            else:
+                bench.fresh("control", settings.rank, seed=settings.seed)
+            shuffled = [{"text": shuffled_words(lived_text(item), night_id + str(i))} for i, item in enumerate(training_items)]
+            control_training = bench.train("control", bench.tokens(shuffled, settings.max_len), steps=settings.steps,
+                                           lr=settings.lr, seed=settings.seed, cancel=self._cancel)
+            control_scores, _ = measure("control", with_tests=False)
+            control = {"scores": control_scores, "training": control_training,
+                       "gain": round(active_scores["life_new"] - control_scores["life_new"], 6)}
+            bench.delete("control")
 
         # Structural growth under budget: the same night, with a larger rank, compared with the one above.
         growth = None
@@ -413,8 +520,9 @@ class EngineLearning:
                     self.progress.update(step="train_grown")
                     grown_training = bench.train("grown", train_seq, steps=settings.steps, lr=settings.lr,
                                                  seed=settings.seed, cancel=self._cancel)
-                    candidates["grown"] = {"scores": measure("grown"), "training": grown_training, "rank": grown_rank,
-                                           "parameters": bench.parameters("grown")}
+                    grown_scores, grown_rows = measure("grown")
+                    candidates["grown"] = {"scores": grown_scores, "training": grown_training, "tests": grown_rows,
+                                           "rank": grown_rank, "parameters": bench.parameters("grown")}
                 else:
                     growth = {"considered": True, "decision": "over_budget", "rank": grown_rank,
                               "parameters": bench.parameters("grown"), "budget": settings.max_adapter_parameters}
@@ -422,8 +530,8 @@ class EngineLearning:
             else:
                 growth = {"considered": True, "decision": "at_max_rank", "rank": current_rank}
 
-        def verdict(scores):
-            reasons = []
+        def verdict(entry):
+            scores, reasons = entry["scores"], []
             gain = round(active_scores["life_new"] - scores["life_new"], 6)
             forgetting = round(scores["reference"] - base_scores["reference"], 6)
             life_forgetting = None
@@ -431,15 +539,22 @@ class EngineLearning:
                 life_forgetting = round(scores["life_old"] - active_scores["life_old"], 6)
             if gain < MIN_GAIN:
                 reasons.append("no_gain_on_held_out")
+            if control is not None and gain - control["gain"] < MIN_GAIN:
+                reasons.append("no_better_than_control")
             if forgetting > MAX_FORGETTING:
                 reasons.append("forgets_reference")
             if life_forgetting is not None and life_forgetting > MAX_LIFE_FORGETTING:
                 reasons.append("forgets_earlier_nights")
-            return {"gain": gain, "forgetting_reference": forgetting, "forgetting_life": life_forgetting,
+            stable = caps.stability(active_rows, entry["tests"]) if tests else None
+            if stable is not None and stable["net"] < 0:
+                reasons.append("loses_capabilities")
+            return {"gain": gain, "gain_over_control": round(gain - control["gain"], 6) if control else None,
+                    "forgetting_reference": forgetting, "forgetting_life": life_forgetting,
+                    "capabilities": caps.summary(entry["tests"]) if tests else None, "stability": stable,
                     "passes": not reasons, "reasons": reasons}
 
         for name, entry in candidates.items():
-            entry["verdict"] = verdict(entry["scores"])
+            entry["verdict"] = verdict(entry)
         chosen = "candidate" if candidates["candidate"]["verdict"]["passes"] else None
         if "grown" in candidates:
             grown, same = candidates["grown"], candidates["candidate"]
@@ -449,7 +564,7 @@ class EngineLearning:
                       "parameters_before": same["parameters"], "parameters_after": grown["parameters"],
                       "gain_same_size": same["verdict"]["gain"], "gain_grown": grown["verdict"]["gain"],
                       "margin_needed": GROWTH_MARGIN, "decision": "accepted" if wins else "rejected",
-                      "note": "a larger adapter is kept only if it beats the same night without growth on held-out data"}
+                      "note": "a larger adapter is kept only if it beats the same night without growth on validation data"}
             if wins:
                 chosen = "grown"
 
@@ -459,15 +574,25 @@ class EngineLearning:
         consumed = {r["sha256"] for r in new_items} | {r["sha256"] for r in new_held}
         self._mark_night(consumed, night_id)
 
+        capabilities = None
+        if tests:
+            capabilities = {"tests": len(tests), "base": caps.summary(base_rows), "active": caps.summary(active_rows),
+                            "chosen_rows": candidates[chosen]["tests"] if chosen else active_rows}
+        for entry in candidates.values():
+            entry.pop("tests", None)
         summary = {"night": night_id, "base_model_id": model["id"], "base_parameters": bench.base_parameters,
                    "base_weights_sha256": base_hash_before, "base_weights_unchanged": True,
                    "parent": active["version"] if active else None, "device": bench.device, "dtype": bench.dtype,
                    "train_items_new": len(new_items), "train_items_replayed": len(replay),
                    "train_items_rehearsal": len(rehearsal),
-                   "held_out_new": len(new_held), "held_out_earlier": len(old_held),
+                   "train_by_provenance": {p: sum(1 for r in new_items + replay if r["provenance"] == p) for p in lived.PROVENANCES},
+                   "held_out_new": len(new_held), "held_out_earlier": len(old_held), "held_out_leaked": len(leaked),
+                   "sets_read": ["train", "validation", "reference"], "sealed_test_read": False,
                    "reference_items": len(reference), "scores_base": base_scores, "scores_active": active_scores,
+                   "control": control, "capabilities": capabilities,
                    "candidates": candidates, "growth": growth, "settings": asdict(settings),
                    "train_sha256": sorted(r["sha256"] for r in new_items), "replay_sha256": sorted(r["sha256"] for r in replay),
+                   "validation_sha256": sorted(r["sha256"] for r in new_held + old_held),
                    "seconds": None}
         if chosen is None:
             for name in candidates:
@@ -490,7 +615,7 @@ class EngineLearning:
         runtime = None
         if runtime_check is not None and settings.verify_with_runtime:
             self.progress.update(step="runtime_check")
-            texts = [bench.render(r) for r in new_held + old_held]
+            texts = [bench.render(self.training_item(r)) for r in new_held + old_held]
             runtime = runtime_check(partial / "adapter.gguf", texts)
         manifest = {"version": night_id, "base_model_id": model["id"], "base_model_name": model["name"],
                     "base_parameters": bench.base_parameters, "base_weights_sha256": base_hash_before,
@@ -500,9 +625,9 @@ class EngineLearning:
                     "safetensors_sha256": sha256_file(partial / "adapter_model.safetensors"),
                     "gguf_sha256": gguf["sha256"], "gguf_tensors": gguf["tensors"], "architecture": architecture,
                     "scores": candidates[chosen]["scores"], "verdict": candidates[chosen]["verdict"],
-                    "scores_base": base_scores, "scores_parent": active_scores, "runtime_check": runtime,
-                    "delta_total_frobenius": delta["total_frobenius"], "grown": chosen == "grown",
-                    "created": _now(), "rules": RULES_VERSION}
+                    "scores_base": base_scores, "scores_parent": active_scores, "control": control,
+                    "runtime_check": runtime, "delta_total_frobenius": delta["total_frobenius"],
+                    "grown": chosen == "grown", "trained_until": _now(), "created": _now(), "rules": RULES_VERSION}
         (partial / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
         partial.replace(folder)
         if runtime is not None and (runtime.get("ran") is False or runtime.get("adapter_loaded") is False):
@@ -525,7 +650,8 @@ class EngineLearning:
                            delta_total_frobenius=delta["total_frobenius"], runtime_check=runtime, **summary)
 
     def _mark_night(self, consumed: set[str], night_id: str) -> None:
-        for name in ("corpus.jsonl", "heldout.jsonl"):
+        for split in ("train", "validation"):
+            name = SPLIT_FILES[split]
             rows = self._rows(name)
             for row in rows:
                 if row["sha256"] in consumed and row["night"] is None:
@@ -535,5 +661,10 @@ class EngineLearning:
             partial.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows), encoding="utf-8")
             partial.replace(path)
         state = self._read("state.json", {})
-        state["pending_items"] = sum(1 for r in self._rows("corpus.jsonl") if r["night"] is None)
-        self._write("state.json", state)
+        self._count(state)
+
+
+def lived_text(item: dict) -> str:
+    if item.get("messages"):
+        return " ".join(m["content"] for m in item["messages"])
+    return str(item.get("text") or "")

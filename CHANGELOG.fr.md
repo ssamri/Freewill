@@ -8,6 +8,10 @@
 
 - Freewill 1.8B-V, le modèle propre au projet (`freewill/vlm/`) : Qwen3 1.7B, l'œil SigLIP2 et un pont entraîné par Freewill ; 1 823 955 200 paramètres à la naissance, croissance par neurones et par couches entières jusqu'à un plafond choisi dans les Réglages (2, 5, 13, 50 milliards ou toute autre taille), chaque taille étant présentée avec le disque, la mémoire, la carte graphique, le texte et la durée d'entraînement qu'elle demande. Étapes lire (livres du domaine public), voir (images dessinées, avec un contrôle) et regarder (vidéos dessinées, avec deux contrôles), chacune gardée seulement selon des règles écrites. Moteur de type `own`, commande `freewill own-model`, workflow `own model end to end`. Voir [`docs/own-model.fr.md`](docs/own-model.fr.md).
 
+**Modifié**
+
+- Le corpus du moteur suit les règles `h4-engine-2.0` (audit technique du 12 novembre 2026, R-01 à R-03). Chaque unité dit d'où elle vient : entendue, lue, garantie par une personne, ou réponse de l'être. Les réponses de l'être ne sont plus entraînées sauf si la personne l'autorise. Les unités sont séparées par épisode en entraînement, validation et un test scellé qu'aucune nuit n'utilise ; chaque ouverture du test scellé est journalisée dans `test_access.jsonl`. Les quasi-doublons du texte d'entraînement sont mis à part avant toute mesure. Une personne peut garantir un fait dans le laboratoire et dire comment le tester ; les tests de capacités (rappel, reformulation, contradiction) sont des choix forcés, et une nuit qui en perd plus qu'elle n'en gagne est refusée. Un témoin entraîné sur les mots mélangés tourne chaque nuit, et un candidat doit le battre. La comparaison finale mesure la base, la mémoire seule, l'adaptateur seul, l'adaptateur avec mémoire et le témoin sur le test scellé. Les vies des règles 1.x sont migrées, leurs anciens éléments mis de côté devenant de la validation. Voir [`docs/engine-learning.fr.md`](docs/engine-learning.fr.md).
+
 ## 1.1.1
 
 **Corrigé**
