@@ -65,8 +65,9 @@ def make_guard(root: Path, dtype: str = "float32"):
     return guard
 
 
-def load(root: Path | None = None, dtype: str = "float32"):
-    """The model as it is now: the bases, then the checkpoint in use (growth, adapters, trained weights)."""
+def load(root: Path | None = None, dtype: str = "float32", checkpoint: Path | None = None):
+    """The model as it is now: the bases, then the checkpoint in use (growth, adapters, trained weights).
+    `checkpoint` replaces the shared one: a life's own nights (freewill/vlm/nights.py)."""
     from freewill.vlm.model import build
     from freewill.vlm.train import current, restore
     root = Path(root or home())
@@ -76,6 +77,6 @@ def load(root: Path | None = None, dtype: str = "float32"):
     model = build(root / "bases", dtype=dtype)
     model.spec["ceiling_parameters"] = capacity.load_settings(root)["max_parameters"]  # the person's choice
     model.guard = make_guard(root, dtype)
-    folder = current(root)
+    folder = checkpoint or current(root)
     manifest = restore(model, folder) if folder else None
     return model, manifest

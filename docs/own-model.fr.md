@@ -55,19 +55,35 @@ Ces chiffres sont des estimations, pas des mesures. Ils viennent de formules éc
 | 13 milliards | 135 Go | 8,7 / 31,2 Go | 210 Go | 224 milliards (~1 862 675 livres) | 9 × 24 Go : 345 jours · 3 × H100 : 168 jours |
 | 50 milliards | 505 Go | 33,6 / 120 Go | 891 Go | 964 milliards (~8 029 341 livres) | 38 × 24 Go : 3,7 ans · 12 × H100 : 1,9 an |
 
+**Avant toute croissance, une garde.** Le plafond est un choix ; la garde vérifie ce que cet ordinateur peut contenir maintenant. Avant d'ajouter des paramètres, elle lit la mémoire disponible à cet instant (pas la mémoire installée), le disque libre là où vit le modèle, et la mémoire libre de chaque carte graphique. Elle estime ce que la croissance demande : les nouveaux poids, les activations, le gradient et l'état de l'optimiseur pour les entraîner, et deux points de reprise sur le disque, avec une marge de 15 %. Si cela ne tient pas, la croissance est refusée avant que rien ne change. Le refus dit ce qu'il fallait, ce qui était libre, le plus grand pas qui tiendrait, et les solutions de rechange : un pas plus petit, des adaptateurs au lieu de la croissance, la quantification pour le faire tourner, ou attendre une machine plus grande. Pendant l'entraînement, une croissance refusée est inscrite au registre, et l'exécution continue à la taille que le modèle a déjà.
+
+**Configuré, disponible, prouvé.** La carte des réglages sépare trois choses, chacune lue à sa propre source :
+
+- **Configuré** : ce qui est écrit dans les réglages, un choix et non une capacité.
+- **Disponible sur cet ordinateur** : si PyTorch, Transformers et les deux bases sont installés, et si grandir jusqu'au plafond passerait la garde en ce moment.
+- **Prouvé** : pour lire, voir et regarder, si un entraînement a gardé l'étape sur la validation, et si le test scellé la confirme. Confirmer veut dire : mieux qu'à la naissance, mieux que chaque contrôle, et moins d'une chance sur 100 d'y arriver par hasard. Apprendre pendant les nuits d'une vie est présenté à part, et reste « pas encore démontré » tant qu'une exécution de bout en bout ne l'a pas montré.
+
 **Ce que cela veut dire.** On peut faire grandir le modèle autant que la personne le veut : la croissance est mécanique et vérifiée. Mais les nouveaux paramètres ne valent quelque chose qu'une fois entraînés sur assez de texte. Au-delà d'environ 2 milliards, les livres seuls sont loin de suffire (le Projet Gutenberg en compte environ 75 000), et il faudrait d'autres corpus ouverts. Élargir les blocs à propagation avant et ajouter de la profondeur, alors que la largeur propre du modèle (2 048) reste fixe, est aussi moins efficace qu'un modèle conçu d'emblée à cette taille.
 
 ## 3. Comment il est entraîné
 
 L'entraînement compte trois étapes. Chacune est une décision distincte, inscrite dans un registre où l'on ne fait qu'ajouter (`ledger.jsonl`), avec ce qui a été mesuré avant et après.
 
-| Étape | Ce qui est entraîné | Mesuré sur (jamais vu à l'entraînement) | Gardée seulement si |
+| Étape | Ce qui est entraîné | Décidée sur le jeu de validation (jamais vu à l'entraînement) | Gardée seulement si |
 |---|---|---|---|
-| **lire** | adaptateurs + couches ajoutées | 1 passage sur 10 des livres, choisi par empreinte | les passages mis de côté sont mieux prédits, d'au moins 0,01 nat par jeton |
-| **voir** | le pont | 1 image dessinée sur 4 : couleur (6 choix) et forme (4) | la justesse monte d'au moins 5 points **et** dépasse d'au moins 5 points les mêmes questions posées sur l'image d'un autre exemple |
-| **regarder** | pont + adaptateurs | 1 vidéo dessinée sur 4 : sens du mouvement (4 choix) | la justesse monte d'au moins 5 points **et** dépasse le contrôle aux images inversées comme le contrôle à une seule image ; la vue perd au plus 5 points ; la lecture se dégrade d'au plus 0,05 nat par jeton |
+| **lire** | adaptateurs + couches ajoutées | 24 passages des blocs de validation des livres | les passages de validation sont mieux prédits, d'au moins 0,01 nat par jeton |
+| **voir** | le pont | 50 images dessinées : couleur (6 choix) et forme (4) | la justesse monte d'au moins 5 points **et** dépasse d'au moins 5 points les mêmes questions posées sur l'image d'un autre exemple |
+| **regarder** | pont + adaptateurs | 30 vidéos dessinées : sens du mouvement (4 choix) | la justesse monte d'au moins 5 points **et** dépasse le contrôle aux images inversées comme le contrôle à une seule image ; la vue perd au plus 5 points ; la lecture se dégrade d'au plus 0,05 nat par jeton |
 
 Quand une étape est refusée, les poids d'avant l'étape sont restaurés.
+
+**Trois jeux séparés.** Les données sont partagées en trois, et ce partage est fait par construction, pas par tirage au moment de l'exécution :
+
+- **Entraînement** : ce dont le modèle apprend.
+- **Validation** : ce que lit chaque règle ci-dessus pour garder ou refuser une étape.
+- **Test scellé** : mesuré une fois à la naissance et une fois à la fin, inscrit dans le résumé et le registre, et lu par aucune règle. C'est lui que rapportent les résultats.
+
+Les images et vidéos dessinées de chaque jeu viennent de leur propre espace de graines (`image-train-N`, `image-validation-N`, `image-test-N`) : un exemple ne peut jamais appartenir à deux jeux. Les livres sont découpés en blocs de 20 passages consécutifs, et chaque bloc est attribué par l'empreinte du livre et du numéro de bloc : 1 sur 10 au test, 1 sur 10 à la validation, le reste à l'entraînement. Les passages voisins, qui partagent des noms et des phrases, restent ensemble. À la première exécution, le jeu de test est fixé par une empreinte SHA-256 dans `sealed_test.json` ; une exécution ultérieure dont le jeu de test diffère est refusée, pour que le test ne puisse pas être changé après avoir vu des résultats. Pour chaque résultat à choix multiples du test scellé, le résumé donne la probabilité de l'atteindre par le seul hasard.
 
 - **Livres.** Ce sont des œuvres du domaine public issues du Projet Gutenberg, en anglais et en français (voir la liste dans [`books.py`](../freewill/vlm/books.py)). La mention de licence est retirée, et la langue inscrite dans l'en-tête de chaque livre est vérifiée : un livre qui ne correspond pas est écarté, et l'exécution le signale. La personne peut aussi donner ses propres fichiers texte, PDF, EPUB ou DOCX.
 - **Images et vidéos dessinées.** Elles servent parce que leurs réponses sont connues exactement et que chaque exemple se reproduit à partir de sa graine. Réussir ces tests montre que la couleur, la forme et le mouvement parviennent au modèle de langue par l'œil et le pont. Cela ne montre pas que le modèle comprend le monde.
@@ -86,7 +102,8 @@ python -m freewill own-model train --gutenberg --books mon-livre.pdf
 
 - **Moteur.** Comme moteur de pensée d'un être, choisissez le type `own` (`freewill/engines/own_model.py`). Il tourne dans le processus avec PyTorch, demande environ 8 Go de mémoire en float32 (4 Go en bfloat16) et peut recevoir des images.
 - **Vitesse.** Sur processeur seul, un pas d'entraînement sur quatre images prend environ 10 secondes. Ce chiffre a été mesuré ici sur 4 cœurs, avec l'architecture à taille réelle et des poids aléatoires. Une carte graphique accélère beaucoup.
-- **Ce qu'il ne fait pas encore.** Il n'est pas encore entraîné par les nuits d'une vie (`can_learn = False`), et llama.cpp ne le fait pas tourner, il n'a donc pas de fichier GGUF.
+- **Les nuits d'une vie.** Quand un être pense avec ce modèle et que la personne active l'apprentissage du moteur pour cette vie (son nom vaut accord), chaque nuit entraîne les adaptateurs du modèle sur ce que l'être a entendu et répondu ([`nights.py`](../freewill/vlm/nights.py)). Elle reprend le corpus et les règles des nuits du modèle local ([engine-learning.fr.md](engine-learning.fr.md)) : un élément sur quatre est mis de côté pour toujours, d'anciens éléments et des passages ordinaires sont rejoués, et la nuit n'est gardée que si les éléments mis de côté de cette vie sont mieux prédits d'au moins 0,01 nat par jeton, tandis que les textes de référence et les nuits précédentes se dégradent d'au plus 0,05. Une nuit gardée est enregistrée dans le dossier de la vie (`engine/own/checkpoints/`), et le moteur de cette vie la charge la fois suivante. L'être attend entre deux moments pendant que la nuit s'entraîne. `python -m freewill own-model night --life <dossier>` lance une nuit à la main.
+- **Ce qu'il n'affirme pas encore.** Le moteur indique toujours `can_learn = False` : l'interface ne le présente donc pas comme un modèle qui apprend. Elle ne le fera qu'une fois qu'une exécution de bout en bout avec les vraies bases aura gardé une nuit (dernière étape du workflow). llama.cpp ne le fait pas tourner, il n'a donc pas de fichier GGUF.
 
 ## 5. L'entraîner de zéro : ce qu'il faudrait
 
@@ -100,4 +117,4 @@ C'est pourquoi la voie choisie part de bases ouvertes déjà pré-entraînées.
 
 ## 6. Résultats
 
-En attente : le workflow `own model end to end` de la pull request 13 est en cours. Seuls les chiffres de ses journaux seront inscrits ici.
+En attente. Seuls les chiffres des journaux du workflow `own model end to end` seront inscrits ici. L'essai lancé sur la pull request 13 est antérieur au test scellé : ses chiffres sont des chiffres de validation, sur les exemples mêmes qui ont décidé chaque étape, et seront présentés comme tels. Les résultats sur lesquels s'appuyer sont ceux d'un essai avec le test scellé, qui se termine aussi par une nuit d'une vie.

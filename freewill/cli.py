@@ -266,6 +266,21 @@ def cmd_own_model(args: argparse.Namespace) -> int:
     if args.action == "fetch":
         store.fetch_bases(root)
         return 0
+    if args.action == "night":
+        from freewill.learning.engine import EngineLearningError
+        from freewill.vlm import nights
+        if not args.life:
+            print("night: give the life's folder with --life")
+            return 2
+        life = Path(args.life)
+        model, _ = store.load(root, args.dtype, checkpoint=nights.current(life))
+        try:
+            row = nights.night(model, life)
+        except EngineLearningError as error:
+            print(error)
+            return 2
+        print(json.dumps({k: row.get(k) for k in ("kind", "decision", "reason", "before", "after", "checkpoint")}, indent=1))
+        return 0
     model, manifest = store.load(root, args.dtype)
     if args.action == "count":
         print(json.dumps({"checkpoint": manifest["version"] if manifest else None, **model.count()}, indent=1))
@@ -326,8 +341,9 @@ def main(argv: list[str] | None = None) -> int:
     affect.add_argument("--json", action="store_true")
     affect.set_defaults(run=cmd_affect)
 
-    own = commands.add_parser("own-model", help="Freewill's own model (1.8B-V): fetch, count, train")
-    own.add_argument("action", choices=("fetch", "count", "settings", "requirements", "train"))
+    own = commands.add_parser("own-model", help="Freewill's own model (1.8B-V): fetch, count, train, night")
+    own.add_argument("action", choices=("fetch", "count", "settings", "requirements", "train", "night"))
+    own.add_argument("--life", help="night: the folder of the life whose day is learned (engine learning must be on for it)")
     own.add_argument("--max-parameters", help="settings: the ceiling the model may grow to, e.g. 2e9, 5e9, 50e9")
     own.add_argument("--who", help="settings: your name, kept beside the ceiling")
     own.add_argument("--target", help="requirements: the size to estimate (default: the ceiling)")

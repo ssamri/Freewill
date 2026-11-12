@@ -279,3 +279,34 @@ def test_status_keeps_configured_available_and_proven_apart(tmp_path):
     summary["test_at_end"]["images_other_image"] = acc(0.78)   # the control does as well: not seeing
     (root / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
     assert capacity.status(root)["proven"]["skills"]["see"]["confirmed"] is False
+
+
+def _lived(life, days=40):
+    life.mkdir(parents=True, exist_ok=True)
+    with open(life / "events.log", "a", encoding="utf-8") as f:
+        for i in range(days):
+            f.write(json.dumps({"type": "stage", "source": "message", "text": f"Where does the fox sleep on day {i}?"}) + "\n")
+            f.write(json.dumps({"type": "speech", "spontaneous": False, "text": f"On day {i} the fox sleeps under the lemon tree."}) + "\n")
+
+
+@needs_torch
+def test_a_night_of_a_life_trains_the_own_model_and_is_kept_by_its_rule(tmp_path):
+    from freewill.engines.own_model import OwnModelEngine
+    from freewill.learning.engine import EngineLearning, EngineLearningError
+    from freewill.vlm import nights
+    from freewill.vlm.model import tiny
+    life = tmp_path / "life"
+    _lived(life)
+    m = tiny()
+    with pytest.raises(EngineLearningError):        # off until a person turns it on
+        nights.night(m, life, log=lambda *a: None)
+    EngineLearning(life).configure({"enabled": True, "steps": 60, "lr": 3e-3}, who="test")
+    row = nights.night(m, life, log=lambda *a: None)
+    assert row["kind"] == "own_night" and row["decision"] == "accepted", row["reason"]
+    assert row["after"]["life_new"] < row["before"]["life_new"] - 0.01
+    assert nights.current(life).name == row["checkpoint"]
+    again = nights.night(m, life, log=lambda *a: None)
+    assert again["kind"] == "skipped"                  # nothing new was lived
+    assert OwnModelEngine.can_learn is False           # not claimed before an end-to-end run with the real bases
+    rows = [json.loads(l) for l in (nights.folder(life) / "ledger.jsonl").read_text().splitlines()]
+    assert rows[-1]["stage"] == "night" and rows[-1]["decision"] == "kept"

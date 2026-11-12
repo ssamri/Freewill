@@ -1,5 +1,6 @@
 """Freewill's own model, end to end, with the real bases: fetch, assemble, count, grow, read books,
-learn to see, learn to watch, save, rebuild from the checkpoint, and answer about unseen images and videos.
+learn to see, learn to watch, save, rebuild from the checkpoint, answer about unseen images and videos,
+and spend one night of a life learning what it lived.
 
     python tools/own_model_e2e.py OUT --data DATA [--read-steps N] [--see-steps N] [--watch-steps N]
     python tools/own_model_e2e.py OUT --tiny        # the same course on the toy model, in a minute
@@ -101,9 +102,28 @@ def main() -> int:
                 raise AssertionError(f"rebuilt model scores {b['truth_nats']}, trained one {a['truth_nats']}")
             return {"version": manifest["version"], "parameters": again.count(), "same_scores": same}
         step("rebuild from the checkpoint", rebuilt)
+        step("a night of a life", lambda: _night(model, out / "life", args.tiny))
     except Exception:
         return 1
     return 0
+
+
+def _night(model, life: Path, toy: bool) -> dict:
+    """A life that was asked forty times where the fox sleeps, then one night with the settings a person
+    would get by default (the toy model needs a larger step). Held-out items are never trained on."""
+    from freewill.learning.engine import EngineLearning
+    from freewill.vlm import nights
+    life.mkdir(parents=True, exist_ok=True)
+    with open(life / "events.log", "w", encoding="utf-8") as f:
+        for i in range(40):
+            f.write(json.dumps({"type": "stage", "source": "message", "text": f"Where does the fox sleep on day {i}?"}) + "\n")
+            f.write(json.dumps({"type": "speech", "spontaneous": False,
+                                "text": f"On day {i} the fox sleeps under the lemon tree."}) + "\n")
+    EngineLearning(life).configure({"enabled": True, **({"steps": 60, "lr": 3e-3} if toy else {})}, who="end-to-end run")
+    row = nights.night(model, life, log=lambda *a: print(*a, flush=True))
+    return {k: row.get(k) for k in ("kind", "decision", "reason", "before", "after", "checkpoint", "train_items_new",
+                                    "train_items_replayed", "train_items_rehearsal", "held_out_new", "reference_items",
+                                    "seconds")} | {"steps": row.get("training", {}).get("steps"), "lr": row.get("training", {}).get("lr")}
 
 
 def _books(cache: Path) -> dict:

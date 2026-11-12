@@ -143,9 +143,10 @@ python -m freewill own-model fetch                          # ses deux bases ouv
 python -m freewill own-model settings --max-parameters 5e9   # jusqu'où il peut grandir : à vous de choisir
 python -m freewill own-model requirements                    # ce que cette taille demande à un ordinateur
 python -m freewill own-model train --gutenberg --books mon-livre.pdf
+python -m freewill own-model night --life <dossier de la vie>  # une nuit : ce que cette vie a vécu (apprentissage du moteur activé)
 ```
 
-Le même plafond se règle dans l'application : **Réglages**, carte « Le modèle propre à Freewill : jusqu'où il peut grandir ». Pour chaque taille, la carte montre ce qu'elle demande (disque, mémoire, carte graphique, texte, durée d'entraînement) à côté de ce que possède votre ordinateur. Pour penser avec ce modèle, choisissez le moteur de type `own`. Sur processeur, il est lent, et chacune de ses étapes n'est gardée que si les mesures sur des données mises de côté le justifient. Détails et limites : [`docs/own-model.fr.md`](docs/own-model.fr.md).
+Le même plafond se règle dans l'application : **Réglages**, carte « Le modèle propre à Freewill : jusqu'où il peut grandir ». Pour chaque taille, la carte montre ce qu'elle demande (disque, mémoire, carte graphique, texte, durée d'entraînement) à côté de ce que possède votre ordinateur. Pour penser avec ce modèle, choisissez le moteur de type `own`. Sur processeur, il est lent, et chacune de ses étapes n'est gardée que si les mesures de validation le justifient, et ses résultats sont rapportés sur un test scellé qu'aucune règle ne lit. Une croissance que cet ordinateur ne peut pas contenir en ce moment est refusée avant que rien ne change. Détails et limites : [`docs/own-model.fr.md`](docs/own-model.fr.md).
 
 ## Tests
 

@@ -144,9 +144,10 @@ python -m freewill own-model fetch                          # its two open bases
 python -m freewill own-model settings --max-parameters 5e9   # how large it may grow: your choice
 python -m freewill own-model requirements                    # what that size asks of a computer
 python -m freewill own-model train --gutenberg --books my-book.pdf
+python -m freewill own-model night --life <life folder>        # one night: what that life lived (engine learning on)
 ```
 
-The same ceiling, with what each size needs (disk, memory, graphics card, text, training time) beside what your computer has, is in the application: **Settings**, card "Freewill's own model: how large it may grow". To think with it, choose the engine kind `own`. On a processor it is slow, and its stages are kept only if held-out measurements say so. Details and limits: [`docs/own-model.md`](docs/own-model.md).
+The same ceiling, with what each size needs (disk, memory, graphics card, text, training time) beside what your computer has, is in the application: **Settings**, card "Freewill's own model: how large it may grow". To think with it, choose the engine kind `own`. On a processor it is slow, and its stages are kept only if validation measurements say so, and its results are reported on a sealed test that no rule reads. A growth this computer cannot hold right now is refused before anything changes. Details and limits: [`docs/own-model.md`](docs/own-model.md).
 
 ## Tests
 

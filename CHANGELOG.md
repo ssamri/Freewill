@@ -7,6 +7,11 @@
 **Added**
 
 - Freewill 1.8B-V, the project's own model (`freewill/vlm/`): Qwen3 1.7B, the SigLIP2 eye and a bridge trained by Freewill; 1,823,955,200 parameters at birth, growth by neurons and whole layers up to a ceiling the person chooses in Settings (2, 5, 13, 50 billion or any size), each size shown with the disk, memory, graphics card, text and training time it needs. Stages read (public-domain books), see (drawn images, with a control) and watch (drawn videos, with two controls), each kept only by written rules. Engine kind `own`, command `freewill own-model`, workflow `own model end to end`. See [`docs/own-model.md`](docs/own-model.md).
+- Freewill 1.8B-V, after the technical audit of 12 November 2026:
+  - **Sealed test.** Stages are decided on a validation set; results are reported on a separate sealed test, apart by construction (its own seeds, its own blocks of the books), fixed by a hash at the first run, measured at birth and at the end, and read by no rule.
+  - **Hardware guard.** Every growth first checks the memory and disk free at that moment and is refused, with alternatives, if they cannot hold it.
+  - **Configured, available, proven.** The settings card shows these three apart.
+  - **A life's nights.** They can train the model's adapters, under the rules of the local model's nights; `can_learn` stays false until the real run keeps a night.
 
 ## 1.1.1
 
