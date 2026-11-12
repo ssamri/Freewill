@@ -2,6 +2,12 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## Unreleased
+
+**Fixed**
+
+- A being's thoughts no longer appear in the conversation. Measured on Windows before the fix (workflow `embedded engine end to end`, run 43245589906): with nobody speaking, Qwen3 1.7B wrote words in the conversation at 6 moments out of 6, in English and in French, each a summary of its own thought addressed to no one ("I would like to explore the nature of consciousness..."); SmolVLM2 2.2B did so once out of 6. A model that reasons may also write its reasoning (between `<think>` tags) into its answer. For every engine, `freewill/core/speech.py` now keeps the two apart: reasoning is set aside from what is said; when nobody spoke, only words addressed to the person (saying "you" or calling them by name) reach the conversation, and words that repeat the thought, the subconscious content or what the being already said since the person last spoke stay inside. Nothing is lost: they join the thought and appear in the Subconscious view, marked "thought, not said". A spontaneous word addressed to the person still reaches the conversation. The engine is also told plainly that its thoughts are not heard, and the passing thought is no longer shown at the top of the Conversation screen. After the fix (run 43251885109): 0 moments out of 6 for Qwen3 1.7B in English and in French, and for SmolVLM2 2.2B in French; Qwen3 still answers the person.
+
 ## 1.2.0
 
 This version follows the technical and scientific audit of 12 November 2026 (recommendations R-06 to R-10; R-01 to R-05 are handled separately). Nothing in it claims that a system is conscious or feels anything.

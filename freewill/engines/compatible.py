@@ -130,7 +130,13 @@ class CompatibleEngine:
 
 
 def parse_json_object(text: str) -> dict:
-    """Parse the first JSON object in `text`, tolerating prose or code fences around it."""
+    """Parse the first JSON object in `text`, tolerating prose or code fences around it.
+
+    A reasoning model (Qwen3, DeepSeek-R1 and others served by Ollama, for instance) may write
+    its reasoning before the answer, between <think> tags; that reasoning is not part of the answer
+    and is set aside before the object is looked for."""
+    from freewill.core.speech import strip_reasoning
+    text, _reasoning = strip_reasoning(text)
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
