@@ -16,6 +16,7 @@
 **Changed**
 
 - The engine's corpus follows rules `h4-engine-2.0` (technical audit of 12 November 2026, R-01 to R-03). Every unit says where it comes from: heard, read, vouched for by a person, or the being's own reply. The being's replies are no longer trained on unless the person allows it. Units are split by episode into train, validation and a sealed test that no night uses; every opening of the sealed test is logged in `test_access.jsonl`. Near duplicates of training text are set aside before any measure. A person can vouch for a fact in the Research Lab and say how to test it; capability tests (recall, paraphrase, contradiction) are forced choices, and a night that loses more of them than it gains is refused. A control trained on shuffled words runs each night, and a candidate must beat it. The final comparison measures base, memory only, adapter only, adapter with memory and the control on the sealed test. Lives of rules 1.x are migrated, their former held-out items becoming validation. See [`docs/engine-learning.md`](docs/engine-learning.md).
+- Results of the first run under rules `h4-engine-2.0` on Qwen3 1.7B, in [`docs/engine-learning.md`](docs/engine-learning.md): on the sealed test the adapter beats the base but not a control trained on the same words shuffled, and passes fewer sealed capability tests than the base; it is not shown to learn the life's facts.
 
 ## 1.1.1
 

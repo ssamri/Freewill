@@ -146,9 +146,55 @@ avec les vrais modèles, par [`tools/engine_e2e.py`](../tools/engine_e2e.py) et
 aucun n'a été arrondi à la hausse. On a dit à un être, Ada, 40 faits courts sur une île inventée
 (Kerran) pendant une journée, puis 14 de plus le lendemain.
 
-Les chiffres ci-dessous ont été mesurés selon les règles `h4-engine-1.2`, avant le corpus par
-provenance, le test scellé et les tests de capacités ci-dessus. Ils sont gardés tels qu'ils ont été
-mesurés ; aucun essai selon les règles `h4-engine-2.0` n'est encore rapporté ici.
+**Essai selon les règles `h4-engine-2.0`** (12 novembre 2026, workflow 43227877219, toutes les étapes
+réussies). La même île inventée ; une personne a garanti 12 faits, dont deux jamais dits en conversation, avec
+3 tests à choix forcé chacun (rappel, reformulation, fausse prémisse) : 18 tests ont aidé à décider des nuits,
+18 ont été scellés.
+
+- La nuit un s'est entraînée sur 24 unités entendues et 12 faits garantis, et sur aucune réponse de l'être. Une
+  unité de validation a été mise à part comme quasi-doublon. Le gain du candidat en validation (1,66 nat) a
+  dépassé celui du témoin mélangé (1,17) de 0,50, et il a réussi 3 tests de validation de plus que la base ; il a
+  été gardé (a0001). llama.cpp a mesuré 4,29 puis 3,25 sur le texte de validation. La nuit deux a été gardée
+  (a0002, gain 0,73 contre 0,42 pour le témoin). Le rang doublé a été refusé, car il faisait moins bien que la
+  même nuit sans croissance (0,57 contre 0,73). Aucune nuit n'a lu le test scellé ; il a été ouvert une fois, par
+  la comparaison finale, et cette ouverture est journalisée.
+- **Sur le test scellé** (10 unités de la vie, perte moyenne en nats par jeton de mot) :
+
+| Modèle | Unités scellées de la vie | Textes de référence |
+| --- | --- | --- |
+| Base | 4,85 | 2,41 |
+| Adapté (a0002) | 3,28 | 2,25 |
+| Témoin : les mêmes mots, mélangés | 3,41 | 2,58 |
+| Témoin : jetons aléatoires | 4,85 | 2,41 |
+
+  Adapté contre base : −1,57 nat (intervalle à 95 % de −1,96 à −1,12, p = 0,004). Adapté contre le témoin
+  mélangé : −0,12 nat (intervalle de −0,31 à +0,10, p = 0,32). **Sur le test scellé, l'adaptateur ne bat pas le
+  témoin qui a vu les mêmes mots dans le désordre** : presque tout son gain vient du vocabulaire de la vie, pas de
+  ce qui a été dit. Avec 10 unités, une petite différence réelle pourrait aussi passer inaperçue.
+- **Tests de capacités scellés** (18 choix forcés sur 6 faits), tests réussis :
+
+| Condition | Rappel | Reformulation | Fausse prémisse | Total |
+| --- | --- | --- | --- | --- |
+| Base | 5 / 6 | 5 / 6 | 0 / 6 | 10 / 18 |
+| Mémoire seule | 5 / 6 | 4 / 6 | 1 / 6 | 10 / 18 |
+| Adaptateur seul | 4 / 6 | 4 / 6 | 0 / 6 | 8 / 18 |
+| Adaptateur et mémoire | 4 / 6 | 4 / 6 | 0 / 6 | 8 / 18 |
+| Témoin mélangé | 5 / 6 | 5 / 6 | 0 / 6 | 10 / 18 |
+
+  L'adaptateur a élargi l'écart entre bonne et mauvaise réponse par rapport à la base (+1,40 nat, p = 0,02),
+  mais a réussi deux tests de moins. Avec la mémoire, il ne fait pas mieux que la mémoire seule (−0,19 nat, non
+  significatif). Aucune condition n'a résisté aux fausses prémisses. Les gains vus sur les tests de validation
+  pendant les nuits ne se retrouvent pas sur les tests scellés : c'est la raison d'être d'un test scellé.
+- Questions ouvertes sur cinq faits : la base en a retrouvé 0, a0001 0, a0002 un selon la règle de comptage
+  (« Brannoc »), mais dans une phrase fausse (« le phare de Kerran s'appelle Sólanna. Il se dresse sur l'île de
+  Brannoc ») : ce n'est pas un vrai rappel. Le deuxième jour, le modèle adapté a souvent répondu plusieurs fois
+  par la même phrase.
+- Selon les règles de R-03 (battre la mémoire seule et les témoins, sans perdre de tests antérieurs), **cet essai
+  ne montre pas que l'adaptateur a appris les faits de la vie**. Il montre que les témoins, le test scellé et la
+  provenance fonctionnent comme prévu, et qu'ils détectent ce que la mesure précédente ne pouvait pas voir.
+
+Les chiffres ci-dessous ont été mesurés plus tôt, selon les règles `h4-engine-1.2`, avant le corpus par
+provenance, le test scellé et les tests de capacités ci-dessus. Ils sont gardés tels qu'ils ont été mesurés.
 
 **Montré de bout en bout, sur Qwen3 1.7B** (chiffres du cinquième essai, qui a franchi toutes les étapes) :
 
