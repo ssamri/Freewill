@@ -8,6 +8,13 @@
 
 - Freewill 1.8B-V, the project's own model (`freewill/vlm/`): Qwen3 1.7B, the SigLIP2 eye and a bridge trained by Freewill; 1,823,955,200 parameters at birth, growth by neurons and whole layers up to a ceiling the person chooses in Settings (2, 5, 13, 50 billion or any size), each size shown with the disk, memory, graphics card, text and training time it needs. Stages read (public-domain books), see (drawn images, with a control) and watch (drawn videos, with two controls), each kept only by written rules. Engine kind `own`, command `freewill own-model`, workflow `own model end to end`. See [`docs/own-model.md`](docs/own-model.md).
 
+## 1.1.1
+
+**Fixed**
+
+- A being read a document two or three pages at a time and rarely went on: one moment of reading now takes as many passages as the engine can hold, and a book in hand pulls towards the next pages until the end (the being can still put it down).
+- A pasted message longer than 8,000 characters was silently cut; it is now kept whole in the library and read like a document.
+
 ## 1.1.0
 
 The embedded engine can be adapted by a life. Nothing in this version claims that the model learns facts, understands, or is conscious.

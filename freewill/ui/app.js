@@ -426,7 +426,7 @@
       case "value": if (m) m.extras.push(t("sub.value") + " : " + d.text); break;
       case "milestone": if (m) m.extras.push(t("sub.first") + " : " + (tr("miles")[d.name] || d.name)); break;
       case "read":
-        if (m) m.extras.push(t("sub.reads") + " : " + d.name + " (" + d.number + "/" + d.of + ")");
+        if (m) m.extras.push(t("sub.reads") + " : " + d.name + " (" + (d.last && d.last !== d.number ? d.number + "–" + d.last : d.number) + "/" + d.of + ")");
         if (!past && brain) brain.read(d);
         break;
       case "sleep":

@@ -40,6 +40,8 @@ PROJECT_URL = "https://github.com/ssamri/Freewill"
 TERMS_VERSION = 1
 MAX_BODY_BYTES = 48_000_000
 MAX_ATTACHMENTS = 6
+MAX_MESSAGE_CHARS = 8000  # longer than this, a message becomes a document in the library
+MESSAGE_LEAD_CHARS = 600
 MAX_FILE_BYTES = 30_000_000
 NAME_PATTERN = re.compile(r"^[^\W\d_][\w '\-]{0,39}$", re.UNICODE)
 
@@ -294,7 +296,7 @@ class App:
     def receive(self, body: dict) -> None:
         """A message, with or without attachments, for the being that is awake."""
         runner = self.require_runner()
-        text = str(body.get("text", "")).strip()[:8000]
+        text = str(body.get("text", "")).strip()
         given = body.get("attachments") or []
         if not isinstance(given, list) or len(given) > MAX_ATTACHMENTS:
             raise ApiError(400, f"at most {MAX_ATTACHMENTS} attachments at a time")
@@ -323,6 +325,13 @@ class App:
                     raise ApiError(400, "unknown kind of attachment")
             except LibraryError as error:
                 raise ApiError(400, f"{name}: {error}") from error
+        if len(text) > MAX_MESSAGE_CHARS:
+            # A long text is not cut: it is kept whole in the library and read like a document,
+            # and the message carries its beginning.
+            french = runner.life.language == "fr"
+            title = f"Texte collé ({len(text)} caractères)" if french else f"Pasted text ({len(text)} characters)"
+            items.insert(0, library.add_text(title, text))
+            text = text[:MESSAGE_LEAD_CHARS].rstrip() + " […]"
         runner.hear(text, items)
 
     # -- research traces -----------------------------------------------------------

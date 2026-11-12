@@ -8,6 +8,13 @@
 
 - Freewill 1.8B-V, le modèle propre au projet (`freewill/vlm/`) : Qwen3 1.7B, l'œil SigLIP2 et un pont entraîné par Freewill ; 1 823 955 200 paramètres à la naissance, croissance par neurones et par couches entières jusqu'à un plafond choisi dans les Réglages (2, 5, 13, 50 milliards ou toute autre taille), chaque taille étant présentée avec le disque, la mémoire, la carte graphique, le texte et la durée d'entraînement qu'elle demande. Étapes lire (livres du domaine public), voir (images dessinées, avec un contrôle) et regarder (vidéos dessinées, avec deux contrôles), chacune gardée seulement selon des règles écrites. Moteur de type `own`, commande `freewill own-model`, workflow `own model end to end`. Voir [`docs/own-model.fr.md`](docs/own-model.fr.md).
 
+## 1.1.1
+
+**Corrigé**
+
+- Un être lisait un document deux ou trois pages à la fois et reprenait rarement : un moment de lecture prend désormais autant de passages que le moteur peut en contenir, et un livre en main attire vers les pages suivantes jusqu'à la fin (l'être peut toujours le reposer).
+- Un message collé de plus de 8 000 caractères était coupé sans le dire ; il est désormais gardé entier dans la bibliothèque et lu comme un document.
+
 ## 1.1.0
 
 Le moteur embarqué peut être adapté par une vie. Rien dans cette version n'affirme que le modèle apprend des faits, comprend ou est conscient.

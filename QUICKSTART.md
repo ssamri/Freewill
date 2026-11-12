@@ -76,7 +76,7 @@ freewill-app              # a native window
 freewill-app --browser    # the same interface in your browser
 ```
 
-At first launch the application shows its terms of use, then the licence; both must be accepted before anything else. In the conversation you can attach documents (text, Markdown, PDF, Word, EPUB), images and videos. Documents go to the being's library and are read one passage at a time. Whether images are understood depends on the engine: Claude, GPT, Grok and local vision models can see them; from a video the being is shown six still frames and hears nothing.
+At first launch the application shows its terms of use, then the licence; both must be accepted before anything else. In the conversation you can attach documents (text, Markdown, PDF, Word, EPUB), images and videos. Documents go to the being's library. In one moment it reads as many pages as its engine can hold (about 40,000 characters for Claude, GPT and Grok; about 9,000 for Qwen3 1.7B; about 7,500 for a model served by Ollama), and once it has a book in hand it tends to read on to the end, though it can put it down. A pasted text longer than 8,000 characters is kept whole in the library and read the same way. Whether images are understood depends on the engine: Claude, GPT, Grok and local vision models can see them; from a video the being is shown six still frames and hears nothing.
 
 The application talks only to a service on your own machine, bound to `127.0.0.1` and protected by a session token. Access keys are kept in your system's credential store, never in a life file.
 

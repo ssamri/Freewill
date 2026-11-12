@@ -23,6 +23,7 @@ class OwnModelEngine:
     kind = "own"
     can_learn = False
     can_see = True
+    reading_chars = 7_500  # on a processor every token counts; Qwen3's context could hold far more
 
     def __init__(self, root: Path | None = None, dtype: str = "bfloat16", model=None, manifest=None) -> None:
         self._root, self._dtype = root, dtype
