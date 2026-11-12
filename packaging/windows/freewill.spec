@@ -10,6 +10,7 @@ datas = [(str(path), "freewill/ui") for path in (package / "ui").iterdir() if pa
 # and the reference texts of engine learning. (Version 1.0 shipped without the first two.)
 datas += [(str(package / name), "freewill") for name in ("models.json", "credits.json", "runtime.json")]
 datas += [(str(package / "learning" / "reference.json"), "freewill/learning")]
+datas += [(str(package / "learning" / "rehearsal.json"), "freewill/learning")]
 # llama.cpp, fetched and checked against runtime.json by the workflow before this recipe runs
 # (python -m freewill.runtime --target runtime --platform win-x64). Without it the build stops.
 runtime = root / "runtime"

@@ -211,6 +211,29 @@ def main(argv=None) -> int:
         steps.run("sleep", sleep)
         engine.close()  # the night needs the memory
 
+        def what_is_trained():
+            """What the night trains on, as the model sees it, and how surprising each part is to the base."""
+            from freewill.learning.engine import item_text
+            from freewill.learning.lora import Workbench
+            learning.collect()
+            items = learning._rows("heldout.jsonl")[:3]
+            bench = Workbench(store.base_dir(model), seed=0)
+            try:
+                rows = []
+                for item in items:
+                    rendered = bench.render(item)
+                    chat = bench.losses(None, bench.tokens([item], 256))
+                    plain = bench.losses(None, bench.tokens([{"text": item_text(item)}], 256))
+                    rows.append({"rendered": rendered[:600], "tokens": chat[0]["tokens"] if chat else 0,
+                                 "nll_chat_format": chat[0]["nll"] if chat else None,
+                                 "nll_plain_text": plain[0]["nll"] if plain else None})
+                return {"chat_template": bool(getattr(bench.tokenizer, "chat_template", None)), "items": rows}
+            finally:
+                del bench
+                import gc
+                gc.collect()
+        steps.run("what the night trains on", what_is_trained)
+
         check = compare.runtime_check(store.paths(model)["model"])
         night1 = steps.run("night one: engine learning", learning.night, model, store, runtime_check=check)
 

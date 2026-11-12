@@ -1,0 +1,34 @@
+{
+ "version": "1.0",
+ "about": "Rehearsal texts for the engine learning of Freewill: ordinary general passages, in English and in French, written for this purpose and distinct from the reference texts. They are mixed into each night's training so that the adapter keeps seeing ordinary text beside what a life lived (a common way to limit forgetting). They are never used to measure anything; the reference texts are never trained on.",
+ "general": {
+  "en": [
+   "A bicycle has two wheels, a frame, pedals and a chain. Pushing the pedals turns the chain, which turns the back wheel. Gears let the rider choose between climbing hills slowly and riding fast on flat roads.",
+   "A volcano is an opening in the Earth's crust through which molten rock, ash and gas escape. When the molten rock reaches the surface it is called lava, and as it cools it becomes new rock.",
+   "A calendar year has twelve months and three hundred and sixty-five days, with one more day every fourth year. The extra day keeps the calendar in step with the time the Earth takes to go around the Sun.",
+   "Rain forms when water vapour in the air cools and condenses into tiny droplets around specks of dust. The droplets join together in clouds until they are heavy enough to fall.",
+   "A map uses a scale to show distances. On a map at one to fifty thousand, one centimetre on paper stands for half a kilometre on the ground. Contour lines show how high the land is.",
+   "Most adults need between seven and nine hours of sleep a night. During sleep the body repairs itself, and the brain sorts what was learned during the day.",
+   "Glass is made by heating sand with soda and lime until they melt. While it is hot and soft it can be blown, pressed or rolled into shape, and it becomes hard and clear as it cools.",
+   "The piano has eighty-eight keys. When a key is pressed, a small hammer covered in felt strikes one or more strings, and a damper stops the sound when the key is released.",
+   "Coffee is made from the roasted seeds of a shrub that grows in warm regions. The seeds are picked inside red fruits, dried, roasted until brown, ground, and mixed with hot water.",
+   "A tide is the regular rise and fall of the sea. It is caused mostly by the pull of the Moon, and there are usually two high tides and two low tides each day.",
+   "Recycling paper saves trees, water and energy. Used paper is soaked and beaten into a pulp, cleaned of ink, pressed into thin sheets and dried on heated rollers.",
+   "A good letter begins with a greeting, says clearly what it is about, and ends with a polite closing and the name of the writer. Short paragraphs make it easier to read."
+  ],
+  "fr": [
+   "Un vélo a deux roues, un cadre, des pédales et une chaîne. En appuyant sur les pédales, on fait tourner la chaîne, qui entraîne la roue arrière. Les vitesses permettent de grimper lentement ou de rouler vite sur le plat.",
+   "Un volcan est une ouverture dans la croûte terrestre par laquelle s'échappent de la roche fondue, des cendres et des gaz. Quand la roche fondue atteint la surface, on l'appelle lave, et elle devient une roche nouvelle en refroidissant.",
+   "Une année du calendrier compte douze mois et trois cent soixante-cinq jours, avec un jour de plus tous les quatre ans. Ce jour supplémentaire garde le calendrier en accord avec le tour de la Terre autour du Soleil.",
+   "La pluie se forme quand la vapeur d'eau de l'air se refroidit et se condense en minuscules gouttes autour de grains de poussière. Les gouttes se rassemblent dans les nuages jusqu'à devenir assez lourdes pour tomber.",
+   "Une carte utilise une échelle pour représenter les distances. Sur une carte au cinquante millième, un centimètre sur le papier correspond à cinq cents mètres sur le terrain. Les courbes de niveau indiquent l'altitude.",
+   "La plupart des adultes ont besoin de sept à neuf heures de sommeil par nuit. Pendant le sommeil, le corps se répare et le cerveau trie ce qui a été appris dans la journée.",
+   "Le verre est fabriqué en chauffant du sable avec de la soude et de la chaux jusqu'à ce qu'ils fondent. Tant qu'il est chaud et mou, on peut le souffler, le presser ou l'étirer, et il devient dur et transparent en refroidissant.",
+   "Le piano a quatre-vingt-huit touches. Quand on appuie sur une touche, un petit marteau couvert de feutre frappe une ou plusieurs cordes, et un étouffoir arrête le son quand on relâche la touche.",
+   "Le café provient des graines torréfiées d'un arbuste des régions chaudes. Les graines sont cueillies dans des fruits rouges, séchées, torréfiées jusqu'à brunir, moulues, puis mélangées à de l'eau chaude.",
+   "La marée est la montée et la descente régulières de la mer. Elle est due surtout à l'attraction de la Lune, et il y a en général deux marées hautes et deux marées basses par jour.",
+   "Recycler le papier économise des arbres, de l'eau et de l'énergie. Le papier usagé est trempé et battu en pâte, débarrassé de son encre, pressé en feuilles minces et séché sur des rouleaux chauffés.",
+   "Une bonne lettre commence par une formule d'appel, dit clairement de quoi elle parle et se termine par une formule de politesse et le nom de son auteur. Des paragraphes courts la rendent plus facile à lire."
+  ]
+ }
+}

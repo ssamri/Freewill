@@ -42,7 +42,7 @@ from pathlib import Path
 from freewill.core.kernel.constitution import PRINCIPLES
 
 FOLDER = "engine"
-RULES_VERSION = "h4-engine-1.0"
+RULES_VERSION = "h4-engine-1.1"
 HELD_OUT_EVERY = 4          # one item in four is never trained on (chosen by the hash of its text)
 MIN_HELD_OUT = 3            # fewer held-out items than this: no decision can be made, nothing is trained
 MIN_TRAIN = 4
@@ -53,7 +53,9 @@ GROWTH_MARGIN = 0.01        # nats per token a grown adapter must win by over th
 MAX_ITEM_CHARS = 2000
 MAX_ITEMS_PER_NIGHT = 200
 REPLAY_SHARE = 1.0          # as many earlier training items replayed as there are new ones, at most
+REHEARSAL_SHARE = 0.5      # ordinary rehearsal passages mixed into training: half as many as the life's items
 REFERENCE_PATH = Path(__file__).resolve().parent / "reference.json"
+REHEARSAL_PATH = Path(__file__).resolve().parent / "rehearsal.json"
 
 
 class EngineLearningError(Exception):
@@ -67,7 +69,7 @@ class Settings:
     approved_utc: str = ""
     rank: int = 8
     steps: int = 40
-    lr: float = 3e-4
+    lr: float = 1e-4                     # 3e-4 forgot the reference texts on Qwen3 1.7B (end-to-end run, 12 Nov 2026)
     max_len: int = 256
     seed: int = 0
     nightly: bool = True                 # run after each sleep, when enabled
@@ -75,6 +77,7 @@ class Settings:
     growth: bool = False                 # structural growth: off unless the person allows it
     max_rank: int = 32
     max_adapter_parameters: int = 40_000_000
+    rehearsal: bool = True               # mix ordinary passages (never the reference texts) into training
 
     @classmethod
     def from_dict(cls, data: dict) -> "Settings":
@@ -104,6 +107,13 @@ def reference_items(language: str | None = None) -> list[dict]:
     items = [{"text": text, "set": "general", "lang": lang} for lang, texts in data["general"].items() for text in texts]
     items.append({"text": " ".join(PRINCIPLES), "set": "kernel", "lang": "en"})
     return items
+
+
+def rehearsal_items() -> list[dict]:
+    """Ordinary passages mixed into training to limit forgetting. Distinct from the reference texts, which
+    are only ever measured: a test that its texts never overlap the reference is in the test suite."""
+    data = json.loads(REHEARSAL_PATH.read_text(encoding="utf-8"))
+    return [{"text": text, "set": "rehearsal", "lang": lang} for lang, texts in data["general"].items() for text in texts]
 
 
 # -- the corpus: what a life lived, gathered under control -----------------------------------------------
@@ -350,7 +360,11 @@ class EngineLearning:
 
         # Replay: a share of earlier training items, chosen by their hashes (reproducible).
         replay = sorted(old_items, key=lambda r: _sha(night_id + r["sha256"]))[:int(len(new_items) * REPLAY_SHARE)]
-        train_seq = bench.tokens(new_items + replay, settings.max_len)
+        rehearsal = []
+        if settings.rehearsal:
+            pool = sorted(rehearsal_items(), key=lambda r: _sha(night_id + r["text"]))
+            rehearsal = pool[:max(1, int(len(new_items) * REHEARSAL_SHARE))]
+        train_seq = bench.tokens(new_items + replay + rehearsal, settings.max_len)
         eval_new = bench.tokens(new_held if new_held else old_held, settings.max_len)
         eval_old = bench.tokens(old_held, settings.max_len) if new_held else []
         reference = reference_items()
@@ -448,6 +462,7 @@ class EngineLearning:
                    "base_weights_sha256": base_hash_before, "base_weights_unchanged": True,
                    "parent": active["version"] if active else None, "device": bench.device, "dtype": bench.dtype,
                    "train_items_new": len(new_items), "train_items_replayed": len(replay),
+                   "train_items_rehearsal": len(rehearsal),
                    "held_out_new": len(new_held), "held_out_earlier": len(old_held),
                    "reference_items": len(reference), "scores_base": base_scores, "scores_active": active_scores,
                    "candidates": candidates, "growth": growth, "settings": asdict(settings),

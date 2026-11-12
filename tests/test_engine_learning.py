@@ -362,3 +362,14 @@ def test_the_runtime_is_unpacked_to_the_programs_it_needs_and_nothing_unchecked_
     out.mkdir()
     runtime._unpack(zipped, "x.zip", out, windows=True)
     assert sorted(p.name for p in out.iterdir()) == ["LICENSE-LLVM-OpenMP", "llama-server.exe", "llama.dll"]
+
+
+def test_rehearsal_texts_are_never_the_reference_texts():
+    from freewill.learning.engine import reference_items, rehearsal_items
+    reference = {r["text"] for r in reference_items()}
+    rehearsal = rehearsal_items()
+    assert rehearsal and {r["lang"] for r in rehearsal} == {"en", "fr"}
+    assert not reference & {r["text"] for r in rehearsal}
+    words = lambda t: {w for w in t.lower().split() if len(w) > 6}  # noqa: E731
+    for item in rehearsal:  # not a light rewording of a reference passage either
+        assert all(len(words(item["text"]) & words(ref)) < 5 for ref in reference)

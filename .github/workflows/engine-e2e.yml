@@ -64,10 +64,16 @@ jobs:
               print(f"{s['status']:7} {s['seconds']:8.1f}s  {s['step']}")
               if s["status"] != "ok":
                   print("   ", s.get("error"))
+              elif s["step"] in ("what the night trains on", "the conversing model holds the adapter",
+                                 "Research Lab comparison: base, adapted, controls", "restore the base, then the checkpoint",
+                                 "the conversing model holds the latest adapter"):
+                  print(json.dumps(s.get("result"), indent=1, ensure_ascii=False)[:6000])
           for row in d.get("ledger", []):
               keep = {k: row.get(k) for k in ("kind", "decision", "version", "reason", "seconds", "growth", "runtime_check")}
               cands = row.get("candidates") or {}
-              keep["candidates"] = {n: {"scores": c["scores"], "verdict": c["verdict"], "rank": c["rank"], "parameters": c["parameters"]} for n, c in cands.items()}
+              keep["candidates"] = {n: {"scores": c["scores"], "verdict": c["verdict"], "rank": c["rank"], "parameters": c["parameters"],
+                                        "training": c.get("training")} for n, c in cands.items()}
+              keep["items"] = {k: row.get(k) for k in ("train_items_new", "train_items_replayed", "train_items_rehearsal", "held_out_new", "held_out_earlier")}
               keep["scores_base"] = row.get("scores_base")
               print(json.dumps(keep, indent=1))
           EOF
@@ -126,7 +132,11 @@ jobs:
       - name: The adapter learned on Linux, loaded by llama.cpp on Windows
         shell: pwsh
         run: |
-          $adapter = Get-ChildItem -Path linux/adapters -Directory | Sort-Object Name | Select-Object -Last 1
+          $adapter = Get-ChildItem -Path linux/adapters -Directory -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+          if (-not $adapter) {
+            Write-Output "No adapter was kept on Linux (every night was rejected by its rules): nothing to load here."
+            exit 0
+          }
           python tools/embedded_check.py win-adapter --models qwen3-1.7b --adapter $adapter.FullName --adapter-only
       - uses: actions/upload-artifact@v4
         if: always()
