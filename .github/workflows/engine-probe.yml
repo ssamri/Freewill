@@ -12,19 +12,25 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: llama.cpp releases and digests
+      - name: llama.cpp b12306 assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api "repos/ggml-org/llama.cpp/releases?per_page=3" --jq '.[] | "== \(.tag_name) prerelease=\(.prerelease) \(.published_at)", (.assets[] | select(.name|test("bin-(win-cpu-x64|ubuntu-x64|macos-arm64|macos-x64)\\.zip$|bin-ubuntu-x64\\.tar\\.gz$|win-cpu-x64\\.zip$")) | "   \(.name) \(.size) \(.digest) \(.browser_download_url)")'
-          gh api "repos/ggml-org/llama.cpp/releases/latest" --jq '.assets[] | "   \(.name) \(.size)"' | head -60
-      - name: Hugging Face files
+          gh api "repos/ggml-org/llama.cpp/releases/tags/b12306" --jq '.assets[] | "   \(.name) \(.size) \(.digest)"' | grep -v -i "cuda\|vulkan\|sycl\|hip\|opencl\|android\|s390\|openvino\|cudart"
+      - name: Archive layouts
         run: |
-          for repo in Qwen/Qwen3-1.7B-GGUF Qwen/Qwen3-1.7B ggml-org/SmolVLM2-2.2B-Instruct-GGUF Qwen/Qwen3-0.6B; do
-            echo "== $repo"
-            curl -s "https://huggingface.co/api/models/$repo" | python3 -c "import json,sys; d=json.load(sys.stdin); print('license', (d.get('cardData') or {}).get('license'), 'gated', d.get('gated'), 'sha', d.get('sha'))"
-            curl -s "https://huggingface.co/api/models/$repo/tree/main" | python3 -c "
-          import json,sys
-          for e in json.load(sys.stdin):
-              print('  ', e['path'], e.get('size'), (e.get('lfs') or {}).get('oid') or e.get('oid'))"
+          set -x
+          curl -sL -o u.tgz https://github.com/ggml-org/llama.cpp/releases/download/b12306/llama-b12306-bin-ubuntu-x64.tar.gz
+          sha256sum u.tgz; tar tzvf u.tgz | head -80
+          curl -sL -o w.zip https://github.com/ggml-org/llama.cpp/releases/download/b12306/llama-b12306-bin-win-cpu-x64.zip
+          sha256sum w.zip; unzip -l w.zip | head -80
+      - name: Small files of Qwen3-1.7B, pinned revision
+        run: |
+          for f in config.json generation_config.json merges.txt model.safetensors.index.json tokenizer_config.json vocab.json LICENSE; do
+            curl -sL -o "$f" "https://huggingface.co/Qwen/Qwen3-1.7B/resolve/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e/$f"
+            echo "$f $(stat -c %s $f) $(sha256sum $f | cut -d' ' -f1)"
           done
+          cat config.json
+          curl -sL -o L2 "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/LICENSE"; echo "GGUF LICENSE $(stat -c %s L2) $(sha256sum L2)"; head -5 L2
+          curl -sL "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/params"
+          curl -sL "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/README.md" | head -60
