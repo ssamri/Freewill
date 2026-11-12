@@ -4,10 +4,48 @@
 
 **English** · [Français](README.fr.md)
 
+<p align="center">
+  <a href="https://github.com/ssamri/freewill/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/ssamri/freewill?label=release&color=5b4ee6"></a>
+  <a href="https://github.com/ssamri/freewill/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/Windows-installer%20.exe%20(unsigned)-0078D6?logo=windows&logoColor=white"></a>
+  <a href="https://github.com/ssamri/freewill/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/ssamri/freewill/actions/workflows/tests.yml/badge.svg?branch=main"></a>
+  <a href="pyproject.toml"><img alt="Python" src="https://img.shields.io/badge/Python-3.11%20%7C%203.13-3776AB?logo=python&logoColor=white"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-non--commercial%20research-blue"></a>
+  <br>
+  <a href="docs/"><img alt="Docs" src="https://img.shields.io/badge/docs-read-8a63d2?logo=readthedocs&logoColor=white"></a>
+  <a href="structure.md"><img alt="Structure" src="https://img.shields.io/badge/structure-project%20map-6f42c1"></a>
+  <a href="docs/research/FREEWILL_Programme_Recherche_V1.0.fr.pdf"><img alt="Paper" src="https://img.shields.io/badge/research%20paper-PDF%20(French)-b31b1b?logo=adobeacrobatreader&logoColor=white"></a>
+  <a href="#3-working-hypotheses"><img alt="Hypotheses" src="https://img.shields.io/badge/hypotheses-H1%E2%80%93H10-0f766e"></a>
+  <a href="docs/own-model.md"><img alt="Model" src="https://img.shields.io/badge/own%20model-Freewill%201.8B--V-7c3aed"></a>
+  <br>
+  <a href="docs/research/IMPLEMENTATION_STATUS.md"><img alt="Status" src="https://img.shields.io/badge/status-experimental-orange"></a>
+  <a href="#8-control-and-safety"><img alt="Internet" src="https://img.shields.io/badge/internet-off%20by%20default-2ea44f"></a>
+  <a href="README.md"><img alt="Languages" src="https://img.shields.io/badge/languages-English%20%7C%20Fran%C3%A7ais-555"></a>
+  <a href="LICENSE"><img alt="Free" src="https://img.shields.io/badge/price-free-2ea44f"></a>
+</p>
+
 **An open, experimental research programme on consciousness, free will, the subconscious and dreaming in artificial intelligence systems.**
 
 > *"Instead of trying to produce a programme to simulate the adult mind, why not rather try to produce one which simulates the child's?"*
 > Alan Turing, *Computing Machinery and Intelligence*, 1950
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/brain-en-dark.jpg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/screenshots/brain-en-light.jpg">
+    <img alt="The Brain view of the Freewill application, in light and dark themes" src="docs/assets/screenshots/brain-en-light.jpg" width="900">
+  </picture>
+</p>
+
+<p align="center"><em>The Brain view, drawn live from the being's real event log (here a newborn running on the simulated engine). It follows your system's light or dark theme.</em></p>
+
+<details>
+<summary>Both themes side by side</summary>
+
+| Light | Dark |
+|---|---|
+| <img alt="Light theme" src="docs/assets/screenshots/brain-en-light.jpg"> | <img alt="Dark theme" src="docs/assets/screenshots/brain-en-dark.jpg"> |
+
+</details>
 
 **Project status: experimental.** A first application exists: a being can be born, converse, read the documents and look at the images it is given, keep memories of its own choosing, sleep and dream, and everything that goes on inside it can be watched. A research mode, off by default, computes an affective state (hypothesis H7): regulation variables that really change its attention, its recall and the encoding of its memories, without this proving that anything is felt. It thinks with an existing model or with a simulated engine. Version 1.0 adds a **Research Lab**: ten hypotheses (H1 to H10), each with switches that remove its mechanism, protocols locked before they run, campaigns on isolated copies of a life, figures computed by code and never by a language model, observers that may read and never act, and reports that only a person can validate. It also adds Freewill's own small neural network, trained during sleep on what a being lived and able to grow; this network does not yet think for the being. Since then, the embedded engine Qwen3 1.7B can be adapted by a being's life: each night an adapter is trained beside the frozen model, kept only if written rules find it predicts unseen lived exchanges better without forgetting reference texts, and loaded by llama.cpp; in the end-to-end runs it changed mostly how the model speaks, and showed no reliable recall of facts ([`docs/engine-learning.md`](docs/engine-learning.md)). Freewill also has its own model, **Freewill 1.8B-V** (1.82 billion parameters at birth, growing up to a ceiling the person chooses in the settings, each size shown with the computer it needs): Qwen3 1.7B for language, the SigLIP2 eye, and a bridge between them that Freewill trains; it reads public-domain books, looks at images and watches videos as frames in order, grows by neurons and whole layers, and keeps each stage only if held-out measurements and controls say so ([`docs/own-model.md`](docs/own-model.md)). Nothing here is a finished product, and nothing here claims that the system is conscious. What exists, what was tested and what is missing is listed line by line in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md); the first results, two of them negative, are in [`experiments/v1.0/`](experiments/v1.0/). See [`QUICKSTART.md`](QUICKSTART.md) to try it. This document sets out the thesis, the theoretical framework, the intended architecture and the guarantees of control. The technical organisation is detailed in [`structure.md`](structure.md).
 

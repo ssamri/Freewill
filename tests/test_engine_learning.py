@@ -19,7 +19,8 @@ import pytest
 from freewill import models, runtime
 from freewill.core.life import Life
 from freewill.learning import engine as engine_learning
-from freewill.learning.engine import EngineLearning, EngineLearningError, gather, held_out
+from freewill.learning import corpus as lived
+from freewill.learning.engine import EngineLearning, EngineLearningError
 
 TRAINING = all(__import__("importlib").util.find_spec(name) for name in ("torch", "peft", "transformers", "gguf", "tokenizers"))
 needs_training = pytest.mark.skipif(not TRAINING, reason="needs torch, peft, transformers, gguf and tokenizers")
@@ -61,6 +62,12 @@ def write_events(life_path: Path, lines) -> None:
             log.write(json.dumps({"type": "speech", "time": "t", "text": said, "spontaneous": False}) + "\n")
             log.write(json.dumps({"type": "stage", "time": "t", "source": "drift", "text": "x"}) + "\n")
             log.write(json.dumps({"type": "speech", "time": "t", "text": "a thought aloud", "spontaneous": True}) + "\n")
+
+
+@pytest.fixture(autouse=True)
+def one_exchange_per_episode(monkeypatch):
+    """The test lines have no real times: one exchange per episode, so that every split gets some."""
+    monkeypatch.setattr(lived, "EPISODE_MAX_UNITS", 1)
 
 
 @pytest.fixture
@@ -106,23 +113,91 @@ def bench_for(toy_base):
 
 # -- the corpus ----------------------------------------------------------------------------------
 
-def test_the_corpus_is_what_was_said_and_answered_and_held_out_items_are_never_trained_on(life):
+def test_the_corpus_keeps_provenance_and_splits_whole_episodes(life, monkeypatch):
     write_events(life.path, LINES[:6])
-    items, offset, skipped = gather(life.path)
-    assert [i["messages"][0]["content"] for i in items] == [a for a, _ in LINES[:6]]
-    assert all(i["messages"][1]["content"] != "a thought aloud" for i in items)  # spontaneous speech is not a reply
+    units, offset, skipped, cursor = lived.gather(life.path)
+    assert [u["text"] for u in units if u["provenance"] == "heard"] == [a for a, _ in LINES[:6]]
+    assert [u["text"] for u in units if u["provenance"] == "reply"] == [b for _, b in LINES[:6]]
+    assert all(u["text"] != "a thought aloud" for u in units)  # spontaneous speech is not a reply
     learning = EngineLearning(life.path)
     first = learning.collect()
-    assert first["added_train"] + first["added_held_out"] == 6
+    assert first["added_train"] + first["added_held_out"] + first["added_test"] == 12
     again = learning.collect()  # nothing new was lived
-    assert again["added_train"] == again["added_held_out"] == 0
-    write_events(life.path, LINES[:2])  # the same exchanges again are not new items
-    assert learning.collect()["skipped"].get("duplicate") == 2
-    train = {r["sha256"] for r in learning._rows("corpus.jsonl")}
-    held = {r["sha256"] for r in learning._rows("heldout.jsonl")}
-    assert not train & held
-    assert all(held_out(r) for r in learning._rows("heldout.jsonl"))
+    assert again["added_train"] == again["added_held_out"] == again["added_test"] == 0
+    write_events(life.path, LINES[:2])  # the same exchanges again are not new units
+    assert learning.collect()["skipped"].get("duplicate") == 4
+    rows = {split: learning._rows(name) for split, name in engine_learning.SPLIT_FILES.items()}
+    episodes = {split: {r["episode"] for r in found} for split, found in rows.items()}
+    assert not episodes["train"] & episodes["validation"] and not episodes["train"] & episodes["test"]
+    assert not episodes["validation"] & episodes["test"]
+    assert all(r["split"] == lived.split_of(r["episode"]) for found in rows.values() for r in found)
     assert any(row["kind"] == "corpus" for row in learning.ledger())
+    # Episodes of several exchanges: all of an episode in one split.
+    monkeypatch.setattr(lived, "EPISODE_MAX_UNITS", 4)
+    other = Life.birth(life.path.parent, "Cy", seed=3)
+    write_events(other.path, LINES)
+    units, *_ = lived.gather(other.path)
+    assert len({u["episode"] for u in units}) == 6
+
+
+def test_the_sealed_test_is_read_only_on_purpose_and_every_reading_is_written(life):
+    write_events(life.path, LINES)
+    learning = EngineLearning(life.path)
+    learning.collect()
+    with pytest.raises(EngineLearningError):
+        learning._split_rows("test")
+    found = learning.open_test("checking", who="Sam")
+    assert found["units"] and all(r["split"] == "test" for r in found["units"])
+    [reading] = learning._rows("test_access.jsonl")
+    assert reading["purpose"] == "checking" and reading["who"] == "Sam" and reading["units"] == len(found["units"])
+
+
+def test_near_duplicates_of_training_units_are_never_measured():
+    train = [{"text": "the ferry to Kerran leaves the harbour of Maelis every Tuesday at dawn"}]
+    near = {"text": "The ferry to Kerran leaves the harbour of Maelis every Tuesday at dawn!"}
+    other = {"text": "Ilse the baker puts seaweed in her bread, and people on Kerran love it"}
+    clean, leaked = lived.without_leaks([near, other], train)
+    assert clean == [other] and leaked == [near]
+
+
+def test_a_vouched_fact_is_trained_and_its_tests_go_to_validation_or_the_sealed_test(life):
+    learning = EngineLearning(life.path)
+    with pytest.raises(EngineLearningError):
+        learning.teach("The lighthouse of Kerran is called Old Brannoc.")
+    with pytest.raises(EngineLearningError):
+        learning.teach("A fact.", question="What?", answer="This", who="Sam")  # no wrong answer
+    splits = set()
+    for i in range(12):
+        learning.teach(f"Fact number {i}: the lighthouse has {i} lamps.", question=f"How many lamps in fact {i}?",
+                       answer=f"{i} lamps", wrong=f"{i + 7} lamps", paraphrase=f"Fact {i}: count the lamps.", who="Sam")
+    facts = learning._rows("facts.jsonl")
+    assert len(facts) == 12 and all(f["tests"] == 2 for f in facts)
+    splits = {f["tests_split"] for f in facts}
+    assert splits == {"validation", "test"}
+    trained = [r for r in learning._rows("train.jsonl") if r["provenance"] == "verified"]
+    assert len(trained) == 12 and all(r["who"] == "Sam" for r in trained)
+    in_validation = {t["fact_id"] for t in learning.validation_tests()}
+    sealed = {t["fact_id"] for t in learning.open_test("count")["tests"]}
+    assert in_validation and sealed and not in_validation & sealed
+    with pytest.raises(EngineLearningError):
+        learning.teach("Fact number 0: the lighthouse has 0 lamps.", who="Sam")
+
+
+def test_a_life_that_learned_under_the_first_rules_keeps_its_corpus_and_no_old_item_is_sealed(life):
+    root = life.path / "engine"
+    root.mkdir()
+    pair = {"messages": [{"role": "user", "content": "Old fact."}, {"role": "assistant", "content": "Old reply."}],
+            "sha256": "a" * 64, "night": "a0001"}
+    held = {"messages": [{"role": "user", "content": "Held fact."}, {"role": "assistant", "content": "Held reply."}],
+            "sha256": "b" * 64, "night": None}
+    (root / "corpus.jsonl").write_text(json.dumps(pair) + "\n")
+    (root / "heldout.jsonl").write_text(json.dumps(held) + "\n")
+    learning = EngineLearning(life.path)
+    learning.collect()
+    assert [r["text"] for r in learning._rows("train.jsonl")] == ["Old fact.", "Old reply."]
+    assert [r["text"] for r in learning._rows("validation.jsonl")] == ["Held fact.", "Held reply."]
+    assert learning._rows("test.jsonl") == [] and (root / "corpus.v1.jsonl").exists()
+    assert any(r["kind"] == "migrated" for r in learning.ledger())
 
 
 def test_turning_engine_learning_on_needs_a_name_and_is_recorded(life):
@@ -149,7 +224,7 @@ def test_a_night_with_too_little_lived_trains_nothing(life):
 @needs_training
 def test_a_night_trains_measures_converts_and_loads_only_what_helps(life, toy_base, monkeypatch):
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")
+    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4, "control_each_night": False}, who="Sam")
     write_events(life.path, LINES)
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)  # a random toy forgets freely; the rule is tested below
     calls = []
@@ -167,8 +242,12 @@ def test_a_night_trains_measures_converts_and_loads_only_what_helps(life, toy_ba
     from freewill.learning.gguf_lora import check
     found = check(folder / "adapter.gguf", "qwen3")
     assert found["tensors"] == 2 * 7 * 2  # A and B, seven matrices, two layers
-    # Items used are marked; the corpus remembers which night used them.
-    assert all(r["night"] == row["version"] for r in learning._rows("corpus.jsonl"))
+    # Units used are marked; the corpus remembers which night used them. The being's replies were not trained on.
+    trained = [r for r in learning._rows("train.jsonl") if r["provenance"] != "reply"]
+    assert all(r["night"] == row["version"] for r in trained)
+    assert all(r["night"] is None for r in learning._rows("train.jsonl") if r["provenance"] == "reply")
+    assert row["train_by_provenance"]["reply"] == 0 and row["train_by_provenance"]["heard"] == row["train_items_new"]
+    assert row["sealed_test_read"] is False and "test" not in row["sets_read"]
     # An adapter belongs to its base model.
     assert learning.active("another-model") is None
 
@@ -176,14 +255,14 @@ def test_a_night_trains_measures_converts_and_loads_only_what_helps(life, toy_ba
 @needs_training
 def test_a_night_that_does_not_help_or_forgets_leaves_nothing_behind(life, toy_base, monkeypatch):
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 2, "lr": 0.0, "rank": 2}, who="Sam")
+    learning.configure({"enabled": True, "steps": 2, "lr": 0.0, "rank": 2, "control_each_night": False}, who="Sam")
     write_events(life.path, LINES)
     row = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base))
     assert row["decision"] == "rejected" and "no_gain_on_held_out" in row["candidates"]["candidate"]["verdict"]["reasons"]
     assert not (learning.root / "adapters").exists() and learning.active("toy") is None
     # The forgetting rule: a candidate that predicts the reference texts worse than the base is refused.
     learning2 = EngineLearning(Life.birth(life.path.parent, "Bea", seed=2).path)
-    learning2.configure({"enabled": True, "steps": 40, "lr": 0.02, "rank": 4}, who="Sam")
+    learning2.configure({"enabled": True, "steps": 40, "lr": 0.02, "rank": 4, "control_each_night": False}, who="Sam")
     write_events(learning2.life_path, LINES)
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", -10.0)
     row = learning2.night(TOY_MODEL, None, workbench=bench_for(toy_base))
@@ -193,7 +272,7 @@ def test_a_night_that_does_not_help_or_forgets_leaves_nothing_behind(life, toy_b
 @needs_training
 def test_an_adapter_llama_cpp_could_not_measure_is_never_put_in_use(life, toy_base, monkeypatch):
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")
+    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4, "control_each_night": False}, who="Sam")
     write_events(life.path, LINES)
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
     row = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base),
@@ -219,9 +298,39 @@ def test_the_runtime_check_counts_a_change_of_loss_as_proof_that_the_adapter_was
 
 
 @needs_training
+def test_a_night_no_better_than_its_control_is_rejected(life, toy_base, monkeypatch):
+    learning = EngineLearning(life.path)
+    learning.configure({"enabled": True, "steps": 30, "lr": 0.01, "rank": 4}, who="Sam")
+    write_events(life.path, LINES)
+    monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
+    monkeypatch.setattr(engine_learning, "shuffled_words", lambda text, seed: text)  # a control that is the candidate
+    row = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base))
+    verdict = row["candidates"]["candidate"]["verdict"]
+    assert row["control"]["training"]["steps"] == 30 and abs(verdict["gain_over_control"]) < 1e-6
+    assert row["decision"] == "rejected" and "no_better_than_control" in verdict["reasons"]
+
+
+@needs_training
+def test_capability_tests_are_forced_choices_and_losing_one_counts(toy_base):
+    from freewill.learning import capability_tests as caps
+    bench = bench_for(toy_base)
+    probe = {"id": "f1", "question": "What colour is the lighthouse?", "answer": "green", "wrong": "white",
+             "paraphrase": "The lighthouse is which colour?", "false_premise": "Why is the lighthouse white?", "split": "validation"}
+    tests = caps.tests_of(probe)
+    assert [t["kind"] for t in tests] == ["recall", "paraphrase", "contradiction"]
+    rows = caps.measure(bench, None, tests)
+    assert all(r["measured"] and r["passed"] == (r["right_nll"] < r["wrong_nll"]) for r in rows)
+    summary = caps.summary(rows)
+    assert summary["n"] == 3 and set(summary["by_kind"]) == set(caps.KINDS)
+    before = [{"id": "a", "measured": True, "passed": True}, {"id": "b", "measured": True, "passed": False}]
+    after = [{"id": "a", "measured": True, "passed": False}, {"id": "b", "measured": True, "passed": False}]
+    assert caps.stability(before, after) == {"lost": ["a"], "gained": [], "net": -1}
+
+
+@needs_training
 def test_checkpoints_can_be_restored_and_a_tampered_adapter_is_never_loaded(life, toy_base, monkeypatch):
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")
+    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4, "control_each_night": False}, who="Sam")
     write_events(life.path, LINES)
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
     version = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base))["version"]
@@ -249,7 +358,8 @@ def test_growth_preserves_the_function_and_is_kept_only_if_it_does_better(life, 
     assert abs(bench.losses("small", seq)[0]["nll"] - bench.losses("big", seq)[0]["nll"]) < 1e-5
     # In a night: growth considered, recorded with both sizes, decided by the held-out rule.
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 40, "lr": 0.01, "rank": 2, "growth": True, "max_rank": 4}, who="Sam")
+    learning.configure({"enabled": True, "steps": 40, "lr": 0.01, "rank": 2, "growth": True, "max_rank": 4,
+                        "control_each_night": False}, who="Sam")
     write_events(life.path, LINES)
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
     row = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base))
@@ -268,12 +378,20 @@ def test_growth_preserves_the_function_and_is_kept_only_if_it_does_better(life, 
 def test_the_lab_compares_base_adapted_and_controls_item_by_item(life, toy_base, monkeypatch):
     from freewill.learning import compare
     learning = EngineLearning(life.path)
-    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")
-    write_events(life.path, LINES + [(a + " Truly.", b + " Truly.") for a, b in LINES])
+    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4, "control_each_night": False}, who="Sam")
+    write_events(life.path, LINES + [(a + " Truly so.", b + " Truly so.") for a, b in LINES])
     monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
+    monkeypatch.setattr(lived, "LEAK_CONTAINMENT", 1.0)  # the toy lines repeat on purpose; leaks are tested above
     assert learning.night(TOY_MODEL, None, workbench=bench_for(toy_base))["decision"] == "accepted"
-    found = compare.compare(life.path, TOY_MODEL, None, workbench=bench_for(toy_base))
+    for i in range(8):
+        learning.teach(f"The lamp number {i} of Old Brannoc is lit at dusk.", question=f"When is lamp {i} lit?",
+                       answer="at dusk", wrong="at noon", false_premise=f"Lamp {i} is lit at noon, isn't it?", who="Sam")
+    found = compare.compare(life.path, TOY_MODEL, None, workbench=bench_for(toy_base), who="Sam")
     assert set(found["conditions"]) == {"base", "adapted", "control_shuffled", "control_random"}
+    assert found["sealed_test"]["readings"] == 1 and learning._rows("test_access.jsonl")[0]["purpose"].startswith("final test")
+    capability = found["capabilities"]
+    assert set(capability["conditions"]) == {"base", "memory_only", "adapter_only", "adapter_and_memory", "control_shuffled"}
+    assert capability["tests"] == len(learning.open_test("count")["tests"]) > 0
     n = len(found["held_out_sha256"])
     assert n >= 6 and all(len(v) == n for v in found["per_item"].values())
     sizes = {k: v["delta_frobenius"] for k, v in found["conditions"].items()}

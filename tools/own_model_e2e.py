@@ -118,16 +118,19 @@ def main() -> int:
 
 
 def _night(model, life: Path, toy: bool) -> dict:
-    """A life that was asked forty times where the fox sleeps, then one night with the settings a person
-    would get by default (the toy model needs a larger step). Held-out items are never trained on."""
+    """A life in which a person spoke of their neighbours eighty times, then one night with the settings a
+    person would get by default (the toy model needs a larger step). Validation units are never trained on."""
     from freewill.learning.engine import EngineLearning
     from freewill.vlm import nights
     life.mkdir(parents=True, exist_ok=True)
+    names = ["Amina", "Bruno", "Chloe", "Driss", "Elena", "Farid", "Greta", "Hugo", "Ines", "Jamal"]
+    animals = ["cats", "goats", "hens", "ducks", "rabbits", "bees", "sheep", "horses"]
+    places = ["mill", "river", "bakery", "station", "orchard", "harbour", "chapel", "market", "bridge"]
     with open(life / "events.log", "w", encoding="utf-8") as f:
-        for i in range(40):
-            f.write(json.dumps({"type": "stage", "source": "message", "text": f"Where does the fox sleep on day {i}?"}) + "\n")
-            f.write(json.dumps({"type": "speech", "spontaneous": False,
-                                "text": f"On day {i} the fox sleeps under the lemon tree."}) + "\n")
+        for i in range(80):
+            said = f"{names[i % 10]} keeps {i % 7 + 2} {animals[i % 8]} behind the old {places[i % 9]}."
+            f.write(json.dumps({"type": "stage", "source": "message", "text": said}) + "\n")
+            f.write(json.dumps({"type": "speech", "spontaneous": False, "text": "I will remember that."}) + "\n")
     EngineLearning(life).configure({"enabled": True, **({"steps": 60, "lr": 3e-3} if toy else {})}, who="end-to-end run")
     row = nights.night(model, life, log=lambda *a: print(*a, flush=True))
     return {k: row.get(k) for k in ("kind", "decision", "reason", "before", "after", "checkpoint", "train_items_new",

@@ -130,7 +130,8 @@ class Workbench:
             at = rendered.find(content, start) if content else -1
             if at < 0:
                 return None  # the template changed the text: score everything rather than guess
-            spans.append((at, at + len(content)))
+            if message.get("scored", True):  # a question asked of the model is context, not a target
+                spans.append((at, at + len(content)))
             start = at + len(content)
         encoded = self.tokenizer(rendered, add_special_tokens=False, return_offsets_mapping=True)
         ids, offsets = encoded["input_ids"], encoded["offset_mapping"]

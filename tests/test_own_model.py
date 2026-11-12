@@ -281,12 +281,18 @@ def test_status_keeps_configured_available_and_proven_apart(tmp_path):
     assert capacity.status(root)["proven"]["skills"]["see"]["confirmed"] is False
 
 
-def _lived(life, days=40):
+def _lived(life, days=80):
+    """A person tells the being about their neighbours, one exchange at a time: varied enough that validation
+    units are not near duplicates of training ones."""
     life.mkdir(parents=True, exist_ok=True)
+    names = ["Amina", "Bruno", "Chloe", "Driss", "Elena", "Farid", "Greta", "Hugo", "Ines", "Jamal"]
+    animals = ["cats", "goats", "hens", "ducks", "rabbits", "bees", "sheep", "horses"]
+    places = ["mill", "river", "bakery", "station", "orchard", "harbour", "chapel", "market", "bridge"]
     with open(life / "events.log", "a", encoding="utf-8") as f:
         for i in range(days):
-            f.write(json.dumps({"type": "stage", "source": "message", "text": f"Where does the fox sleep on day {i}?"}) + "\n")
-            f.write(json.dumps({"type": "speech", "spontaneous": False, "text": f"On day {i} the fox sleeps under the lemon tree."}) + "\n")
+            said = f"{names[i % 10]} keeps {i % 7 + 2} {animals[i % 8]} behind the old {places[i % 9]}."
+            f.write(json.dumps({"type": "stage", "source": "message", "text": said}) + "\n")
+            f.write(json.dumps({"type": "speech", "spontaneous": False, "text": "I will remember that."}) + "\n")
 
 
 @needs_torch

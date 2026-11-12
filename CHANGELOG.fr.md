@@ -13,6 +13,10 @@
   - **Configuré, disponible, prouvé.** La carte des réglages présente ces trois choses séparément.
   - **Les nuits d'une vie.** Elles peuvent entraîner les adaptateurs du modèle, selon les règles des nuits du modèle local ; `can_learn` reste faux tant que l'essai réel n'a pas gardé de nuit.
 
+**Modifié**
+
+- Le corpus du moteur suit les règles `h4-engine-2.0` (audit technique du 12 novembre 2026, R-01 à R-03). Chaque unité dit d'où elle vient : entendue, lue, garantie par une personne, ou réponse de l'être. Les réponses de l'être ne sont plus entraînées sauf si la personne l'autorise. Les unités sont séparées par épisode en entraînement, validation et un test scellé qu'aucune nuit n'utilise ; chaque ouverture du test scellé est journalisée dans `test_access.jsonl`. Les quasi-doublons du texte d'entraînement sont mis à part avant toute mesure. Une personne peut garantir un fait dans le laboratoire et dire comment le tester ; les tests de capacités (rappel, reformulation, contradiction) sont des choix forcés, et une nuit qui en perd plus qu'elle n'en gagne est refusée. Un témoin entraîné sur les mots mélangés tourne chaque nuit, et un candidat doit le battre. La comparaison finale mesure la base, la mémoire seule, l'adaptateur seul, l'adaptateur avec mémoire et le témoin sur le test scellé. Les vies des règles 1.x sont migrées, leurs anciens éléments mis de côté devenant de la validation. Voir [`docs/engine-learning.fr.md`](docs/engine-learning.fr.md).
+
 ## 1.1.1
 
 **Corrigé**

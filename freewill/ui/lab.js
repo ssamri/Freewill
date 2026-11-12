@@ -417,6 +417,23 @@
           : h("p", { class: "muted" }, t("lab.no_report"))];
     }
 
+    // A fact a person vouches for, with its forced-choice test (audit R-02, R-03).
+    function teachForm(E, post, k) {
+      const D = L.teach || (L.teach = { fact: "", question: "", answer: "", wrong: "", paraphrase: "", false_premise: "" });
+      const input = (key, long) => h(long ? "textarea" : "input", { rows: long ? 2 : undefined, value: D[key], oninput: (e) => { D[key] = e.target.value; } }, long ? D[key] : null);
+      return h("div", {},
+        h("div", { class: "section-title", style: "margin-top:16px" }, k("teach")),
+        h("p", { class: "hint" }, k("teach_hint")),
+        field(k("fact"), input("fact", true)),
+        h("div", { class: "grid2" }, field(k("question"), input("question")), field(k("answer"), input("answer")),
+          field(k("wrong"), input("wrong")), field(k("paraphrase"), input("paraphrase")), field(k("false_premise"), input("false_premise"))),
+        h("div", { class: "btn-row" }, h("button", { class: "btn", disabled: L.busy || !D.fact.trim(), onclick: () => {
+          if (!(L.who || "").trim()) { L.error = t("lab.name_first"); return draw(); }
+          const body = { ...D, who: L.who }; L.teach = null; post("teach", body);
+        } }, k("teach_save"))),
+        h("p", { class: "small muted" }, k("facts", { n: num(E.facts || 0, 0) })));
+    }
+
     // The engine this life converses with: what it holds now, the nights that adapted it, and the controls.
     function engineCard() {
       const E = L.engine, k = (name, vars) => t("lab.learn.eng." + name, vars);
@@ -435,7 +452,7 @@
       const detail = (row) => row.kind === "night" ? [k("decisions." + row.decision), row.version || "",
         reasons(((row.candidates || {})[row.chosen || "candidate"] || { verdict: {} }).verdict.reasons)].filter(Boolean).join(" · ")
         : row.kind === "skipped" ? k("reasons." + row.reason) : row.kind === "restore" ? (row.after || k("base_alone"))
-        : row.kind === "corpus" ? "+" + row.added_train + " / +" + row.added_held_out : row.kind === "failed" ? row.error : row.kind === "settings" ? Object.keys(row.changes || {}).join(", ") : "";
+        : row.kind === "corpus" ? "+" + row.added_train + " / +" + row.added_held_out + " / +" + (row.added_test || 0) : row.kind === "failed" ? row.error : row.kind === "settings" ? Object.keys(row.changes || {}).join(", ") : "";
       return card(
         h("div", { class: "kv" }, h("b", {}, k("model")), h("span", {}, E.model_name), h("b", {}, k("base_params")), h("span", {}, num(m.parameters, 0)),
           h("b", {}, k("in_use")), h("span", {}, active ? k("adapter", { version: active.version, params: num(active.adapter_parameters, 0) }) : k("base_alone")),
@@ -458,8 +475,16 @@
           E.running ? h("button", { class: "btn", onclick: () => post("cancel", {}) }, k("cancel"))
             : h("button", { class: "btn primary", disabled: L.busy || !E.base_installed || !st.enabled, onclick: () => post("run", {}) }, k("run"))),
         E.running ? h("p", { class: "hint" }, k("running", { step: (E.progress && E.progress.step) || "…" })) : null,
-        h("p", { class: "small muted", style: "margin-top:10px" }, k("corpus", { train: num(E.corpus_items, 0), held: num(E.held_out_items, 0), pending: num(E.pending_items, 0) })),
+        h("label", { class: "check", style: "margin-top:8px" }, h("input", { type: "checkbox", checked: st.learn_from_own_replies,
+          onchange: (e) => post("configure", { changes: { learn_from_own_replies: e.target.checked }, who: L.who || "" }) }), k("own_replies")),
+        h("p", { class: "hint" }, k("own_replies_hint")),
+        h("label", { class: "check" }, h("input", { type: "checkbox", checked: st.control_each_night,
+          onchange: (e) => post("configure", { changes: { control_each_night: e.target.checked }, who: L.who || "" }) }), k("control")),
+        h("p", { class: "small muted", style: "margin-top:10px" }, k("corpus", { train: num(E.corpus_items, 0), held: num(E.held_out_items, 0),
+          test: num(E.test_items || 0, 0), readings: num(E.test_readings || 0, 0), pending: num(E.pending_items, 0) })),
+        h("p", { class: "small muted" }, k("provenance", Object.fromEntries(["heard", "read", "verified", "reply"].map((p) => [p, num((E.by_provenance || {})[p] || 0, 0)])))),
         h("p", { class: "small muted" }, k("rules", { gain: num(E.thresholds.min_gain, 3), forget: num(E.thresholds.max_forgetting, 3), life: num(E.thresholds.max_life_forgetting, 3) })),
+        teachForm(E, post, k),
         h("div", { class: "section-title", style: "margin-top:16px" }, k("checkpoints")),
         E.versions.length ? table([k("col_version"), k("col_date"), k("col_rank"), k("col_params"), k("col_gain"), k("col_forget"), k("col_runtime"), ""],
           E.versions.slice().reverse().map((v) => [v.version, when(v.created), num(v.rank, 0), num(v.adapter_parameters, 0), signed(v.verdict.gain), signed(v.verdict.forgetting_reference),
