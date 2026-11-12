@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 1.1.0
 
 Le moteur embarqué peut être adapté par une vie. Rien dans cette version n'affirme que le modèle apprend des faits, comprend ou est conscient.
 

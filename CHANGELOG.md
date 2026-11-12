@@ -2,7 +2,7 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
-## Unreleased
+## 1.1.0
 
 The embedded engine can be adapted by a life. Nothing in this version claims that the model learns facts, understands, or is conscious.
 
