@@ -41,7 +41,7 @@ def physical_cores() -> int | None:
             return int(out.stdout.strip()) if out.returncode == 0 and out.stdout.strip().isdigit() else None
         if sys.platform == "win32":
             return _windows_physical()
-    except (OSError, ValueError, subprocess.SubprocessError):
+    except Exception:   # whatever goes wrong here, the answer is "this system does not say"
         return None
     return None
 
