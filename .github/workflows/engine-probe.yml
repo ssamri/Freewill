@@ -1,0 +1,30 @@
+name: engine probe (temporary)
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/engine-probe.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: llama.cpp releases and digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/ggml-org/llama.cpp/releases?per_page=3" --jq '.[] | "== \(.tag_name) prerelease=\(.prerelease) \(.published_at)", (.assets[] | select(.name|test("bin-(win-cpu-x64|ubuntu-x64|macos-arm64|macos-x64)\\.zip$|bin-ubuntu-x64\\.tar\\.gz$|win-cpu-x64\\.zip$")) | "   \(.name) \(.size) \(.digest) \(.browser_download_url)")'
+          gh api "repos/ggml-org/llama.cpp/releases/latest" --jq '.assets[] | "   \(.name) \(.size)"' | head -60
+      - name: Hugging Face files
+        run: |
+          for repo in Qwen/Qwen3-1.7B-GGUF Qwen/Qwen3-1.7B ggml-org/SmolVLM2-2.2B-Instruct-GGUF Qwen/Qwen3-0.6B; do
+            echo "== $repo"
+            curl -s "https://huggingface.co/api/models/$repo" | python3 -c "import json,sys; d=json.load(sys.stdin); print('license', (d.get('cardData') or {}).get('license'), 'gated', d.get('gated'), 'sha', d.get('sha'))"
+            curl -s "https://huggingface.co/api/models/$repo/tree/main" | python3 -c "
+          import json,sys
+          for e in json.load(sys.stdin):
+              print('  ', e['path'], e.get('size'), (e.get('lfs') or {}).get('oid') or e.get('oid'))"
+          done
