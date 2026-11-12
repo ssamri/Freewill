@@ -161,10 +161,10 @@ def test_a_wave_evaluates_a_copy_and_leaves_the_life_untouched(tmp_path, monkeyp
                 "probe": [{"ticks": 3}], "history": []}
     condition = {"name": "A", "history": "tiny_waves", "affect": True}
     run = execute_run(tmp_path / "T0.life", tmp_path / "run", protocol, condition, 11, "run-A-11", "exp_test")
-    waves = json.loads((tmp_path / "run" / "waves.json").read_text())
+    waves = json.loads((tmp_path / "run" / "waves.json").read_text(encoding="utf-8"))
     assert run["status"] == "done" and [w["wave"] for w in waves] == [1, 2]
     assert all(len(w["behaviour"]) == len(waves[0]["behaviour"]) for w in waves)
-    journal = (tmp_path / "run" / "journal.jsonl").read_text()
+    journal = (tmp_path / "run" / "journal.jsonl").read_text(encoding="utf-8")
     assert "kettle" not in journal  # the life never met the interim probe; only its copies did
     assert not (tmp_path / "run" / "waves" / "wave-1" / "copy.life").exists()
 

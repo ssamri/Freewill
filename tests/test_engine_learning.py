@@ -89,7 +89,7 @@ def build_toy_base(folder: Path) -> Path:
     import torch
     from tokenizers import Tokenizer, models as tmodels, pre_tokenizers, trainers, decoders
     from transformers import PreTrainedTokenizerFast, Qwen3Config, Qwen3ForCausalLM
-    texts = [a + " " + b for a, b in LINES] + [t for v in json.loads(engine_learning.REFERENCE_PATH.read_text())["general"].values() for t in v]
+    texts = [a + " " + b for a, b in LINES] + [t for v in json.loads(engine_learning.REFERENCE_PATH.read_text(encoding="utf-8"))["general"].values() for t in v]
     tok = Tokenizer(tmodels.BPE(unk_token="<unk>"))
     tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
     tok.decoder = decoders.ByteLevel()
@@ -235,10 +235,10 @@ def test_a_night_trains_measures_converts_and_loads_only_what_helps(life, toy_ba
     assert calls and calls[0][0].name == "adapter.gguf"
     active = learning.active("toy")
     folder = Path(active["folder"])
-    manifest = json.loads((folder / "manifest.json").read_text())
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["gguf_sha256"] == active["sha256"] == hashlib.sha256((folder / "adapter.gguf").read_bytes()).hexdigest()
     assert manifest["adapter_parameters"] > 0 and manifest["delta_total_frobenius"] > 0
-    assert json.loads((folder / "weights_delta.json").read_text())["modules"]  # every change of weights, module by module
+    assert json.loads((folder / "weights_delta.json").read_text(encoding="utf-8"))["modules"]  # every change of weights, module by module
     from freewill.learning.gguf_lora import check
     found = check(folder / "adapter.gguf", "qwen3")
     assert found["tensors"] == 2 * 7 * 2  # A and B, seven matrices, two layers

@@ -124,7 +124,7 @@ def test_pipeline_saves_and_rebuilds_the_same_model(tmp_path):
                            plan, log=lambda *a: None)
     assert [s["stage"] for s in summary["stages"]] == ["read", "see", "watch"]
     assert all(s["decision"] in ("kept", "refused") for s in summary["stages"])
-    assert (tmp_path / "ledger.jsonl").read_text().count("\n") == 3
+    assert (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").count("\n") == 3
     again = tiny()
     manifest = restore(again, current(tmp_path))
     assert manifest["parameters"] == again.count() == m.count()

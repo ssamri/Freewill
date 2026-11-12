@@ -83,11 +83,11 @@ def store(tmp_path):
 
 def test_memories_are_readable_files_with_an_index(store):
     assert store.map() == {"myself": 1, "questions": 1, "world/nature": 1}
-    text = (store.root / "world/nature/first-talk-about-the-sea.md").read_text()
+    text = (store.root / "world/nature/first-talk-about-the-sea.md").read_text(encoding="utf-8")
     assert text.startswith("---\n") and 'title: "First talk about the sea"' in text
     assert "The full account." in text
-    assert "First talk about the sea" in (store.root / "world/nature/index.md").read_text()
-    assert "world/nature" in (store.root / "index.md").read_text()
+    assert "First talk about the sea" in (store.root / "world/nature/index.md").read_text(encoding="utf-8")
+    assert "world/nature" in (store.root / "index.md").read_text(encoding="utf-8")
 
 
 def test_memory_round_trips_including_awkward_text(tmp_path):
@@ -250,7 +250,7 @@ def test_life_survives_a_restart(tmp_path):
 def test_events_are_logged_to_the_life_file(being):
     being.hear("Bonjour")
     being.tick()
-    log = (being.life.path / "events.log").read_text()
+    log = (being.life.path / "events.log").read_text(encoding="utf-8")
     assert '"type": "awake"' in log and '"type": "speech"' in log
 
 

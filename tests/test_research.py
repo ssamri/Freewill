@@ -121,7 +121,7 @@ def test_the_register_covers_h1_to_h10_and_says_when_it_cannot_compute(campaign)
     assert set(texts.HYPOTHESES) <= covered
     lab, experiment, _results = campaign
     run_id = experiment["runs"][0]["run_id"]
-    run = json.loads((lab.root / "experiments" / experiment["experiment_id"] / "runs" / run_id / "run.json").read_text())
+    run = json.loads((lab.root / "experiments" / experiment["experiment_id"] / "runs" / run_id / "run.json").read_text(encoding="utf-8"))
     for metric_id, reason in (("h8.brier", "metacognition_off"), ("h10.attribution_accuracy", "sandbox_off"),
                               ("h4.parameters", "learner_off")):  # modules off in this protocol: said, not invented
         result = run["metrics"][metric_id]
@@ -329,7 +329,7 @@ def test_reports_come_in_one_language_as_markdown_pdf_and_a_pack(campaign):
     with pytest.raises(ValueError):
         reports.validate_report(lab, made["en"]["report_id"], " ")
     validated = reports.validate_report(lab, made["en"]["report_id"], "Dana")
-    assert validated["status"] == "validated" and "validated for publication by Dana" in Path(made["en"]["files"]["markdown"]).read_text()
+    assert validated["status"] == "validated" and "validated for publication by Dana" in Path(made["en"]["files"]["markdown"]).read_text(encoding="utf-8")
     assert len(reports.list_reports(lab)) == 2
 
 

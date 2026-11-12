@@ -797,7 +797,7 @@ def summarise(folder: Path, experiment: dict, protocol: dict, exclude: set | Non
         run_dir = folder / "runs" / entry["run_id"]
         if entry["status"] == "done":
             runs[(entry["condition"], entry["seed"])] = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-            vectors[(entry["condition"], entry["seed"])] = json.loads((run_dir / "behaviour.json").read_text())
+            vectors[(entry["condition"], entry["seed"])] = json.loads((run_dir / "behaviour.json").read_text(encoding="utf-8"))
     names = [c["name"] for c in protocol["conditions"]]
     reference = protocol["reference"]
     seeds = [s for s in protocol["seeds"] if all((name, s) in runs for name in names) and s not in (exclude or ())]
@@ -896,9 +896,9 @@ def summarise_longitudinal(folder: Path, experiment: dict, protocol: dict) -> di
             excluded.setdefault(entry["seed"], []).append(reason)
     results = summarise(folder, experiment, protocol, exclude=set(excluded))
     seeds = results["units"]
-    load = lambda name, s: json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "waves.json").read_text())  # noqa: E731
+    load = lambda name, s: json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "waves.json").read_text(encoding="utf-8"))  # noqa: E731
     vectors = {(name, s): {w["wave"]: w["behaviour"] for w in load(name, s)} for name in names for s in seeds}
-    final = {(name, s): json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "behaviour.json").read_text())
+    final = {(name, s): json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "behaviour.json").read_text(encoding="utf-8"))
              for name in names for s in seeds}
     waves = sorted({w for v in vectors.values() for w in v})
     evidence = results["evidence"]
