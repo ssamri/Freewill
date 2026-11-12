@@ -116,9 +116,9 @@ def embedded(out: Path, data: Path, requests: list[dict], rounds: int) -> dict:
     from freewill import models, runtime
     from freewill.engines.embedded import EmbeddedEngine
 
-    if runtime.find("llama-server") is None:
-        runtime.install(target=data / "runtime")
     server = runtime.find("llama-server")
+    if server is None:
+        server = runtime.install(target=data / "runtime") / runtime.exe("llama-server")
     store = models.ModelStore(data / "models")
     model = models.find("qwen3-1.7b")
     if not store.installed(model):
