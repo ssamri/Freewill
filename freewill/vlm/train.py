@@ -7,11 +7,13 @@ Three stages, each a separate decision written to an append-only ledger:
            never trained on, against the model before the stage.
     see    the model learns to look. Trained: the bridge between the eye and the
            language model (and the adapters if asked). Measured: multiple-choice
-           accuracy on held-out images, with the image of another item as a control.
+           accuracy on validation images, with the image of another item as a control.
     watch  the model learns to watch frames in order. Measured the same way on
-           held-out videos, with two controls: frames reversed, and a single frame.
+           validation videos, with two controls: frames reversed, and a single frame.
 
-A stage is kept only if it does better on what it was measured on by the
+Measurements that decide use the validation sets only. The sealed test sets
+(pipeline.py) are measured at birth and at the end, reported, and never given
+to a rule. A stage is kept only if it does better on what it was measured on by the
 margin written below, and does not make earlier abilities worse beyond a
 tolerance; otherwise the weights of before are restored and the ledger says
 why. Every number here is computed from the model, on data it did not train
@@ -34,9 +36,9 @@ import torch
 from freewill.vlm.model import FreewillVLM
 
 RULES_VERSION = "own-vlm-0.1"
-MIN_READING_GAIN = 0.01        # nats per token on held-out passages
-MIN_ACCURACY_GAIN = 0.05       # held-out multiple-choice accuracy, absolute
-MAX_FORGETTING = 0.05          # nats per token on held-out passages, for stages that are not about reading
+MIN_READING_GAIN = 0.01        # nats per token on validation passages
+MIN_ACCURACY_GAIN = 0.05       # validation multiple-choice accuracy, absolute
+MAX_FORGETTING = 0.05          # nats per token on validation passages, for stages that are not about reading
 MAX_SKILL_LOSS = 0.05          # accuracy an earlier visual skill may lose
 
 
@@ -222,16 +224,16 @@ def current(root: Path) -> Path | None:
 # -- acceptance rules -----------------------------------------------------------
 
 def accept_reading(before: dict, after: dict) -> tuple[bool, str]:
-    if not all(math.isfinite(x["books_held_out"]) for x in (before, after)):
-        return False, "no held-out passage could be measured"
-    gain = before["books_held_out"] - after["books_held_out"]
+    if not all(math.isfinite(x["books_validation"]) for x in (before, after)):
+        return False, "no validation passage could be measured"
+    gain = before["books_validation"] - after["books_validation"]
     if gain < MIN_READING_GAIN:
-        return False, f"held-out passages: {gain:+.4f} nats/token, less than the {MIN_READING_GAIN} required"
-    return True, f"held-out passages predicted better by {gain:.4f} nats/token"
+        return False, f"validation passages: {gain:+.4f} nats/token, less than the {MIN_READING_GAIN} required"
+    return True, f"validation passages predicted better by {gain:.4f} nats/token"
 
 
 def accept_skill(key: str, controls: list[str] = (), keep: list[str] = ()) -> callable:
-    """Kept if held-out accuracy rises by the margin, and beats every control by the margin too: a skill
+    """Kept if validation accuracy rises by the margin, and beats every control by the margin too: a skill
     that does as well on the image of another item, or on reversed or single frames, is not seeing."""
     def rule(before: dict, after: dict) -> tuple[bool, str]:
         gain = after[key]["accuracy"] - before[key]["accuracy"]
@@ -242,15 +244,15 @@ def accept_skill(key: str, controls: list[str] = (), keep: list[str] = ()) -> ca
             if lead < MIN_ACCURACY_GAIN:
                 return False, (f"{key}: accuracy {after[key]['accuracy']:.3f}, but {control} gives {after[control]['accuracy']:.3f}: "
                                "the answers do not depend enough on what is shown")
-        if "books_held_out" in before and math.isfinite(before["books_held_out"]):
-            forgot = after["books_held_out"] - before["books_held_out"]
+        if "books_validation" in before and math.isfinite(before["books_validation"]):
+            forgot = after["books_validation"] - before["books_validation"]
             if forgot > MAX_FORGETTING:
                 return False, f"reading got worse by {forgot:.4f} nats/token (tolerance {MAX_FORGETTING})"
         for other in keep:
             lost = before[other]["accuracy"] - after[other]["accuracy"]
             if lost > MAX_SKILL_LOSS:
                 return False, f"{other}: accuracy fell by {lost:.3f} (tolerance {MAX_SKILL_LOSS})"
-        return True, f"{key}: accuracy {before[key]['accuracy']:.3f} → {after[key]['accuracy']:.3f} on held-out items"
+        return True, f"{key}: accuracy {before[key]['accuracy']:.3f} → {after[key]['accuracy']:.3f} on validation items"
     return rule
 
 

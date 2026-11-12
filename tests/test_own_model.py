@@ -8,6 +8,7 @@ the "own model end to end" workflow.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -43,9 +44,11 @@ def test_passages_keep_paragraphs_and_drop_scraps():
 def test_drawn_items_are_reproducible_and_split():
     a, b = synthetic.image_item(5), synthetic.image_item(5)
     assert a["colour"] == b["colour"] and a["image"].tobytes() == b["image"].tobytes()
-    held = [s for s in range(100) if synthetic.held_out(s)]
-    assert len(held) == 25
-    video = synthetic.video_item(2, frames=4)
+    other = [synthetic.image_item(5, split) for split in ("validation", "test")]
+    assert all(o["image"].tobytes() != a["image"].tobytes() for o in other)   # three separate namespaces
+    with pytest.raises(ValueError):
+        synthetic.image_item(5, "everything")
+    video = synthetic.video_item(2, frames=4, split="validation")
     assert len(video["frames"]) == 4 and video["direction"] in synthetic.DIRECTIONS
     reversed_ = synthetic.video_choices([2], 4, "reversed")[0]["parts"][0][1]
     assert reversed_[0][1].tobytes() == video["frames"][-1][1].tobytes()
@@ -65,9 +68,9 @@ def test_skill_rule_requires_beating_controls():
 
 def test_reading_rule_refuses_what_cannot_be_measured():
     from freewill.vlm.train import accept_reading
-    assert not accept_reading({"books_held_out": float("nan")}, {"books_held_out": 1.0})[0]
-    assert not accept_reading({"books_held_out": 2.0}, {"books_held_out": 1.995})[0]
-    assert accept_reading({"books_held_out": 2.0}, {"books_held_out": 1.9})[0]
+    assert not accept_reading({"books_validation": float("nan")}, {"books_validation": 1.0})[0]
+    assert not accept_reading({"books_validation": 2.0}, {"books_validation": 1.995})[0]
+    assert accept_reading({"books_validation": 2.0}, {"books_validation": 1.9})[0]
 
 
 # -- the model ----------------------------------------------------------------------
@@ -119,12 +122,18 @@ def test_pipeline_saves_and_rebuilds_the_same_model(tmp_path):
     text = "\n\n".join(f"Chapter {i}. The keeper counted {i} ships while the fox slept under the lemon tree "
                        f"and the bell rang {i % 7} times over the harbour." for i in range(120))
     plan = pipeline.Plan(grow=1, rank=4, read_steps=5, read_lr=3e-3, read_words=40, see_steps=5, see_batch=2,
-                         watch_steps=3, watch_batch=2, images=16, videos=8, held_books=6)
-    summary = pipeline.run(m, tmp_path, [{"id": "t", "title": "t", "language": "English", "sha256": "", "text": text}],
-                           plan, log=lambda *a: None)
+                         watch_steps=3, watch_batch=2, images=16, videos=8, validation_images=6, validation_videos=4,
+                         test_images=6, test_videos=4, validation_books=6, test_books=6)
+    book = [{"id": "t", "title": "t", "language": "English", "sha256": "", "text": text}]
+    summary = pipeline.run(m, tmp_path, book, plan, log=lambda *a: None)
     assert [s["stage"] for s in summary["stages"]] == ["read", "see", "watch"]
     assert all(s["decision"] in ("kept", "refused") for s in summary["stages"])
-    assert (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").count("\n") == 3
+    assert (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").count("\n") == 4          # three stages and the sealed test
+    assert "images" in summary["test_at_birth"] and "videos" in summary["test_at_end"]
+    for stage in summary["stages"]:                                          # no rule ever saw the sealed test
+        assert "test" not in json.dumps(stage["before"]) and "test" not in json.dumps(stage["after"])
+    with pytest.raises(ValueError, match="sealed"):                          # the test cannot be changed afterwards
+        pipeline.run(tiny(), tmp_path, book, pipeline.Plan(**{**plan.__dict__, "test_images": 7}), log=lambda *a: None)
     again = tiny()
     manifest = restore(again, current(tmp_path))
     assert manifest["parameters"] == again.count() == m.count()
@@ -204,3 +213,106 @@ def test_grow_to_stops_at_the_ceiling():
     m.spec["ceiling_parameters"] = 400_000
     m.grow_to(10_000_000)
     assert m.count()["total"] <= 400_000 and m.growth_log
+
+
+def test_book_splits_keep_neighbours_together():
+    from freewill.vlm import pipeline
+    text = "\n\n".join(" ".join(f"w{i}_{k}" for k in range(30)) for i in range(600))
+    sets = pipeline.split_books([{"id": "b", "text": text}], 30)
+    assert sets["test"] and sets["validation"] and sets["train"]
+    assert not set(sets["test"]) & set(sets["train"]) and not set(sets["validation"]) & set(sets["train"])
+    index = {p: i for i, p in enumerate(books.passages(text, 30))}
+    for name in ("test", "validation"):                                      # whole blocks of consecutive passages
+        assert len({index[p] // books.BLOCK for p in sets[name]}) * books.BLOCK == len(sets[name])
+
+
+def test_guard_refuses_what_this_computer_cannot_hold():
+    from freewill.vlm import capacity
+    small = {"ram_available_gb": 8.0, "disk_free_gb": 100.0, "gpu_free_gb": []}
+    capacity.check_growth(1_800_000_000, 50_000_000, 2.0, have=small)
+    with pytest.raises(capacity.GrowthRefused) as refused:
+        capacity.check_growth(1_800_000_000, 3_000_000_000, 2.0, have=small)
+    details = refused.value.details
+    assert "memory" in details["reasons"] and "adapters_instead" in details["alternatives"]
+    assert 0 < details["largest_step_that_fits"] < 3_000_000_000
+    capacity.check_growth(1_800_000_000, details["largest_step_that_fits"], 2.0, have=small)   # the step offered fits
+    with pytest.raises(capacity.GrowthRefused):
+        capacity.check_growth(1_800_000_000, 50_000_000, 2.0, have={**small, "disk_free_gb": 0.5})
+
+
+@needs_torch
+def test_model_growth_goes_through_the_guard(tmp_path):
+    from freewill.vlm import capacity, pipeline
+    from freewill.vlm.model import tiny
+    m = tiny()
+    def guard(total, adding):
+        raise capacity.GrowthRefused("growth refused: memory", {"reasons": ["memory"], "alternatives": ["adapters_instead"]})
+    m.guard = guard
+    before = m.count()
+    with pytest.raises(capacity.GrowthRefused):
+        m.grow(1)
+    assert m.count() == before
+    summary = pipeline.run(m, tmp_path, [], pipeline.Plan(grow=1, rank=4, see_steps=1, images=4, validation_images=2,
+                                                           test_images=2), log=lambda *a: None, stages=("see",))
+    assert summary["growth_refused"]["reasons"] == ["memory"] and m.count()["grown_count"] == 0
+
+
+def test_status_keeps_configured_available_and_proven_apart(tmp_path):
+    from freewill.vlm import capacity
+    root = tmp_path / "own"
+    root.mkdir()
+    st = capacity.status(root)
+    assert st["configured"]["is_default"] and st["configured"]["max_parameters"] == capacity.DEFAULT_MAX
+    assert st["available"]["bases"] is False and st["available"]["ready"] is False
+    assert st["proven"] == {"checkpoint": None, "summary": False, "skills": {}, "learns_in_nights": False, "sealed_test": None}
+    # a run whose see stage was kept, and whose sealed test agrees, beyond chance and beyond the control
+    acc = lambda a, n=50: {"accuracy": a, "n": n, "chance": 0.25}
+    summary = {"stages": [{"stage": "read", "decision": "refused"}, {"stage": "see", "decision": "kept"}],
+               "test_at_birth": {"books": 3.0, "images": acc(0.25), "images_other_image": acc(0.25)},
+               "test_at_end": {"books": 2.995, "images": acc(0.8), "images_other_image": acc(0.3)},
+               "significance": {"test_at_end:images": {"p_by_chance": 1e-9}}, "sealed_test": {"sha256": "x"}}
+    (root / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+    skills = capacity.status(root)["proven"]["skills"]
+    assert skills["see"]["confirmed"] is True
+    assert skills["read"]["confirmed"] is False         # refused on validation, and too small a change anyway
+    assert skills["watch"]["kept"] is None and skills["watch"]["confirmed"] is False
+    summary["test_at_end"]["images_other_image"] = acc(0.78)   # the control does as well: not seeing
+    (root / "summary.json").write_text(json.dumps(summary), encoding="utf-8")
+    assert capacity.status(root)["proven"]["skills"]["see"]["confirmed"] is False
+
+
+def _lived(life, days=80):
+    """A person tells the being about their neighbours, one exchange at a time: varied enough that validation
+    units are not near duplicates of training ones."""
+    life.mkdir(parents=True, exist_ok=True)
+    names = ["Amina", "Bruno", "Chloe", "Driss", "Elena", "Farid", "Greta", "Hugo", "Ines", "Jamal"]
+    animals = ["cats", "goats", "hens", "ducks", "rabbits", "bees", "sheep", "horses"]
+    places = ["mill", "river", "bakery", "station", "orchard", "harbour", "chapel", "market", "bridge"]
+    with open(life / "events.log", "a", encoding="utf-8") as f:
+        for i in range(days):
+            said = f"{names[i % 10]} keeps {i % 7 + 2} {animals[i % 8]} behind the old {places[i % 9]}."
+            f.write(json.dumps({"type": "stage", "source": "message", "text": said}) + "\n")
+            f.write(json.dumps({"type": "speech", "spontaneous": False, "text": "I will remember that."}) + "\n")
+
+
+@needs_torch
+def test_a_night_of_a_life_trains_the_own_model_and_is_kept_by_its_rule(tmp_path):
+    from freewill.engines.own_model import OwnModelEngine
+    from freewill.learning.engine import EngineLearning, EngineLearningError
+    from freewill.vlm import nights
+    from freewill.vlm.model import tiny
+    life = tmp_path / "life"
+    _lived(life)
+    m = tiny()
+    with pytest.raises(EngineLearningError):        # off until a person turns it on
+        nights.night(m, life, log=lambda *a: None)
+    EngineLearning(life).configure({"enabled": True, "steps": 60, "lr": 3e-3}, who="test")
+    row = nights.night(m, life, log=lambda *a: None)
+    assert row["kind"] == "own_night" and row["decision"] == "accepted", row["reason"]
+    assert row["after"]["life_new"] < row["before"]["life_new"] - 0.01
+    assert nights.current(life).name == row["checkpoint"]
+    again = nights.night(m, life, log=lambda *a: None)
+    assert again["kind"] == "skipped"                  # nothing new was lived
+    assert OwnModelEngine.can_learn is False           # not claimed before an end-to-end run with the real bases
+    rows = [json.loads(l) for l in (nights.folder(life) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert rows[-1]["stage"] == "night" and rows[-1]["decision"] == "kept"

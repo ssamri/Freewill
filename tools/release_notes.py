@@ -20,7 +20,7 @@ USES = """\
 |---|---|---|
 | Converse with a life, with the simulated engine, a remote API (Claude, GPT, Grok…) or an embedded GGUF model run by llama.cpp | Yes | An API key for a remote engine; the model file for an embedded one (downloaded by the application) |
 | Train a LoRA adapter for the embedded engine (Qwen3 1.7B) during a life's nights | No | A source install with `pip install ".[lora]"` (PyTorch, PEFT, Transformers, gguf) and the trainable base of the model |
-| Run and train Freewill 1.8B-V, the project's own model | No | A source install with `pip install ".[own-model]"`; a graphics card is strongly advised. Its training is not yet connected to a life's nights |
+| Run and train Freewill 1.8B-V, the project's own model | No | A source install with `pip install ".[own-model]"`; a graphics card is strongly advised. A life's nights can train its adapters, but no real run has kept a night yet |
 
 Tested: the test suite on Linux (CI), the installer and its self-test on Windows (CI), the embedded engine and its LoRA training on CPU (CI). **Not tested:** any graphics card, macOS, runs of several weeks. The installer is not signed yet.
 

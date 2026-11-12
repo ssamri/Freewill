@@ -1,8 +1,11 @@
 """Books for the model to read: public-domain books from Project Gutenberg, and the person's own files.
 
-A book becomes passages of a few hundred words. One passage in ten, chosen by
-the hash of its text, is never trained on: it is how reading is measured (does
-the model predict unseen pages of the books better than before?). Books from
+A book becomes passages of a few hundred words, grouped in blocks of twenty
+consecutive passages. Each block goes whole to one of three sets, by hash:
+training, validation (to decide whether a stage is kept) and a sealed test
+(never trained on, never used to decide, measured only to report). Keeping
+neighbouring passages together stops a page from being tested while the page
+before it was trained on. Books from
 Project Gutenberg are fetched one at a time from its public files, their
 licence header and footer are removed, and the language written in their
 header is checked against the language expected: a book that does not match is
@@ -31,11 +34,14 @@ SHELF = [
     {"id": 5097, "language": "French"},    # Vingt mille lieues sous les mers
 ]
 PASSAGE_WORDS = 160
-HELD_OUT_EVERY = 10
+BLOCK = 20          # consecutive passages that always fall in the same split, so that neighbours do not leak
+SHARE = 10          # one block in ten for validation, one in ten for the sealed test
 
 
-def held_out(text: str) -> bool:
-    return int(hashlib.sha256(text.encode("utf-8")).hexdigest(), 16) % HELD_OUT_EVERY == 0
+def split_of(book_id, block: int) -> str:
+    """"train", "validation" or "test" for one block of consecutive passages of one book, by hash."""
+    value = int(hashlib.sha256(f"{book_id}:{block}".encode("utf-8")).hexdigest(), 16) % SHARE
+    return "test" if value == 0 else "validation" if value == 1 else "train"
 
 
 def header_field(raw: str, field: str) -> str:

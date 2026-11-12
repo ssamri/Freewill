@@ -22,10 +22,16 @@ This version follows the technical and scientific audit of 12 November 2026 (rec
 **Added earlier, first released here**
 
 - Freewill 1.8B-V, the project's own model (`freewill/vlm/`): Qwen3 1.7B, the SigLIP2 eye and a bridge trained by Freewill; 1,823,955,200 parameters at birth, growth by neurons and whole layers up to a ceiling the person chooses in Settings (2, 5, 13, 50 billion or any size), each size shown with the disk, memory, graphics card, text and training time it needs. Stages read (public-domain books), see (drawn images, with a control) and watch (drawn videos, with two controls), each kept only by written rules. Engine kind `own`, command `freewill own-model`, workflow `own model end to end`. See [`docs/own-model.md`](docs/own-model.md).
+- Freewill 1.8B-V, after the technical audit of 12 November 2026:
+  - **Sealed test.** Stages are decided on a validation set; results are reported on a separate sealed test, apart by construction (its own seeds, its own blocks of the books), fixed by a hash at the first run, measured at birth and at the end, and read by no rule.
+  - **Hardware guard.** Every growth first checks the memory and disk free at that moment and is refused, with alternatives, if they cannot hold it.
+  - **Configured, available, proven.** The settings card shows these three apart.
+  - **A life's nights.** They can train the model's adapters, under the rules of the local model's nights; `can_learn` stays false until the real run keeps a night.
 
 **Changed**
 
 - The engine's corpus follows rules `h4-engine-2.0` (technical audit of 12 November 2026, R-01 to R-03). Every unit says where it comes from: heard, read, vouched for by a person, or the being's own reply. The being's replies are no longer trained on unless the person allows it. Units are split by episode into train, validation and a sealed test that no night uses; every opening of the sealed test is logged in `test_access.jsonl`. Near duplicates of training text are set aside before any measure. A person can vouch for a fact in the Research Lab and say how to test it; capability tests (recall, paraphrase, contradiction) are forced choices, and a night that loses more of them than it gains is refused. A control trained on shuffled words runs each night, and a candidate must beat it. The final comparison measures base, memory only, adapter only, adapter with memory and the control on the sealed test. Lives of rules 1.x are migrated, their former held-out items becoming validation. See [`docs/engine-learning.md`](docs/engine-learning.md).
+- Results of the first run under rules `h4-engine-2.0` on Qwen3 1.7B, in [`docs/engine-learning.md`](docs/engine-learning.md): on the sealed test the adapter beats the base but not a control trained on the same words shuffled, and passes fewer sealed capability tests than the base; it is not shown to learn the life's facts.
 
 ## 1.1.1
 

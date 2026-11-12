@@ -5,9 +5,11 @@ machine. It can be shown images; the frames of a video arrive as images in
 order. It is slow on a processor (several seconds per answer, more with
 images) and needs about 8 GB of memory in float32 or 4 GB in bfloat16.
 
-can_learn is False: the nightly cycle of freewill/learning/engine.py adapts
-models run by llama.cpp; Freewill's own model is trained by its own stages
-(freewill/vlm/train.py), not yet from a life's nights.
+A life's nights can train it (freewill/vlm/nights.py), when the person turns
+engine learning on for that life; the engine then loads that life's latest
+kept night instead of the shared checkpoint. can_learn stays False until an
+end-to-end run with the real bases has kept a night: until then the interface
+does not present it as a model that learns.
 """
 
 from __future__ import annotations
@@ -25,23 +27,40 @@ class OwnModelEngine:
     can_see = True
     reading_chars = 7_500  # on a processor every token counts; Qwen3's context could hold far more
 
-    def __init__(self, root: Path | None = None, dtype: str = "bfloat16", model=None, manifest=None) -> None:
-        self._root, self._dtype = root, dtype
+    def __init__(self, root: Path | None = None, dtype: str = "bfloat16", model=None, manifest=None,
+                 life: Path | None = None) -> None:
+        self._root, self._dtype, self._life = root, dtype, (Path(life) if life else None)
         self._model, self._manifest = model, manifest
         self.name = "own:freewill-1.8b-v"
 
     def _ready(self):
         if self._model is None:
             try:
-                from freewill.vlm import store
-                self._model, self._manifest = store.load(self._root, self._dtype)
+                from freewill.vlm import nights, store
+                own = nights.current(self._life) if self._life else None
+                self._model, self._manifest = store.load(self._root, self._dtype, checkpoint=own)
+                if own and self._manifest:
+                    self._manifest["night_of_life"] = True
             except ImportError as error:
                 raise EngineError("Freewill's own model needs PyTorch and Transformers (pip install freewill[lora])") from error
             except FileNotFoundError as error:
                 raise EngineError(str(error)) from error
-        if self._manifest:
-            self.name = f"own:freewill-1.8b-v@{self._manifest['version']}:{self._manifest['own_sha256'][:12]}"
+        self.refresh_name()
         return self._model
+
+    def model(self):
+        """The model in memory (loaded on first use), for a night of learning."""
+        return self._ready()
+
+    def refresh_name(self) -> None:
+        if self._manifest:
+            where = "night " if self._manifest.get("night_of_life") else ""
+            self.name = f"own:freewill-1.8b-v@{where}{self._manifest['version']}:{self._manifest['own_sha256'][:12]}"
+
+    def adopt(self, manifest: dict) -> None:
+        """After a kept night: the weights in memory are already the new ones; only the name changes."""
+        self._manifest = {**manifest, "night_of_life": True}
+        self.refresh_name()
 
     def decide(self, system: str, prompt: str, schema: dict, hint: dict, images: list[dict] | None = None) -> dict:
         from PIL import Image

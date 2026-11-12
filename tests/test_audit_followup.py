@@ -32,7 +32,8 @@ def test_build_says_version_commit_and_never_shows_a_setting_as_a_validated_trai
     assert found["commit"] is None or len(found["commit"]) == 40
     about = build.about(None)
     states = {row["id"]: row for row in about["capabilities"]}
-    assert states["own_model_nights"]["state"] == "not_connected" and states["own_model_nights"]["evidence"] == "none"
+    assert states["own_model_nights"]["reason"] in ("connected_unproven", "needs_own_model_packages")
+    assert states["own_model_nights"]["evidence"] == "none"  # connected, never shown end to end
     assert set(about["untested"]) == {"gpu", "macos"}
     assert all(row["state"] in ("active", "available", "unavailable", "not_connected") for row in about["capabilities"])
 

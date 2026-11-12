@@ -138,9 +138,53 @@ real models, by [`tools/engine_e2e.py`](../tools/engine_e2e.py) and
 was rounded up. A being, Ada, was told 40 short facts about an invented island (Kerran) over one
 day, then 14 more the next day.
 
-The figures below were measured under rules `h4-engine-1.2`, before the corpus by provenance, the
-sealed test and the capability tests above. They are kept as they were measured; a run under rules
-`h4-engine-2.0` has not yet been reported here.
+**Run under rules `h4-engine-2.0`** (12 November 2026, workflow run 43227877219, every step passed). The
+same invented island; a person vouched for 12 facts, two of which were never said in conversation, with 3
+forced-choice tests each (recall, paraphrase, false premise): 18 tests helped decide the nights, 18 were sealed.
+
+- Night one trained on 24 heard units and 12 vouched facts, and on none of the being's replies. One validation
+  unit was set aside as a near duplicate. The candidate's validation gain (1.66 nats) beat the shuffled control's
+  (1.17) by 0.50, and it passed 3 more validation tests than the base; it was kept (a0001). llama.cpp measured
+  4.29 then 3.25 on the validation text. Night two was kept (a0002, gain 0.73 against the control's 0.42). The
+  doubled rank was refused, since it did worse than the same night without growth (0.57 against 0.73). The
+  sealed test was not read by either night; it was opened once, by the final comparison, and that opening is
+  logged.
+- **On the sealed test** (10 units of the life, mean loss in nats per word-token):
+
+| Model | Sealed units of the life | Reference texts |
+| --- | --- | --- |
+| Base | 4.85 | 2.41 |
+| Adapted (a0002) | 3.28 | 2.25 |
+| Control: the same words, shuffled | 3.41 | 2.58 |
+| Control: random tokens | 4.85 | 2.41 |
+
+  Adapted against the base: −1.57 nat (95% interval −1.96 to −1.12, p = 0.004). Adapted against the shuffled
+  control: −0.12 nat (interval −0.31 to +0.10, p = 0.32). **On the sealed test the adapter does not beat the
+  control that saw the same words in the wrong order**: almost all of its gain comes from the vocabulary of the
+  life, not from what was said. With 10 units, a small real difference could also be missed.
+- **Sealed capability tests** (18 forced choices on 6 facts), tests passed:
+
+| Condition | Recall | Paraphrase | False premise | All |
+| --- | --- | --- | --- | --- |
+| Base | 5 / 6 | 5 / 6 | 0 / 6 | 10 / 18 |
+| Memory only | 5 / 6 | 4 / 6 | 1 / 6 | 10 / 18 |
+| Adapter only | 4 / 6 | 4 / 6 | 0 / 6 | 8 / 18 |
+| Adapter and memory | 4 / 6 | 4 / 6 | 0 / 6 | 8 / 18 |
+| Control, shuffled | 5 / 6 | 5 / 6 | 0 / 6 | 10 / 18 |
+
+  The adapter widened the margin between right and wrong answers compared with the base (+1.40 nat, p = 0.02),
+  but passed two tests fewer. With memory, it did no better than memory alone (−0.19 nat, not significant).
+  No condition resisted false premises. The gains seen on the validation tests during the nights did not carry
+  over to the sealed tests: this is the reason a sealed test exists.
+- Open questions on five facts: the base recalled 0, a0001 recalled 0, a0002 one by the counting rule ("Brannoc"),
+  but in a wrong sentence ("the lighthouse of Kerran is called Sólanna. It stands on the island of Brannoc"): it
+  is not a real recall. On day two, the adapted model often answered with the same sentence several times.
+- By the rules of R-03 (beat memory alone and the controls, without losing earlier tests), **this run does not
+  show that the adapter learned the life's facts**. It shows that the controls, the sealed test and the
+  provenance work as intended, and that they catch what the earlier measure could not.
+
+The figures below were measured earlier, under rules `h4-engine-1.2`, before the corpus by provenance,
+the sealed test and the capability tests above. They are kept as they were measured.
 
 **Shown end to end, on Qwen3 1.7B** (figures from the fifth run, which went through every step):
 
