@@ -134,34 +134,44 @@ def _random_like(bench, source: str, name: str, seed: int) -> None:
 
 
 def compare(life_path: Path, model: dict, store, *, workbench=None, runtime_model: Path | None = None,
-            behaviour_probe=None, seed: int = 0) -> dict:
-    """Measure base, adapted and the two controls on the life's held-out items and on the reference texts."""
+            behaviour_probe=None, seed: int = 0, purpose: str = "final test (EXP-09)", who: str = "") -> dict:
+    """The final test: base, adapted and two controls on the life's sealed test episodes, and the capability
+    tests under four conditions (with and without the being's memories). Reading the sealed test is logged."""
+    from freewill.learning import capability_tests as caps
+    from freewill.learning import corpus as lived
     learning = EngineLearning(life_path)
     active = learning.active(model["id"])
     if active is None:
         raise CompareError("this life converses with the base model alone: there is no adapter to compare")
     settings = learning.settings
-    corpus = [r for r in learning._rows("corpus.jsonl") if r["night"] is not None]
-    held = learning._rows("heldout.jsonl")
-    if len(held) < 6:
-        raise CompareError(f"at least 6 held-out items are needed for a paired test; this life has {len(held)}")
+    own = settings.learn_from_own_replies
+    train_rows = [r for r in learning._split_rows("train") if lived.trainable(r, own_replies=own)]
+    sealed = learning.open_test(purpose, who, active["version"])
+    measurable = [r for r in sealed["units"] if lived.trainable(r, own_replies=own)]
+    held, leaked = lived.without_leaks(measurable, train_rows)
+    tests = sealed["tests"]
+    if len(held) < 6 and not tests:
+        raise CompareError(f"the sealed test needs at least 6 episodes' units or some vouched tests; this life has {len(held)}")
     if workbench is None:
         from freewill.learning.lora import Workbench
         workbench = Workbench(store.base_dir(model), seed=seed)
     bench = workbench
-    held_seq = bench.tokens(held, settings.max_len)
+    held_seq = bench.tokens([EngineLearning.training_item(r) for r in held], settings.max_len)
     reference = reference_items()
     ref_seq = bench.tokens(reference, settings.max_len)
+    manifest = json.loads((Path(active["folder"]) / "manifest.json").read_text(encoding="utf-8"))
+    trained_until = manifest.get("trained_until") or manifest.get("created")
+    later = [i for i, r in enumerate(held) if trained_until and str(r.get("collected") or "") > trained_until]
 
     bench.load("adapted", active["folder"])
     rank = bench.ranks["adapted"]["rank"]
-    manifest = json.loads((Path(active["folder"]) / "manifest.json").read_text(encoding="utf-8"))
-    # Control 1: same settings, same items, words shuffled; trained for as many steps as all nights together.
+    # Control 1: same settings, same training units, words shuffled; trained for as many steps as all nights together.
     nights = [r for r in learning.ledger() if r["kind"] == "night" and r.get("decision") == "accepted"]
     steps = sum(r["candidates"][r.get("chosen", "candidate")]["training"]["steps"] for r in nights) or settings.steps
     bench.delete("control_shuffled")
     bench.fresh("control_shuffled", rank, bench.ranks["adapted"]["alpha"], seed=seed)
-    shuffled = bench.tokens([_shuffled(r, seed + i) for i, r in enumerate(corpus)], settings.max_len)
+    used = [r for r in train_rows if r["night"] is not None] or train_rows
+    shuffled = bench.tokens([_shuffled(EngineLearning.training_item(r), seed + i) for i, r in enumerate(used)], settings.max_len)
     training = bench.train("control_shuffled", shuffled, steps=steps, lr=settings.lr, seed=seed)
     # Control 2: random directions, same size of change.
     bench.delete("control_random")
@@ -171,33 +181,55 @@ def compare(life_path: Path, model: dict, store, *, workbench=None, runtime_mode
     per_item, reference_scores, sizes = {}, {}, {}
     from freewill.learning.lora import mean_nll
     for label, name in conditions.items():
-        rows = bench.losses(name, held_seq)
+        rows = bench.losses(name, held_seq) if held_seq else []
         per_item[label] = [round(r["nll"], 6) for r in rows]
         reference_scores[label] = mean_nll(bench.losses(name, ref_seq))
         sizes[label] = 0 if name is None else bench.delta_norms(name)["total_frobenius"]
-    table = {label: {"life_held_out_mean": round(sum(v) / len(v), 6), "reference_mean": reference_scores[label],
+    mean = lambda v: round(sum(v) / len(v), 6) if v else None  # noqa: E731
+    table = {label: {"life_held_out_mean": mean(v), "reference_mean": reference_scores[label],
+                     "later_mean": mean([v[i] for i in later]) if later else None,
                      "delta_frobenius": sizes[label], "n_items": len(v)} for label, v in per_item.items()}
     comparisons = []
-    for label in ("adapted", "control_shuffled", "control_random"):
-        comparisons.append({"metric": "life_held_out_nll", "condition": label, "reference": "base",
-                            **paired(per_item["base"], per_item[label])})
-    for label in ("control_shuffled", "control_random"):
-        comparisons.append({"metric": "life_held_out_nll", "condition": "adapted", "reference": label,
-                            **paired(per_item[label], per_item["adapted"])})
+    if len(held_seq) >= 6:
+        for label in ("adapted", "control_shuffled", "control_random"):
+            comparisons.append({"metric": "life_held_out_nll", "condition": label, "reference": "base",
+                                **paired(per_item["base"], per_item[label])})
+        for label in ("control_shuffled", "control_random"):
+            comparisons.append({"metric": "life_held_out_nll", "condition": "adapted", "reference": label,
+                                **paired(per_item[label], per_item["adapted"])})
+
+    # Capabilities, under four conditions: memory alone, adapter alone, both; and the base and controls without memory.
+    capability = None
+    if tests:
+        runs = {"base": (None, False), "memory_only": (None, True), "adapter_only": ("adapted", False),
+                "adapter_and_memory": ("adapted", True), "control_shuffled": ("control_shuffled", False)}
+        rows = {label: caps.measure(bench, name, tests, max_len=settings.max_len, life_path=life_path, with_memory=memory)
+                for label, (name, memory) in runs.items()}
+        margins = {label: [r["margin"] for r in found if r.get("measured")] for label, found in rows.items()}
+        capability = {"tests": len(tests), "conditions": {label: caps.summary(found) for label, found in rows.items()},
+                      "rows": rows, "consistency_across_nights": caps.consistency(learning.ledger()),
+                      "comparisons": [{"metric": "capability_margin", "condition": a, "reference": b, **paired(margins[b], margins[a])}
+                                      for a, b in (("adapter_only", "base"), ("adapter_and_memory", "memory_only"),
+                                                   ("adapter_only", "control_shuffled"), ("memory_only", "base"))
+                                      if len(margins[a]) == len(margins[b]) >= 2]}
 
     runtime = None
-    if runtime_model is not None:
-        runtime = runtime_check(runtime_model)(Path(active["gguf"]), [bench.render(r) for r in held])
-    behaviour = behaviour_probe(held) if behaviour_probe else None
+    if runtime_model is not None and held:
+        runtime = runtime_check(runtime_model)(Path(active["gguf"]), [bench.render(EngineLearning.training_item(r)) for r in held])
+    behaviour = behaviour_probe(sealed["units"]) if behaviour_probe else None
     for name in ("adapted", "control_shuffled", "control_random"):
         bench.delete(name)
     return {"version": active["version"], "adapter_sha256": manifest["adapter_sha256"], "gguf_sha256": active["sha256"],
             "base_model_id": model["id"], "conditions": table, "per_item": per_item, "comparisons": comparisons,
-            "units": "held-out item of the life", "control_training": training, "runtime_check": runtime,
-            "behaviour": behaviour, "held_out_sha256": [r["sha256"] for r in held],
-            "notes": ["losses are nats per token; lower predicts the held-out text better",
-                      "control_shuffled keeps the vocabulary of the lived items and destroys their content",
+            "capabilities": capability, "units": "sealed test unit of the life", "control_training": training,
+            "runtime_check": runtime, "behaviour": behaviour, "held_out_sha256": [r["sha256"] for r in held],
+            "sealed_test": {"units": len(held), "leaked_set_aside": len(leaked), "collected_after_training": len(later),
+                            "tests": len(tests), "readings": len(learning._rows("test_access.jsonl"))},
+            "notes": ["losses are nats per token; lower predicts the sealed test text better",
+                      "the sealed test was never read by any night: not to train, not to decide, not to grow",
+                      "control_shuffled keeps the vocabulary of the lived units and destroys their content",
                       "control_random is a change of the same size as the adapted one, in random directions",
+                      "a capability test passes when the right answer is more probable than the wrong one",
                       "a lower loss is not understanding; it says the model predicts this text better"]}
 
 
@@ -221,9 +253,12 @@ def behaviour_probe(engine, *, n_predict: int = 48):
     def probe(held: list[dict]) -> dict:
         rows = []
         for item in held:
-            if not item.get("messages"):
+            if item.get("messages"):
+                question, reply = item["messages"][0]["content"], item["messages"][-1]["content"]
+            elif item.get("provenance") == "reply" and item.get("heard"):
+                question, reply = item["heard"], item["text"]
+            else:
                 continue
-            question, reply = item["messages"][0]["content"], item["messages"][-1]["content"]
             prompt = f"<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
             base = engine.complete(prompt, n_predict=n_predict, lora_scale=0.0)
             adapted = engine.complete(prompt, n_predict=n_predict, lora_scale=1.0)
