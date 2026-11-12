@@ -61,6 +61,9 @@ def make_engine(config: dict) -> Engine:
         # The adapter this life learned and accepted, if any: given by whoever opens the life
         # (freewill.learning.engine.EngineLearning.active), never stored in the engine description.
         return EmbeddedEngine(model, paths["model"], paths["mmproj"], adapter=config.get("adapter"))
+    if kind == "own":
+        from freewill.engines.own_model import OwnModelEngine
+        return OwnModelEngine(Path(config["dir"]) if config.get("dir") else None, config.get("dtype", "bfloat16"))
     if kind in ("openai", "xai", "local", "compatible"):
         from freewill.engines.compatible import CompatibleEngine
         return CompatibleEngine.from_config(config)

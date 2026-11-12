@@ -1,0 +1,82 @@
+name: own model end to end
+
+# Freewill 1.8B-V with its real bases (Qwen3 1.7B, SigLIP2 base), on a CPU runner: assemble and count,
+# grow by one layer, read public-domain books, learn to see drawn images, learn to watch drawn videos,
+# save, rebuild from the checkpoint, answer about unseen items. Every number is in the uploaded e2e.json.
+
+on:
+  pull_request:
+    paths:
+      - "freewill/vlm/**"
+      - "freewill/engines/own_model.py"
+      - "tools/own_model_e2e.py"
+      - "tests/test_own_model.py"
+      - ".github/workflows/own-model-e2e.yml"
+  workflow_dispatch:
+    inputs:
+      read_steps: {description: "Reading steps", default: "40"}
+      see_steps: {description: "Seeing steps", default: "300"}
+      watch_steps: {description: "Watching steps", default: "200"}
+      budget_minutes: {description: "Training minutes per stage, at most", default: "75"}
+
+permissions:
+  contents: read
+
+jobs:
+  toy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e ".[own-model,dev]"
+      - run: pytest -q tests/test_own_model.py
+      - run: python tools/own_model_e2e.py toy-out --tiny --read-steps 20 --see-steps 200 --watch-steps 50 --images 80 --videos 40
+
+  real:
+    needs: toy
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e ".[own-model,dev]"
+      - name: Machine
+        run: nproc; free -g; df -h .
+      - uses: actions/cache@v4
+        with:
+          path: own-data
+          key: own-model-bases-${{ hashFiles('freewill/vlm/spec.json', 'freewill/vlm/books.py') }}
+      - name: Assemble, grow, read, see, watch, save, rebuild
+        run: |
+          python tools/own_model_e2e.py own-out --data own-data \
+            --read-steps "${{ inputs.read_steps || '40' }}" --see-steps "${{ inputs.see_steps || '300' }}" \
+            --watch-steps "${{ inputs.watch_steps || '200' }}" --budget-minutes "${{ inputs.budget_minutes || '75' }}"
+      - name: Results
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          d = json.load(open("own-out/e2e.json"))
+          for s in d["steps"]:
+              print(f"{s['status']:7} {s['seconds']:8.1f}s  {s['step']}")
+              print("   ", json.dumps(s.get("result") if s["status"] == "ok" else s.get("error"), ensure_ascii=False)[:8000])
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: own-model-e2e
+          path: |
+            own-out/e2e.json
+            own-out/model/summary.json
+            own-out/model/ledger.jsonl
+            own-out/model/checkpoints/*/manifest.json
+          if-no-files-found: warn
