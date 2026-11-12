@@ -17,6 +17,10 @@
 
 - The engine's corpus follows rules `h4-engine-2.0` (technical audit of 12 November 2026, R-01 to R-03). Every unit says where it comes from: heard, read, vouched for by a person, or the being's own reply. The being's replies are no longer trained on unless the person allows it. Units are split by episode into train, validation and a sealed test that no night uses; every opening of the sealed test is logged in `test_access.jsonl`. Near duplicates of training text are set aside before any measure. A person can vouch for a fact in the Research Lab and say how to test it; capability tests (recall, paraphrase, contradiction) are forced choices, and a night that loses more of them than it gains is refused. A control trained on shuffled words runs each night, and a candidate must beat it. The final comparison measures base, memory only, adapter only, adapter with memory and the control on the sealed test. Lives of rules 1.x are migrated, their former held-out items becoming validation. See [`docs/engine-learning.md`](docs/engine-learning.md).
 
+**Fixed**
+
+- A being's thoughts no longer appear in the conversation. Small local models were seen writing, in a moment nobody spoke to them, the very thought they were having (or the content that rose from the subconscious) as words said aloud, and reasoning models wrote their reasoning (between `<think>` tags) into their answer. For every engine, `freewill/core/speech.py` now keeps the two apart: reasoning is set aside from what is said; when nobody spoke, words that only repeat the thought or the subconscious content, or that present themselves as a thought, stay inside. Nothing is lost: they join the thought and appear in the Subconscious view, marked "thought, not said". A spontaneous word addressed to the person still reaches the conversation. The engine is also told plainly that its thoughts are not heard, and the passing thought is no longer shown at the top of the Conversation screen.
+
 ## 1.1.1
 
 **Fixed**

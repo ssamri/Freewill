@@ -25,6 +25,7 @@ from freewill.core.metacognition import Monitor
 from freewill.core.memory.strength import decay
 from freewill.core.research import Research
 from freewill.core.sleep import DREAM_SCHEMA, dream_prompt, dream_system, link_together
+from freewill.core.speech import separate
 from freewill.core.subconscious import Proposal, Subconscious
 from freewill.core.subconscious.drift import Drift
 from freewill.core.workspace import compete
@@ -413,6 +414,14 @@ class Being:
         """Carry out the decision. Returns True if the kernel refused one of its effects."""
         life, is_message = self.life, winner.source == "message"
         refused = False
+        # Only what is said to the person reaches the conversation; a thought written as speech
+        # is kept inside, with the thought, where the Subconscious view shows it (freewill/core/speech.py).
+        said, decision.thought, kept_inside = separate(
+            decision.say, thought=decision.thought, content=winner.text, spoken_to=is_message)
+        if kept_inside:
+            self.events.emit("withheld", what="inner_speech", why=kept_inside,
+                             text=decision.say[:2000], thought=decision.thought)
+        decision.say = said
         try:
             self.guard.check(Action.THINK if decision.accepted else Action.DISMISS)
             self.events.emit("decision", accepted=decision.accepted, reason=decision.reason,

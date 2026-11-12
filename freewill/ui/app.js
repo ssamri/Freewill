@@ -423,6 +423,9 @@
         if (m) m.extras.push(t("sub.keeps") + " : " + d.title);
         if (!past && brain && brain.remember) brain.remember(d.id, d);
         return true;
+      case "withheld":  // words written as speech that were a thought: kept inside, shown here, not in the conversation
+        if (m && d.what === "inner_speech") m.extras.push(t("sub.inside") + " : " + d.text);
+        break;
       case "value": if (m) m.extras.push(t("sub.value") + " : " + d.text); break;
       case "milestone": if (m) m.extras.push(t("sub.first") + " : " + (tr("miles")[d.name] || d.name)); break;
       case "read":
@@ -616,7 +619,8 @@
     ui.age.textContent = t("born_ago", { age: ageOf(snap) });
     ui.engine.textContent = snap.engine.kind === "simulated" ? tr("welcome.engines").simulated[0] : (snap.engine.name || snap.engine.kind || "");
     ui.engine.title = ui.engine.textContent;
-    ui.tickerText.textContent = S.ticker;
+    // The passing thought is shown everywhere but in the conversation, which holds only what is said.
+    ui.tickerText.textContent = S.view === "chat" ? "" : S.ticker;
     ui.banner.hidden = !snap.paused;
     ui.banner.textContent = snap.paused ? t("paused", { reason: snap.paused }) : "";
     if (typeof snap.sleeping === "boolean") S.asleep = snap.sleeping;
