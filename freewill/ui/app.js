@@ -51,6 +51,11 @@
     }
     return el;
   }
+  // replaceChildren() writes a null child as the text "null"; conditional parts of a view are null when absent.
+  function fill(el, ...kids) {
+    el.replaceChildren(...kids.flat().filter((kid) => kid != null && kid !== false));
+    return el;
+  }
 
   const ICONS = {
     chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V16A2.5 2.5 0 0 1 4 13.5z"/>',
@@ -137,9 +142,10 @@
   // downloads it, and sees who made it and under which licence.
   function modelPicker(selected, onSelect, inUse) {
     const box = h("div", { class: "models" }, h("p", { class: "hint" }, "…"));
-    let data = null, timer = null;
+    let data = null, timer = null, failure = "";
     async function load() {
-      try { data = await api("/api/models"); } catch (_) { /* keep what is shown */ }
+      try { data = await api("/api/models"); failure = ""; }
+      catch (e) { if (!data) failure = e.message; }
       draw();
     }
     async function act(path, id) {
@@ -158,12 +164,13 @@
         : busy
           ? [h("span", { class: "small muted" }, p.state === "verifying" ? t("models.verifying") : pct(p.done / Math.max(1, p.total))),
              h("button", { class: "btn small", onclick: () => act("/api/models/cancel", m.id) }, t("models.cancel"))]
-          : h("button", { class: "btn small", disabled: !data.runtime && null, onclick: () => act("/api/models/download", m.id) },
+          : h("button", { class: "btn small", onclick: () => act("/api/models/download", m.id) },
               (p.state === "error" || p.state === "cancelled") && p.done ? t("models.resume") : t("models.download"));
       return h("div", { class: "model" + (on ? " on" : "") },
         h("div", { class: "model-main" },
           h("div", { class: "model-head" }, h("b", {}, m.name), h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)),
             m.sees ? h("span", { class: "tag" }, t("models.sees")) : null,
+            m.learns ? h("span", { class: "tag" }, t("models.learns")) : null,
             m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null),
           h("div", { class: "small muted" }, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb })),
           h("div", { class: "model-src" }, h("span", {}, m.author), link(m.licence_url, m.licence), link(m.source_url, t("models.source"))),
@@ -173,14 +180,24 @@
     }
     function draw() {
       clearTimeout(timer);
-      if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
-      box.replaceChildren(
-        data.runtime ? null : h("p", { class: "error", role: "alert" }, t("models.no_runtime")),
+      if (!data) return box.replaceChildren(failure
+        ? h("div", { class: "error", role: "alert" }, t("errors.generic", { message: failure }), " ",
+            h("button", { class: "btn small", onclick: () => { failure = ""; draw(); load(); } }, t("models.retry")))
+        : h("p", { class: "hint" }, "…"));
+      const rt = data.runtime || {}, rp = rt.progress || {};
+      const rtBusy = ["downloading", "verifying", "unpacking"].includes(rp.state);
+      fill(box,
+        rt.present ? null
+          : rtBusy ? h("div", { class: "hint" }, t("models.runtime_fetching", { tag: rt.tag }), bar(rp.done / Math.max(1, rp.total)))
+          : rp.state === "error" ? h("div", { class: "error", role: "alert" }, t("models.runtime_error", { message: rp.error }), " ",
+              h("button", { class: "btn small", onclick: async () => { await api("/api/runtime/install", {}).catch(() => {}); load(); } }, t("models.retry")))
+          : rt.can_fetch ? h("p", { class: "hint" }, t("models.runtime_later", { tag: rt.tag }))
+          : h("p", { class: "error", role: "alert" }, t("models.no_runtime", { platform: rt.platform || "?" })),
         data.error ? h("p", { class: "error", role: "alert" }, data.error) : null,
         ...data.models.map(row),
         h("p", { class: "hint" }, t("models.hint")));
       data.error = "";
-      if (data.models.some(DOWNLOADING) && box.isConnected) timer = setTimeout(load, 900);
+      if ((data.models.some(DOWNLOADING) || rtBusy) && box.isConnected) timer = setTimeout(load, 900);
     }
     load();
     return box;
@@ -1133,7 +1150,7 @@
         if (!C.open) return changer.replaceChildren(h("button", { class: "btn", style: "margin-bottom:14px", onclick: () => { C.open = true; drawChanger(); } }, t("set.change")));
         const kinds = ["embedded", "local", "anthropic", "openai", "xai", "simulated"];
         const needsKey = ["anthropic", "openai", "xai"].includes(C.kind);
-        changer.replaceChildren(
+        fill(changer,
           h("p", { class: "hint", style: "margin-bottom:10px" }, t("set.change_hint", { name: snap.name })),
           h("div", { class: "field" }, h("label", { for: "c-kind" }, t("set.engine")),
             select("c-kind", C.kind, kinds.map((k) => [k, tr("welcome.engines")[k][0]]), (v) => { C.kind = v; C.model = ""; C.error = ""; drawChanger(); })),

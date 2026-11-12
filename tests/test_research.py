@@ -372,10 +372,11 @@ def test_learning_says_plainly_what_can_and_cannot_be_trained(tmp_path):
     found = learning.capabilities(tmp_path)
     has_torch = importlib.util.find_spec("torch") is not None
     assert found["training_available"] is has_torch and found["growth_available"] is has_torch
-    assert found["engine_training_available"] is False and "gguf_only" in found["reasons"]  # engines stay frozen
+    can_adapt = all(importlib.util.find_spec(n) is not None for n in ("torch", "peft", "transformers", "gguf"))
+    assert found["engine_training_available"] is can_adapt  # found by looking, not assumed
     assert found["module_training_available"] is True
     job = learning.request_job("Ada", "lora", approved_by_human=True, models_dir=tmp_path)
-    assert job["status"] == "refused" and "gguf_only" in job["reason"]
+    assert job["status"] == "refused" and "per_life" in job["reason"]  # never left pending outside a life
     assert "not_approved" in learning.request_job("Ada", "lora", approved_by_human=False, models_dir=tmp_path)["reason"]
     with pytest.raises(ValueError):
         learning.request_job("Ada", "rewrite_everything", approved_by_human=True)
@@ -386,7 +387,7 @@ def test_learning_says_plainly_what_can_and_cannot_be_trained(tmp_path):
     assert manifest["trainable_adapter_parameters"] == 0 and manifest["added_module_parameters"] == 0
     assert manifest["decision"] == "not_trained" and manifest["checkpoint_before"] == manifest["checkpoint_after"]
     from freewill.engines.embedded import EmbeddedEngine
-    assert EmbeddedEngine.can_learn is False
+    assert EmbeddedEngine.can_learn is False  # an engine says it can learn only for a model with a trainable base
 
 
 # -- research settings of a life -----------------------------------------------------------------------------------

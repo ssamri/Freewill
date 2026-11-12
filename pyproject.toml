@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freewill"
-version = "1.0.0"
+version = "1.1.0"
 description = "An open, experimental research programme on consciousness, free will, the subconscious and dreaming in AI systems."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,7 +16,7 @@ anthropic = ["anthropic>=1.0"]
 app = ["pywebview>=5", "keyring>=24", "pypdf>=4"]
 dev = ["pytest>=8"]
 learn = ["torch>=2.2"]
-lora = ["torch>=2.2", "peft>=0.10", "transformers>=4.40"]  # adapters beside a frozen base; verified on a toy base only  # trains Freewill's own network; everything else works without it
+lora = ["torch>=2.2", "peft>=0.10", "transformers>=4.51", "safetensors>=0.4", "gguf>=0.10"]  # trains adapters for the engine a life converses with (Qwen3); learn trains its own network
 
 [project.scripts]
 freewill = "freewill.cli:main"
@@ -26,7 +26,7 @@ freewill-app = "freewill.desktop:main"
 include = ["freewill*"]
 
 [tool.setuptools.package-data]
-freewill = ["ui/*", "models.json", "credits.json"]
+freewill = ["ui/*", "models.json", "credits.json", "runtime.json", "learning/reference.json", "learning/rehearsal.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

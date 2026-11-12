@@ -1,0 +1,21 @@
+{
+  "name": "llama.cpp",
+  "source": "https://github.com/ggml-org/llama.cpp",
+  "licence": "MIT",
+  "licence_url": "https://github.com/ggml-org/llama.cpp/blob/master/LICENSE",
+  "tag": "b12306",
+  "assets": {
+    "win-x64": {"name": "llama-b12306-bin-win-cpu-x64.zip", "size": 25078947,
+                "sha256": "1196dd03f0f249854c5ab790ec454a76541c22da55996622977aa79c31222841"},
+    "win-arm64": {"name": "llama-b12306-bin-win-cpu-arm64.zip", "size": 13430583,
+                  "sha256": "3bc57390a6b7377a02e8d10c482ba8faa9dee9162eaef250330fc17684f8c196"},
+    "linux-x64": {"name": "llama-b12306-bin-ubuntu-x64.tar.gz", "size": 23306842,
+                  "sha256": "8ea4144d0698a960d943098ae87d027cfa219a44eed1302720b0f47bc30831e1"},
+    "linux-arm64": {"name": "llama-b12306-bin-ubuntu-arm64.tar.gz", "size": 18950569,
+                    "sha256": "5c52646a3b7ecdb409da050ece46afa98d98e04f81ce58a000007035d670ae0e"},
+    "macos-arm64": {"name": "llama-b12306-bin-macos-arm64.tar.gz", "size": 16891396,
+                    "sha256": "f2b9af7998b38f40b1ff73076b5112fb5c4cbff8317a41abcab15ef9fa534fe1"},
+    "macos-x64": {"name": "llama-b12306-bin-macos-x64.tar.gz", "size": 12636873,
+                  "sha256": "51d91496fd4bb5c6783663f0addcc79f98e9f222decb0cc9ff82616af0e00170"}
+  }
+}

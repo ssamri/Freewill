@@ -1,0 +1,34 @@
+{
+ "version": "1.0",
+ "about": "Independent reference texts for the engine learning of Freewill. Written for this purpose, in English and in French, from common general knowledge; no life contributed to them. They measure whether an adapter makes the model predict ordinary text worse (forgetting). They are not a benchmark of knowledge.",
+ "general": {
+  "en": [
+   "Water boils at one hundred degrees Celsius at sea level. At higher altitudes the air pressure is lower, so water boils at a lower temperature, and food takes longer to cook in an open pot.",
+   "The Earth turns on its axis once a day and travels around the Sun once a year. The tilt of its axis, about twenty-three degrees, is what gives the seasons: summer comes to the hemisphere leaning towards the Sun.",
+   "Plants make their food by photosynthesis. Using the energy of light, they turn carbon dioxide from the air and water from the soil into sugars, and they release oxygen.",
+   "A library lends books for free. Readers choose a book, borrow it for a few weeks and bring it back so that someone else can read it. Many libraries also lend music, films and newspapers.",
+   "To make bread, flour is mixed with water, salt and yeast. The dough is kneaded, left to rise for a few hours, shaped, and baked in a hot oven until the crust is brown.",
+   "The heart is a muscle that pumps blood through the body. Arteries carry blood away from the heart, and veins bring it back. An adult heart beats about seventy times a minute at rest.",
+   "Paris is the capital of France and Rome is the capital of Italy. The river Seine runs through Paris, and the Tiber runs through Rome.",
+   "A triangle has three sides and its angles add up to one hundred and eighty degrees. A square has four equal sides and four right angles.",
+   "When it rains while the Sun is shining behind you, you may see a rainbow. Sunlight is bent and split by the raindrops into its colours, from red on the outside to violet on the inside.",
+   "Bees collect nectar from flowers and turn it into honey. While they move from flower to flower, they carry pollen, which helps many plants make fruit and seeds.",
+   "A good conversation goes both ways: each person listens, asks questions and answers in turn. Interrupting often, or never asking anything, makes it harder to understand each other.",
+   "The Moon has no light of its own: it reflects the light of the Sun. Its phases, from new moon to full moon and back, take about twenty-nine and a half days."
+  ],
+  "fr": [
+   "L'eau bout à cent degrés Celsius au niveau de la mer. En altitude, la pression de l'air est plus faible, l'eau bout donc à une température plus basse et les aliments cuisent plus lentement dans une casserole ouverte.",
+   "La Terre tourne sur elle-même en un jour et autour du Soleil en un an. L'inclinaison de son axe, environ vingt-trois degrés, explique les saisons : l'été arrive dans l'hémisphère penché vers le Soleil.",
+   "Les plantes fabriquent leur nourriture par la photosynthèse. Grâce à l'énergie de la lumière, elles transforment le gaz carbonique de l'air et l'eau du sol en sucres, et elles rejettent de l'oxygène.",
+   "Une bibliothèque prête des livres gratuitement. Le lecteur choisit un livre, l'emprunte pour quelques semaines puis le rapporte pour qu'une autre personne puisse le lire.",
+   "Pour faire du pain, on mélange de la farine, de l'eau, du sel et de la levure. On pétrit la pâte, on la laisse lever quelques heures, on la façonne, puis on la cuit dans un four chaud jusqu'à ce que la croûte soit dorée.",
+   "Le cœur est un muscle qui fait circuler le sang dans le corps. Les artères emportent le sang loin du cœur et les veines le ramènent. Au repos, le cœur d'un adulte bat environ soixante-dix fois par minute.",
+   "Paris est la capitale de la France et Rome celle de l'Italie. La Seine traverse Paris, et le Tibre traverse Rome.",
+   "Un triangle a trois côtés et la somme de ses angles vaut cent quatre-vingts degrés. Un carré a quatre côtés égaux et quatre angles droits.",
+   "Quand il pleut alors que le Soleil brille derrière soi, on peut voir un arc-en-ciel. Les gouttes de pluie dévient et séparent la lumière du Soleil en couleurs, du rouge à l'extérieur au violet à l'intérieur.",
+   "Les abeilles récoltent le nectar des fleurs et le transforment en miel. En passant de fleur en fleur, elles transportent du pollen, ce qui aide beaucoup de plantes à donner des fruits et des graines.",
+   "Une bonne conversation se fait dans les deux sens : chacun écoute, pose des questions et répond à son tour. Couper souvent la parole, ou ne jamais rien demander, rend la compréhension plus difficile.",
+   "La Lune n'a pas de lumière propre : elle renvoie celle du Soleil. Ses phases, de la nouvelle lune à la pleine lune puis de nouveau à la nouvelle lune, durent environ vingt-neuf jours et demi."
+  ]
+ }
+}

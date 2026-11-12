@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 import threading
 import urllib.error
 import urllib.request
@@ -26,6 +27,9 @@ def catalogue() -> list[dict]:
         model["source_url"] = f"{SOURCE}/{model['repo']}"
         model["sees"] = bool(model.get("mmproj"))
         model["download_size"] = model.get("size", 0) + (model.get("mmproj_size", 0) if model.get("mmproj") else 0)
+        trainable = model.get("trainable")
+        model["learns"] = bool(trainable)
+        model["training_size"] = sum(f["size"] for f in trainable["files"]) if trainable else 0
     return models
 
 
@@ -47,15 +51,35 @@ class ModelStore:
         self._lock = threading.Lock()
 
     # -- what is here ----------------------------------------------------------
+    # Two parts per model: the inference files (GGUF) the embedded engine runs, and, for a model that can
+    # learn, the trainable base (Transformers format) on which adapters are trained. The second is fetched
+    # only when the person turns engine learning on.
 
-    def _files(self, model: dict) -> list[tuple[str, int, str]]:
+    def _files(self, model: dict, part: str = "inference") -> list[tuple[str, int, str]]:
+        if part == "training":
+            return [(f"base/{f['name']}", f["size"], f["sha256"]) for f in (model.get("trainable") or {}).get("files", [])]
         files = [(model["file"], model["size"], model["sha256"])]
         if model.get("mmproj"):
             files.append((model["mmproj"], model["mmproj_size"], model["mmproj_sha256"]))
         return files
 
+    def _url(self, model: dict, name: str, part: str) -> str:
+        if part == "training":
+            spec = model["trainable"]
+            return f"{SOURCE}/{spec['repo']}/resolve/{spec.get('revision') or 'main'}/{name.split('/', 1)[1]}"
+        return f"{SOURCE}/{model['repo']}/resolve/{model.get('revision') or 'main'}/{name}"
+
     def _dir(self, model: dict) -> Path:
         return self.root / model["id"]
+
+    def base_dir(self, model: dict) -> Path:
+        """The trainable base of a model that can learn (a folder in the Transformers format)."""
+        return self._dir(model) / "base"
+
+    def training_installed(self, model: dict) -> bool:
+        files = self._files(model, "training")
+        return bool(files) and all((self._dir(model) / name).is_file() and (self._dir(model) / name).stat().st_size == size
+                                   for name, size, _digest in files)
 
     def paths(self, model: dict) -> dict:
         folder = self._dir(model)
@@ -72,6 +96,11 @@ class ModelStore:
             public = {key: value for key, value in model.items() if not key.endswith("sha256")}
             public["installed"] = self.installed(model)
             public["progress"] = self.progress.get(model["id"])
+            public.pop("trainable", None)
+            if model.get("trainable"):
+                public["training_installed"] = self.training_installed(model)
+                public["training_progress"] = self.progress.get(model["id"] + ":training")
+                public["training_repo"] = model["trainable"]["repo"]
             out.append(public)
         return out
 
@@ -79,41 +108,53 @@ class ModelStore:
         self.cancel(model["id"])
         folder = self._dir(model)
         if folder.is_dir():
-            for path in folder.iterdir():
-                path.unlink()
-            folder.rmdir()
+            shutil.rmtree(folder)
         self.progress.pop(model["id"], None)
+        self.progress.pop(model["id"] + ":training", None)
 
     # -- downloading -----------------------------------------------------------
 
     def cancel(self, model_id: str) -> None:
-        event = self._cancel.get(model_id)
-        if event:
-            event.set()
+        for key in (model_id, model_id + ":training"):
+            event = self._cancel.get(key)
+            if event:
+                event.set()
 
-    def start_download(self, model: dict) -> None:
+    def start_download(self, model: dict, part: str = "inference") -> None:
+        key = model["id"] + (":training" if part == "training" else "")
         with self._lock:
-            state = self.progress.get(model["id"], {}).get("state")
-            if state in ("downloading", "verifying") or self.installed(model):
+            state = self.progress.get(key, {}).get("state")
+            done = self.training_installed(model) if part == "training" else self.installed(model)
+            if state in ("downloading", "verifying") or done:
                 return
-            if not all(digest and size for _name, size, digest in self._files(model)):
+            files = self._files(model, part)
+            if not files or not all(digest and size for _name, size, digest in files):
                 raise DownloadError("this model is not pinned in the catalogue yet")
-            cancel = self._cancel[model["id"]] = threading.Event()
-            total = sum(size for _name, size, _digest in self._files(model))
-            self.progress[model["id"]] = {"state": "downloading", "done": 0, "total": total, "error": None}
-        threading.Thread(target=self._download, args=(model, cancel), daemon=True,
-                         name=f"freewill-download-{model['id']}").start()
+            cancel = self._cancel[key] = threading.Event()
+            total = sum(size for _name, size, _digest in files)
+            self.progress[key] = {"state": "downloading", "done": 0, "total": total, "error": None}
+        threading.Thread(target=self._download, args=(model, cancel, part, key), daemon=True,
+                         name=f"freewill-download-{key}").start()
 
-    def _download(self, model: dict, cancel: threading.Event) -> None:
-        progress = self.progress[model["id"]]
+    def download(self, model: dict, part: str = "inference") -> dict:
+        """The same download, waited for: used by tools and tests. Returns the final progress."""
+        key = model["id"] + (":training" if part == "training" else "")
+        self.start_download(model, part)
+        while self.progress.get(key, {}).get("state") in ("downloading", "verifying"):
+            threading.Event().wait(0.5)
+        return self.progress.get(key) or {"state": "done"}
+
+    def _download(self, model: dict, cancel: threading.Event, part: str = "inference", key: str | None = None) -> None:
+        progress = self.progress[key or model["id"]]
         try:
             folder = self._dir(model)
             folder.mkdir(parents=True, exist_ok=True)
             before = 0
-            for name, size, digest in self._files(model):
+            for name, size, digest in self._files(model, part):
                 target = folder / name
+                target.parent.mkdir(parents=True, exist_ok=True)
                 if not (target.is_file() and target.stat().st_size == size):
-                    self._fetch(f"{SOURCE}/{model['repo']}/resolve/main/{name}", target, size, digest,
+                    self._fetch(self._url(model, name, part), target, size, digest,
                                 progress, before, cancel)
                 before += size
                 progress["done"] = before

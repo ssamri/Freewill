@@ -229,7 +229,24 @@ def builtin_protocols() -> list[dict]:
                   "no_self_model", "h10.attribution_accuracy", ["h10.prediction_error"], probe=QUIET_PROBE),
         _protocol("EXP-08", {"fr": "Triangulation des observateurs", "en": "Observer triangulation"}, [],
                   "blinded_review", "specified", [], None, None, [], "needs_human_raters"),
+        engine_protocol(),
     ]
+
+
+def engine_protocol() -> dict:
+    """EXP-09: the model this life converses with, before and after what it learned, against two controls.
+    Run on a copy of a real life whose engine learned (H4); the unit is the held-out item of that life."""
+    protocol = _protocol("EXP-09", {"fr": "Moteur adapté par la vie", "en": "Engine adapted by a life"}, ["H4"],
+                         "engine_comparison", "executable", [
+                             {"name": "base", "adapter": None},
+                             {"name": "adapted", "adapter": "active"},
+                             {"name": "control_shuffled", "adapter": "same settings, words of each item shuffled"},
+                             {"name": "control_random", "adapter": "same rank and size of change, random directions"}],
+                         "base", "h4.engine_heldout_nll", ["h4.engine_reference_nll", "h4.engine_delta_frobenius"],
+                         "needs_life_with_adapter")
+    protocol.update(seeds=[], probe=[], engine={"kind": "embedded", "from": "life"},
+                    budget={"max_moments_per_run": 0, "max_runs": 0})
+    return protocol
 
 
 def protocol_hash(protocol: dict) -> str:
@@ -402,6 +419,8 @@ class Lab:
         if approved_by_human is not True:
             raise LabError("a campaign needs the explicit approval of a person")
         protocol = self.lock_protocol(protocol_id, version)
+        if protocol["design"] == "engine_comparison" and source_life is None:
+            raise LabError("this protocol runs on a copy of the life that is awake, whose engine learned")
         runs = [(c["name"], seed) for seed in protocol["seeds"] for c in protocol["conditions"]]
         if len(runs) > protocol["budget"].get("max_runs", 60):
             raise LabError("this protocol exceeds its own budget of runs")
@@ -472,6 +491,11 @@ class Lab:
             sha, _files = snapshot_hash(folder / "T0.life")
             if sha != experiment["baseline_snapshot_sha256"]:
                 raise LabError("the checkpoint T0 changed since the campaign was prepared")
+            if protocol["design"] == "engine_comparison":
+                results = engine_results(folder, experiment, protocol, self.root.parent / "models")
+                experiment["results_sha256"] = results["results_sha256"]
+                self._write(folder / "results.json", results)
+                return save("done")
             conditions = {c["name"]: c for c in protocol["conditions"]}
             for entry in experiment["runs"]:
                 if cancel.is_set():
@@ -714,3 +738,56 @@ def summarise(folder: Path, experiment: dict, protocol: dict) -> dict:
         "comparisons": comparisons, "divergence": divergence, "evidence": evidence,
         "anomalies": experiment["anomalies"], "results_sha256": digest(core), "computed_utc": utc_now(),
     }
+
+
+# -- EXP-09: the engine adapted by a life -------------------------------------------------------
+
+def engine_results(folder: Path, experiment: dict, protocol: dict, models_dir: Path) -> dict:
+    """Run the comparison of freewill.learning.compare on the copy T0 and shape it as the lab's results."""
+    from freewill import models
+    from freewill.learning import compare
+    life = Life(folder / "T0.life")
+    engine = life.identity.get("engine", {})
+    model = models.find(str(engine.get("model"))) if engine.get("kind") == "embedded" else None
+    if model is None or not model.get("trainable"):
+        raise LabError("the life of this campaign does not converse with a model that can learn")
+    store = models.ModelStore(models_dir)
+    if not store.training_installed(model):
+        raise LabError("the trainable base of this model is not on this computer")
+    found = compare.compare(life.path, model, store, runtime_model=store.paths(model)["model"]
+                            if store.installed(model) else None)
+    units = found["held_out_sha256"]
+    evidence: dict[str, dict] = {}
+    conditions: dict[str, dict] = {}
+    for name, row in found["conditions"].items():
+        values = found["per_item"][name]
+        conditions[name] = {
+            "h4.engine_heldout_nll": {"values": values, "n_units": len(values), "mean": row["life_held_out_mean"],
+                                      "sd": sd(values), "not_computable": [], "level": "function", "unit": "nats per token"},
+            "h4.engine_reference_nll": {"values": [row["reference_mean"]], "n_units": 1, "mean": row["reference_mean"],
+                                        "sd": None, "not_computable": [], "level": "function", "unit": "nats per token"},
+            "h4.engine_delta_frobenius": {"values": [row["delta_frobenius"]], "n_units": 1, "mean": row["delta_frobenius"],
+                                          "sd": None, "not_computable": [], "level": "mechanism", "unit": "Frobenius norm"}}
+    comparisons = []
+    for row in found["comparisons"]:
+        evidence_id = f"cmp:{experiment['experiment_id']}:h4.engine_heldout_nll:{row['condition']}-{row['reference']}"
+        shaped = {"metric_id": "h4.engine_heldout_nll", "condition": row["condition"], "reference": row["reference"],
+                  "evidence_id": evidence_id, "level": "function",
+                  **{k: v for k, v in row.items() if k not in ("metric", "condition", "reference")}}
+        comparisons.append(shaped)
+        evidence[evidence_id] = new("EvidenceReference", evidence_id=evidence_id, kind="comparison", run_id=None,
+                                    experiment_id=experiment["experiment_id"],
+                                    statement=f"held-out loss: {row['condition']} minus {row['reference']}, paired by item",
+                                    value=row["mean_difference"], level="function")
+    core = {"conditions": conditions, "comparisons": [{k: v for k, v in c.items() if k != "evidence_id"} for c in comparisons],
+            "units": units, "adapter_sha256": found["adapter_sha256"], "runtime_check": found["runtime_check"]}
+    return {
+        "experiment_id": experiment["experiment_id"], "protocol_id": protocol["protocol_id"],
+        "protocol_version": protocol["protocol_version"], "protocol_sha256": protocol["sha256"],
+        "baseline_snapshot_sha256": experiment["baseline_snapshot_sha256"], "code_commit": code_commit(),
+        "lab_version": LAB_VERSION, "metrics_version": metrics.METRICS_VERSION,
+        "engine": {"kind": "embedded", "model": model["id"], "adapter": found["version"], "adapter_sha256": found["adapter_sha256"]},
+        "unit": "held-out item of the life", "units": units, "units_planned": len(units), "reference": "base",
+        "conditions": conditions, "comparisons": comparisons, "divergence": [], "evidence": evidence,
+        "engine_comparison": {k: found[k] for k in ("control_training", "runtime_check", "behaviour", "notes")},
+        "anomalies": experiment["anomalies"], "results_sha256": digest(core), "computed_utc": utc_now()}

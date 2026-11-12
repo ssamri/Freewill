@@ -33,7 +33,8 @@ def _memory_gb() -> float | None:
 def capabilities(models_dir: Path | None = None) -> dict:
     """What this machine could do, found by looking, not assumed."""
     torch = importlib.util.find_spec("torch") is not None
-    peft = importlib.util.find_spec("peft") is not None
+    peft = importlib.util.find_spec("peft") is not None and importlib.util.find_spec("transformers") is not None
+    writer = importlib.util.find_spec("gguf") is not None
     gpu = None
     if torch:
         try:
@@ -51,25 +52,30 @@ def capabilities(models_dir: Path | None = None) -> dict:
         reasons.append("no_torch")
     elif not peft:
         reasons.append("no_peft")
-    reasons.append("gguf_only")  # the catalogue ships inference files only; a trainable base is not provided yet
+    if peft and not writer:
+        reasons.append("no_gguf")
     if memory is not None and memory < MIN_FREE_MEMORY_GB:
         reasons.append("low_memory")
     return {"torch": torch, "peft": peft, "gpu": gpu, "free_memory_gb": memory, "free_disk_gb": disk,
             "min_free_memory_gb": MIN_FREE_MEMORY_GB, "inference": True,
             # What can be trained here: Freewill's own small network needs PyTorch; the pure-Python module needs
-            # nothing. The embedded GGUF engines are never trained in place.
-            "training_available": torch, "module_training_available": True, "engine_training_available": False,
+            # nothing; an adapter for the engine needs PyTorch, PEFT, Transformers and gguf (see learning/engine.py).
+            # The GGUF files themselves are never trained in place.
+            "training_available": torch, "module_training_available": True,
+            "engine_training_available": bool(torch and peft and writer), "gguf_writer": writer,
             "growth_available": torch, "reasons": reasons, "learning_version": LEARNING_VERSION}
 
 
 def model_versions(store: "models.ModelStore") -> list[dict]:
-    """The local models as they are: frozen inference files. None has adapters; none is trainable in this format."""
+    """The local models as they are: frozen inference files. Adapters, when a life trained some, live in that
+    life's file (engine/adapters), not here; `trainable` says whether the catalogue gives a base to train beside."""
     out = []
     for entry in models.catalogue():
         if store.installed(entry):
             out.append(new("ModelVersion", model_version=f"{entry['id']}-base", base_model_id=entry["id"],
                            base_parameters=entry.get("parameters"), format="gguf", sha256=entry.get("sha256"),
-                           licence=entry.get("licence"), adapters=[], trainable=False))
+                           licence=entry.get("licence"), adapters=[],
+                           trainable=bool(entry.get("trainable")) and store.training_installed(entry)))
     return out
 
 
@@ -87,7 +93,9 @@ def request_job(life_id: str, method: str, *, approved_by_human: bool, models_di
     if method not in METHODS:
         raise ValueError(f"unknown learning method: {method!r}")
     found = capabilities(models_dir)
-    reasons = list(found["reasons"]) + ([] if approved_by_human else ["not_approved"])
+    # The engine of a being is adapted by the nightly cycle of its own life (learning/engine.py), set on the
+    # learning page; a job asked for here, outside any life, is recorded and refused, never left pending.
+    reasons = list(found["reasons"]) + ["per_life"] + ([] if approved_by_human else ["not_approved"])
     return new("LearningJob", job_id=new_id("job"), life_id=life_id, method=method,
                status="refused" if reasons else "queued", reason=", ".join(reasons) or None,
                approved_by_human=bool(approved_by_human), budget={"max_minutes": 0}, created_utc=utc_now())

@@ -41,6 +41,9 @@ jobs:
         shell: bash
         run: echo "value=$(python -c 'import freewill; print(freewill.__version__)')" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch the embedded runtime (llama.cpp, pinned in freewill/runtime.json)
+        run: python -m freewill.runtime --target runtime --platform win-x64
+
       - name: Build the application
         run: pyinstaller --noconfirm packaging/windows/freewill.spec
 

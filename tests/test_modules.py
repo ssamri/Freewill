@@ -373,7 +373,8 @@ def test_the_service_guards_the_lab_and_the_research_settings(service):
     assert status == 200 and set(research["changed"]) == {"metacognition", "sandbox", "learner"}
     status, learning = call("/api/lab/learning?lang=fr")
     assert status == 200 and learning["modules"]["own_model"] is None and learning["modules"]["learner"]["parameters"] == 25
-    assert learning["capabilities"]["engine_training_available"] is False
+    found = learning["capabilities"]  # found by looking at this machine, not assumed
+    assert found["engine_training_available"] is bool(found["torch"] and found["peft"] and found["gguf_writer"])
     assert call("/api/lab/learning/action", {"action": "format_disk"})[0] == 400
     assert call("/api/lab/learning/action", {"action": "learner_rollback"})[1] == {"ok": True}
     # The verdict on a hypothesis is a person's, tied to a finished campaign.

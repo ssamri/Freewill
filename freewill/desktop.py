@@ -32,8 +32,19 @@ def self_test(app: App, url: str) -> int:
     assert "lives" in json.loads(get("api/lives"))
     kernel_sources = list((UI_DIR.parent / "core" / "kernel").glob("*.py"))
     assert kernel_sources, "the kernel sources are missing: its fingerprint would mean nothing"
+    from freewill import models, runtime
+    assert models.catalogue(), "the catalogue of models is missing"
+    listing = json.loads(get("api/models"))
+    assert listing["models"], "the service lists no model"
     if getattr(sys, "frozen", False):  # the packaged application must carry its optional parts
         import anthropic, keyring, pypdf, webview  # noqa: F401,E401
+        server = runtime.find("llama-server")
+        assert server is not None, "llama.cpp is not inside the packaged application"
+        import subprocess
+        version = subprocess.run([str(server), "--version"], capture_output=True, text=True, timeout=60,
+                                 cwd=str(server.parent), creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        assert version.returncode == 0, "llama-server does not start: " + (version.stderr or version.stdout)[-300:]
+        print("runtime:", server, (version.stdout + version.stderr).strip().splitlines()[-1:])
     app.accept({"terms": True, "licence": True})
     born = app.birth({"name": "Selftest", "engine": {"kind": "simulated"}})
     assert born["kernel"] == kernel_fingerprint()[:12]
