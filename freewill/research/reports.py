@@ -96,6 +96,29 @@ def markdown(results: dict, protocol: dict, experiment: dict, language: str, *, 
                 f"`{row['evidence_id']}`"]) + " |")
         out.append("")
 
+    long = results.get("longitudinal")
+    if long:  # EXP-10: the trajectory over the days, then the sealed probe, by the preregistered rule
+        out.extend([f"### {r['long_head']}", "", r["long_text"], "", "| " + " | ".join(r["long_cols"]) + " |",
+                    "|" + "---|" * len(r["long_cols"])])
+        for row in long["waves"] + [long["sealed"]]:
+            x, a = row["excess_over_twin"] or {}, row["affect_on_divergence"] or {}
+            mean = lambda v: na if not v else f"{sum(v) / len(v):.6f}"  # noqa: E731
+            label = r["long_sealed"] if row["when"] == "sealed" else r["long_wave"].format(n=row["when"][4:])
+            out.append("| " + " | ".join([label, mean(row["distance_B_A"]), mean(row["distance_twin"]),
+                                          _show(x.get("mean_difference"), na), _show(x.get("interval_95"), na),
+                                          _show(x.get("p_sign_flip"), na), _show(a.get("mean_difference"), na),
+                                          _show(a.get("interval_95"), na)]) + " |")
+        met = long["primary_criterion_met"]
+        out.extend(["", r["long_met"] if met else (r["long_undetermined"] if met is None else r["long_not_met"]), ""])
+        if long["excluded"]:
+            out.extend([r["long_excluded"]] + [f"- `{k}`: {', '.join(v)}" for k, v in long["excluded"].items()] + [""])
+        else:
+            out.extend([r["long_none_excluded"], ""])
+        prereg = (protocol.get("preregistration") or {}).get(texts.lang(language)) or {}
+        if prereg:
+            out.extend([f"### {r['long_prereg']}", ""] + [f"- `{k}`: {v if not isinstance(v, list) else '; '.join(v)}"
+                                                         for k, v in prereg.items()] + [""])
+
     def rows(keep) -> list[str]:
         lines = ["| " + " | ".join(r["cols"]) + " |", "|" + "---|" * len(r["cols"])]
         for row in results["comparisons"]:

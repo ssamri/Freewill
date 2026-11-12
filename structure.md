@@ -79,6 +79,8 @@ The core is the only component that thinks. The interface can be closed without 
 >
 > **The Brain view in 3D (built).** `ui/brain.js` now renders with Three.js, shipped inside the package as `ui/three.bundle.js` (no CDN, no build step for users; `tooling/brain/` rebuilds it), over an illustrative outline (`ui/brain-shape.js`) and with a Canvas fallback (`ui/brain-canvas.js`). Third-party notices are in `ui/THIRD_PARTY_NOTICES.txt`. The icon lives in `docs/assets/` (with the README screenshots in `docs/assets/screenshots/`, light and dark, one set per language), `ui/logo.png`, `ui/favicon.png` and `packaging/windows/freewill.ico`. See [`docs/brain-view.md`](docs/brain-view.md).
 
+> **Version 1.2, after the audit of 12 November 2026 (built).** `freewill/build.py` says which code runs (version, commit, build date) and the real state of each learning capability; `freewill/core/language.py` checks the language a life's engine writes in; `freewill/core/evolution.py` turns recurring shortcomings into proposals that a named person decides, and that run nothing; `freewill/research/observer_audit.py` scores observers on trap cases with known truth; EXP-10 in `freewill/research/experiments.py` is a preregistered longitudinal protocol with waves evaluated on copies and a sealed probe. `tools/release_notes.py`, `tools/observer_audit.py` and the workflow `observer-audit.yml` go with them. See [`docs/audit-followup.md`](docs/audit-followup.md).
+
 ```
 freewill/
 ├── README.md · README.fr.md        Thesis and theoretical framework

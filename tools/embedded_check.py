@@ -89,6 +89,9 @@ def why() -> list[dict]:
 
 
 def main(argv=None) -> int:
+    for stream in (sys.stdout, sys.stderr):  # a model may write any character; the Windows console default is cp1252
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser()
     parser.add_argument("out")
     parser.add_argument("--models", nargs="+", default=["smolvlm2-2.2b", "qwen3-1.7b"])

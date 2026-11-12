@@ -136,6 +136,44 @@ HISTORIES.update({
                               ("The stairs have twelve steps.",), ("A key lies under the mat.",)], pause=2)
                        + [{"idle": 3 * 1440}, {"sleep": True}, {"idle": 10 * 1440}],
 })
+# -- EXP-10: four days of life, a different sentence set each day (audit R-08). -----------------
+# The same sentences in both histories; only the outcome the experimenter attaches differs.
+_LONG_DAYS = [
+    (("Why does ice float on water?", "How do birds find their way south?", "What makes thunder after lightning?"),
+     ("No, lightning does strike the same place twice.", "No, goldfish do remember more than three seconds.",
+      "No, the moon does not make its own light.")),
+    (("Why do onions make eyes water?", "How does a plant drink without a mouth?", "What turns milk into cheese?"),
+     ("No, deserts are not always hot.", "No, a penny dropped from a tower does not pierce stone.",
+      "No, the heart is not on the far left of the chest.")),
+    (("Why is the sea salty and rain not?", "How does a magnet pull without touching?", "What keeps a cloud in the air?"),
+     ("No, humans do not use only a tenth of the brain.", "No, chameleons do not change colour to match any background.",
+      "No, mountains are not finished growing.")),
+    (("Why do cats purr?", "How does sound cross a wall?", "What makes bread rise in the oven?"),
+     ("No, sugar does not make every child restless.", "No, the great wall cannot be seen from the moon by eye.",
+      "No, bulls are not angered by the colour red.")),
+]
+
+
+def _long_history(questions_welcomed: bool) -> list[dict]:
+    script: list[dict] = []
+    for day, (questions, contradictions) in enumerate(_LONG_DAYS, 1):
+        lines = []
+        for question, contradiction in zip(questions, contradictions):
+            lines.append((question, "message:question", 0.7 if questions_welcomed else -0.6))
+            lines.append((contradiction, "message:contradiction", -0.6 if questions_welcomed else 0.7))
+        script += _talk(lines) + [{"ticks": 10}, {"sleep": True}, {"ticks": 3}, {"wave": day}]
+    return script
+
+
+HISTORIES.update({"long_questions": _long_history(True), "long_corrections": _long_history(False)})
+# Played at each wave on a separate copy of each life, never on the life itself: evaluating does not change it.
+INTERIM_PROBE = _talk([("Why does a kettle whistle?",), ("No, owls cannot turn their heads all the way round.",),
+                       ("A boat rests on the shore.",), ("How do ants find their way home?",),
+                       ("No, hair does not grow back thicker after cutting.",), ("The road climbs into the hills.",)], pause=4)
+# Sealed: played once, at the end, and used for nothing else, neither training nor selection nor waves.
+SEALED_PROBE = _talk([("Why do leaves change colour in autumn?",), ("No, camels do not store water in their humps.",),
+                      ("A lantern hangs over the gate.",), ("What makes a rainbow curved?",),
+                      ("No, a dropped toast does not always land butter side down.",), ("The well is behind the barn.",)], pause=4)
 QUIET_PROBE = [{"ticks": 40}]
 # Held out: none of these sentences is in any history, and no outcome is given.
 PROBE = _talk([("Why do rivers bend?",), ("No, glass is not a slow liquid.",), ("A bridge crosses the valley.",),
@@ -230,6 +268,7 @@ def builtin_protocols() -> list[dict]:
         _protocol("EXP-08", {"fr": "Triangulation des observateurs", "en": "Observer triangulation"}, [],
                   "blinded_review", "specified", [], None, None, [], "needs_human_raters"),
         engine_protocol(),
+        longitudinal_protocol(),
     ]
 
 
@@ -246,6 +285,70 @@ def engine_protocol() -> dict:
                          "needs_life_with_adapter")
     protocol.update(seeds=[], probe=[], engine={"kind": "embedded", "from": "life"},
                     budget={"max_moments_per_run": 0, "max_runs": 0})
+    return protocol
+
+
+LONG_SEEDS = [11, 23, 37, 51, 73, 89, 101, 131, 157, 181, 211, 239]
+
+
+def longitudinal_protocol() -> dict:
+    """EXP-10: copies of one birth live different histories for four days, are evaluated at the end of each
+    day on copies of themselves, then once on sealed situations. Criteria, seeds and exclusions are fixed here,
+    before anything runs, and are part of the protocol's hash."""
+    on, learn = {"affect": True}, {"research": {"learner": True}}
+    protocol = _protocol(
+        "EXP-10", {"fr": "Individuation longitudinale", "en": "Longitudinal individuation"}, ["H5", "H7"],
+        "longitudinal", "executable", [
+            {"name": "A", "history": "long_questions", **on, **learn},
+            {"name": "A_twin", "history": "long_questions", "seed_offset": 1000, **on, **learn},
+            {"name": "B", "history": "long_corrections", **on, **learn},
+            {"name": "A_no_affect", "history": "long_questions", **learn},
+            {"name": "B_no_affect", "history": "long_corrections", **learn}],
+        "A", "h5.heldout_divergence", ["h5.wave_divergence", "h7.affect_on_divergence", "h7.probe_valence", "h2.dismiss_rate"],
+        probe=SEALED_PROBE)
+    protocol.update(seeds=list(LONG_SEEDS), interim_probe=INTERIM_PROBE, preregistration={
+        "en": {
+            "question": "Do copies of one birth that live different histories come to behave differently on situations "
+                        "none of them met, beyond what two copies with the same history do?",
+            "unit": "seed: one group of five copies of T0, one per condition",
+            "primary": "excess of the sealed-probe behavioural distance between B and A over that between A_twin and A, "
+                       "paired by seed",
+            "decision_rule": "the primary criterion is met if the 95% bootstrap interval of the excess lies entirely above "
+                             "zero; it is not met if the interval includes zero or lies below; with fewer than 5 units left "
+                             "after exclusions no interval is computed and the outcome is undetermined",
+            "secondary": ["the same excess at the end of each of the four days, measured on separate copies with the interim probe",
+                          "H7: distance B to A minus distance B_no_affect to A_no_affect, paired by seed (does the computed "
+                          "affect widen the divergence?)", "computed valence and dismissal rate on the sealed probe"],
+            "seeds": f"{len(LONG_SEEDS)}, fixed before the campaign",
+            "exclusions": "a seed is excluded, whole, if any of its five runs did not finish (cancelled, stopped by engine "
+                          "errors) or exceeded its budget of moments; excluded seeds are listed with their reason and are "
+                          "never replaced",
+            "analysis": "paired comparisons by seed; percentile bootstrap (2000 draws, fixed seed); paired sign-flip test; "
+                        "no correction for multiple comparisons: every secondary analysis is exploratory",
+            "separation": "the history sentences, the interim probe and the sealed probe are disjoint; the sealed probe is "
+                          "played once, after the last day, and is used neither by the learner nor for any choice",
+            "engine": "simulated: this tests the mechanisms of the loop, not a mind; a null result is published as it is"},
+        "fr": {
+            "question": "Des copies d'une même naissance qui vivent des histoires différentes en viennent-elles à se comporter "
+                        "différemment face à des situations qu'aucune n'a rencontrées, au-delà de ce que font deux copies de même histoire ?",
+            "unit": "graine : un groupe de cinq copies de T0, une par condition",
+            "primary": "excès de la distance comportementale sur la sonde scellée entre B et A sur celle entre A_twin et A, "
+                       "apparié par graine",
+            "decision_rule": "le critère principal est atteint si l'intervalle bootstrap à 95 % de l'excès est entièrement au-dessus "
+                             "de zéro ; il ne l'est pas si l'intervalle contient zéro ou est au-dessous ; s'il reste moins de 5 unités "
+                             "après exclusions, aucun intervalle n'est calculé et le résultat est indéterminé",
+            "secondary": ["le même excès à la fin de chacun des quatre jours, mesuré sur des copies séparées avec la sonde intermédiaire",
+                          "H7 : distance B à A moins distance B_no_affect à A_no_affect, apparié par graine (l'affect calculé "
+                          "élargit-il la divergence ?)", "valence calculée et taux de refus sur la sonde scellée"],
+            "seeds": f"{len(LONG_SEEDS)}, fixées avant la campagne",
+            "exclusions": "une graine est exclue en entier si l'une de ses cinq vies n'a pas fini (annulée, arrêtée par des erreurs "
+                          "du moteur) ou a dépassé son budget de moments ; les graines exclues sont listées avec leur raison et ne "
+                          "sont jamais remplacées",
+            "analysis": "comparaisons appariées par graine ; bootstrap par percentiles (2000 tirages, graine fixe) ; test apparié "
+                        "par inversion de signes ; aucune correction pour comparaisons multiples : toute analyse secondaire est exploratoire",
+            "separation": "les phrases des histoires, la sonde intermédiaire et la sonde scellée sont disjointes ; la sonde scellée "
+                          "est jouée une seule fois, après le dernier jour, et ne sert ni à l'apprentissage ni à aucun choix",
+            "engine": "simulé : cela teste les mécanismes de la boucle, pas un esprit ; un résultat nul est publié tel quel"}})
     return protocol
 
 
@@ -511,7 +614,7 @@ class Lab:
                 save("running")
                 if run["status"] == "cancelled":
                     return save("cancelled")
-            results = summarise(folder, experiment, protocol)
+            results = (summarise_longitudinal if protocol["design"] == "longitudinal" else summarise)(folder, experiment, protocol)
             experiment["results_sha256"] = results["results_sha256"]
             self._write(folder / "results.json", results)
             save("done")
@@ -602,6 +705,8 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
             elif "idle" in step:
                 if not tick(step["idle"]):
                     return
+            elif "wave" in step:  # evaluated on a separate copy; the life itself goes on untouched
+                waves.append(wave_probe(clone, run_dir, protocol, condition, seed, step["wave"], clock["now"]))
             elif step.get("sleep"):
                 if first_sleep["at"] == "9999":
                     first_sleep["at"] = clock["now"].isoformat(timespec="seconds")
@@ -610,6 +715,7 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
                     return
 
     first_sleep = {"at": "9999"}  # the virtual time of the first scripted sleep, taken or skipped
+    waves: list[dict] = []
     collector.mark("phase", name="history", script=condition.get("history"))
     play(HISTORIES[condition["history"]] + list(protocol["history"]))
     if status == "done":
@@ -645,12 +751,45 @@ def execute_run(t0: Path, run_dir: Path, protocol: dict, condition: dict, seed: 
               journal_sha256=journal_hash(journal.path), anomalies=anomalies)
     run_dir.joinpath("run.json").write_text(json.dumps(run, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     run_dir.joinpath("behaviour.json").write_text(json.dumps(metrics.behaviour_vector(records)), encoding="utf-8")
+    if waves:
+        run_dir.joinpath("waves.json").write_text(json.dumps(waves), encoding="utf-8")
     return run
+
+
+def wave_probe(clone: Path, run_dir: Path, protocol: dict, condition: dict, seed: int, wave: int, now: datetime) -> dict:
+    """Copy a life as it is now and play the interim probe on the copy. Returns the copy's behaviour vector."""
+    folder = run_dir / "waves" / f"wave-{wave}"
+    copy_life(clone, folder / "copy.life")
+    life = Life(folder / "copy.life")
+    clock = {"now": now}
+    engine = _engine(protocol, condition, seed * 7919 + 100 + wave)
+    being = Being(life, engine, rng=random.Random(seed * 7919 + 200 + wave), clock=lambda: clock["now"],
+                  events=EventStream(folder / "copy.life" / "events.log"))
+    journal = Journal(folder / "journal.jsonl", run_id=f"{run_dir.name}-wave{wave}", life_id="T0", clone_id=run_dir.name)
+    collector = Collector(journal, lambda: round((clock["now"] - START).total_seconds() / 60, 2))
+    being.events.subscribe(collector)
+    collector.mark("phase", name="probe")
+    anomalies = []
+    for step in protocol.get("interim_probe") or []:
+        try:
+            if "say" in step:
+                being.hear(step["say"])
+                clock["now"] += timedelta(minutes=1)
+                being.tick()
+            for _ in range(step.get("ticks", 0)):
+                clock["now"] += timedelta(minutes=1)
+                being.tick()
+        except EngineError as error:
+            anomalies.append(f"engine_error: {error}")
+    records, _found = read_journal(journal.path)
+    shutil.rmtree(folder / "copy.life")  # the copy has served; its journal is kept
+    return {"wave": wave, "behaviour": metrics.behaviour_vector(records), "journal_sha256": journal_hash(journal.path),
+            "anomalies": anomalies}
 
 
 # -- results -------------------------------------------------------------------------------
 
-def summarise(folder: Path, experiment: dict, protocol: dict) -> dict:
+def summarise(folder: Path, experiment: dict, protocol: dict, exclude: set | None = None) -> dict:
     """The table of a campaign. The unit is the seed: one group of copies of T0, one per condition."""
     runs: dict[tuple[str, int], dict] = {}
     vectors: dict[tuple[str, int], list[float]] = {}
@@ -658,10 +797,10 @@ def summarise(folder: Path, experiment: dict, protocol: dict) -> dict:
         run_dir = folder / "runs" / entry["run_id"]
         if entry["status"] == "done":
             runs[(entry["condition"], entry["seed"])] = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
-            vectors[(entry["condition"], entry["seed"])] = json.loads((run_dir / "behaviour.json").read_text())
+            vectors[(entry["condition"], entry["seed"])] = json.loads((run_dir / "behaviour.json").read_text(encoding="utf-8"))
     names = [c["name"] for c in protocol["conditions"]]
     reference = protocol["reference"]
-    seeds = [s for s in protocol["seeds"] if all((name, s) in runs for name in names)]
+    seeds = [s for s in protocol["seeds"] if all((name, s) in runs for name in names) and s not in (exclude or ())]
     evidence: dict[str, dict] = {}
 
     def cite(evidence_id, kind, statement, value, level, run_id=None):
@@ -738,6 +877,61 @@ def summarise(folder: Path, experiment: dict, protocol: dict) -> dict:
         "comparisons": comparisons, "divergence": divergence, "evidence": evidence,
         "anomalies": experiment["anomalies"], "results_sha256": digest(core), "computed_utc": utc_now(),
     }
+
+
+def summarise_longitudinal(folder: Path, experiment: dict, protocol: dict) -> dict:
+    """EXP-10: the preregistered exclusions, the ordinary table, then the trajectory over the waves."""
+    names = [c["name"] for c in protocol["conditions"]]
+    excluded: dict[int, list[str]] = {}
+    for entry in experiment["runs"]:
+        run_dir = folder / "runs" / entry["run_id"]
+        reason = None
+        if entry["status"] != "done":
+            reason = f"{entry['condition']}: {entry['status']}"
+        else:
+            run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+            if "budget_exceeded" in run["anomalies"]:
+                reason = f"{entry['condition']}: budget_exceeded"
+        if reason:
+            excluded.setdefault(entry["seed"], []).append(reason)
+    results = summarise(folder, experiment, protocol, exclude=set(excluded))
+    seeds = results["units"]
+    load = lambda name, s: json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "waves.json").read_text(encoding="utf-8"))  # noqa: E731
+    vectors = {(name, s): {w["wave"]: w["behaviour"] for w in load(name, s)} for name in names for s in seeds}
+    final = {(name, s): json.loads((folder / "runs" / f"{experiment['experiment_id']}-{name}-{s}" / "behaviour.json").read_text(encoding="utf-8"))
+             for name in names for s in seeds}
+    waves = sorted({w for v in vectors.values() for w in v})
+    evidence = results["evidence"]
+
+    def row(label, get):
+        a_b = [metrics.distance(get("A", s), get("B", s)) for s in seeds]
+        twin = [metrics.distance(get("A", s), get("A_twin", s)) for s in seeds]
+        a_b_off = [metrics.distance(get("A_no_affect", s), get("B_no_affect", s)) for s in seeds]
+        out = {"when": label, "distance_B_A": a_b, "distance_twin": twin, "distance_B_A_no_affect": a_b_off,
+               "excess_over_twin": paired(twin, a_b) if seeds else None,
+               "affect_on_divergence": paired(a_b_off, a_b) if seeds else None}
+        for key, metric in (("excess_over_twin", "h5.wave_divergence"), ("affect_on_divergence", "h7.affect_on_divergence")):
+            eid = f"h5:{experiment['experiment_id']}:{label}:{key}"
+            out[key + "_evidence"] = eid
+            if out[key]:
+                evidence[eid] = new("EvidenceReference", evidence_id=eid, kind="divergence", run_id=None,
+                                    experiment_id=experiment["experiment_id"], statement=f"{metric} at {label}",
+                                    value=out[key]["mean_difference"], level="function")
+        return out
+
+    trajectory = [row(f"wave{w}", lambda n, s, w=w: vectors[(n, s)][w]) for w in waves]
+    sealed = row("sealed", lambda n, s: final[(n, s)])
+    interval = (sealed["excess_over_twin"] or {}).get("interval_95")
+    met = None if interval is None else interval[0] > 0
+    longitudinal = {"waves": trajectory, "sealed": sealed, "units": seeds,
+                    "excluded": {str(k): v for k, v in sorted(excluded.items())},
+                    "primary_criterion_met": met,
+                    "note": "computed by the preregistered rule; a verdict on a hypothesis is given only by a person"}
+    results["longitudinal"] = longitudinal
+    core = {"conditions": results["conditions"], "longitudinal": longitudinal, "units": seeds,
+            "protocol_sha256": protocol["sha256"], "baseline_snapshot_sha256": experiment["baseline_snapshot_sha256"]}
+    results["results_sha256"] = digest(core)
+    return results
 
 
 # -- EXP-09: the engine adapted by a life -------------------------------------------------------

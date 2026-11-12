@@ -128,7 +128,7 @@ def test_pipeline_saves_and_rebuilds_the_same_model(tmp_path):
     summary = pipeline.run(m, tmp_path, book, plan, log=lambda *a: None)
     assert [s["stage"] for s in summary["stages"]] == ["read", "see", "watch"]
     assert all(s["decision"] in ("kept", "refused") for s in summary["stages"])
-    assert (tmp_path / "ledger.jsonl").read_text().count("\n") == 4          # three stages and the sealed test
+    assert (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").count("\n") == 4          # three stages and the sealed test
     assert "images" in summary["test_at_birth"] and "videos" in summary["test_at_end"]
     for stage in summary["stages"]:                                          # no rule ever saw the sealed test
         assert "test" not in json.dumps(stage["before"]) and "test" not in json.dumps(stage["after"])
@@ -314,5 +314,5 @@ def test_a_night_of_a_life_trains_the_own_model_and_is_kept_by_its_rule(tmp_path
     again = nights.night(m, life, log=lambda *a: None)
     assert again["kind"] == "skipped"                  # nothing new was lived
     assert OwnModelEngine.can_learn is False           # not claimed before an end-to-end run with the real bases
-    rows = [json.loads(l) for l in (nights.folder(life) / "ledger.jsonl").read_text().splitlines()]
+    rows = [json.loads(l) for l in (nights.folder(life) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows[-1]["stage"] == "night" and rows[-1]["decision"] == "kept"
