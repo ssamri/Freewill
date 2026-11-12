@@ -256,6 +256,7 @@ The project takes seriously the possibility of its own success. Should a system 
 - Discrepancy between the internal states the system reports and those observed.
 - H7: effect of the computed affective state on salience, recall and encoding, measured against three controls (no affect, emotions only spoken, ablations); divergence after different histories; return to equilibrium; effect of consolidation on the next day's prediction. First results, on the simulated engine, in [`experiments/h7/results/`](experiments/h7/results/).
 - H4, H8, H9, H10 and H5 again, in version 1.0: six campaigns of six seeds each on the simulated engine, with their reports and reproduction packs in [`experiments/v1.0/`](experiments/v1.0/). Individuation (H5) and the behavioural effect of computed affect (H7) came out null and are reported as such; the others test mechanisms on cases built to be easy. The reading of each figure, and its limits, are in [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
+- H5 and H7 over time, in version 1.2: EXP-10, preregistered, twelve seeds, four days of life evaluated each day on copies and once on sealed situations. Null: lives given different histories behaved identically. What version 1.2 did about the audit of 12 November 2026 is in [`docs/audit-followup.md`](docs/audit-followup.md).
 
 **Open questions.**
 

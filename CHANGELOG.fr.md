@@ -2,9 +2,25 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 1.2.0
+
+Cette version fait suite à l'audit technique et scientifique du 12 novembre 2026 (recommandations R-06 à R-10 ; R-01 à R-05 sont traitées à part). Rien dans cette version n'affirme qu'un système est conscient ou ressent quoi que ce soit.
 
 **Ajouté**
+
+- À propos de cette version, dans les Réglages : version, commit exact, date de construction, canal, moteur actuel et, pour chaque capacité d'apprentissage, son état (actif, disponible, indisponible ou non relié), avec ce qui a été démontré de bout en bout et où. Un réglage activé n'est jamais présenté comme un entraînement validé. Les cartes graphiques et macOS sont indiqués comme jamais testés (R-09, audit 9.1).
+- Le workflow de l'installateur inscrit le commit exact dans la construction, refuse une étiquette de version qui ne correspond pas au code et rédige des notes de version qui nomment le commit et séparent exécuter un modèle, entraîner un adaptateur LoRA et entraîner Freewill 1.8B-V (`tools/release_notes.py`). Les tests tournent désormais aussi sous macOS et Windows (R-09).
+- La langue d'une vie est vérifiée dans ce qu'écrit son moteur : une réponse nettement dans une autre langue est redemandée une fois, explicitement ; si elle dérive encore, elle est gardée telle quelle et la conversation le dit. Langue de l'interface, langue de la vie et langue de chaque observateur sont présentées comme trois choses distinctes (`freewill/core/language.py`, R-10).
+- Audit des observateurs sur cas piégés à vérité connue : un résultat nul, des effets nets, trop peu de vies pour conclure, une question appuyée sur une preuve absente, une instruction cachée dans les données, un câblage qui ressemble à une découverte. Noté par du code : lectures correctes, effets affirmés à tort, incertitude reconnue, citations inventées, instruction cachée suivie, affirmations d'expérience vécue, mauvaise langue. Dans l'onglet Observateurs du laboratoire, en ligne de commande (`tools/observer_audit.py`) et en workflow manuel avec de vraies clés d'API (`observer-audit.yml`). Aucun audit avec une vraie API n'a encore été lancé (R-07).
+- EXP-10, individuation longitudinale : cinq conditions, douze graines fixées d'avance, quatre jours de vie, une évaluation à la fin de chaque jour sur des copies séparées, puis une seule fois sur des situations scellées utilisées nulle part ailleurs ; critères, règle de décision et exclusions préenregistrés en anglais et en français et hachés avec le protocole. Exécutée et publiée dans `experiments/v1.0/EXP-10/` (R-08).
+- Propositions d'évolution, dans les Réglages : une insuffisance qui revient dans ce qu'une vie enregistre (réponses restées dans une autre langue, nuits d'apprentissage refusées d'affilée, aveux d'ignorance répétés) devient une proposition avec sa preuve, son coût quand il est connu, son témoin, l'amélioration qui compterait et la façon de l'annuler. Une personne nommée approuve ou refuse ; rien ne s'exécute pour autant (`freewill/core/evolution.py`, R-06).
+
+**Résultats**
+
+- EXP-10 est nulle : sur les douze graines, à chaque jour comme sur la sonde scellée, les vies d'histoire A et d'histoire B se sont comportées de façon identique (distance 0). L'affect calculé n'y a rien changé. Le moteur est le moteur simulé ; voir [`docs/audit-followup.fr.md`](docs/audit-followup.fr.md).
+
+**Ajouté auparavant, publié pour la première fois ici**
+
 
 - Freewill 1.8B-V, le modèle propre au projet (`freewill/vlm/`) : Qwen3 1.7B, l'œil SigLIP2 et un pont entraîné par Freewill ; 1 823 955 200 paramètres à la naissance, croissance par neurones et par couches entières jusqu'à un plafond choisi dans les Réglages (2, 5, 13, 50 milliards ou toute autre taille), chaque taille étant présentée avec le disque, la mémoire, la carte graphique, le texte et la durée d'entraînement qu'elle demande. Étapes lire (livres du domaine public), voir (images dessinées, avec un contrôle) et regarder (vidéos dessinées, avec deux contrôles), chacune gardée seulement selon des règles écrites. Moteur de type `own`, commande `freewill own-model`, workflow `own model end to end`. Voir [`docs/own-model.fr.md`](docs/own-model.fr.md).
 

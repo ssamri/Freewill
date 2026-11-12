@@ -1213,6 +1213,9 @@
       const about = h("section", { class: "card about-build" }, h("div", { class: "section-title" }, t("about.title")), h("p", { class: "muted" }, "…"));
       ui.view.append(about);
       api("/api/about").then((data) => drawAbout(about, data)).catch((e) => about.append(h("p", { class: "error" }, t("errors.generic", { message: e.message }))));
+      const evo = h("section", { class: "card evolution" });
+      ui.view.append(evo);
+      drawEvolution(evo);
       const research = h("div", { class: "research-settings" });
       ui.view.append(research);
       if (window.FWLab) window.FWLab.settings(research);
@@ -1241,6 +1244,34 @@
         h("td", { class: "small muted" }, [t("about.reasons." + c.reason), t("about.evidence." + c.evidence)].filter(Boolean).join(" · ")))))),
       h("p", { class: "hint", style: "margin-top:8px" }, t("about.caps_hint")),
       data.untested.length ? h("p", { class: "hint" }, t("about.untested", { list: data.untested.map((k) => t("about.untested_items." + k)).join(", ") })) : null);
+  }
+
+  // Proposals of evolution (audit R-06): evidence, cost, control, undo. A signed approval runs nothing.
+  async function drawEvolution(box) {
+    let data;
+    try { data = await api("/api/evolution"); } catch (e) { return fill(box, h("p", { class: "error" }, t("errors.generic", { message: e.message }))); }
+    const who = h("input", { placeholder: t("evo.who"), value: store.get("fw-who") || "", oninput: (e) => store.set("fw-who", e.target.value) });
+    const status = h("span", { class: "small muted", role: "status" });
+    const send = async (path, body) => {
+      if (!who.value.trim()) { status.textContent = t("evo.who_first"); return; }
+      try { await api(path, { ...body, who: who.value.trim() }); drawEvolution(box); } catch (e) { status.textContent = t("errors.generic", { message: e.message }); }
+    };
+    const when = (iso) => { try { return new Date(iso).toLocaleString(S.lang); } catch (_) { return iso; } };
+    const items = data.proposals.slice().reverse().map((p) => h("div", { class: "evo-item" },
+      h("div", {}, h("b", {}, t("evo.actions." + p.action)), " ", h("span", { class: "state-pill " + (p.status === "proposed" ? "available" : p.status === "kept" ? "active" : "unavailable") }, t("evo.statuses." + p.status))),
+      h("p", { class: "small" }, t("evo.gaps." + p.gap, { count: p.count, window: p.window })),
+      h("p", { class: "small muted" }, t("evo.controls." + String(p.metric).replace(/\./g, "_"))),
+      h("p", { class: "small muted" }, (p.cost_parameters ? t("evo.cost", { n: Number(p.cost_parameters).toLocaleString(S.lang) }) : t("evo.cost_unknown")) + " " + (p.rollback ? t("evo.rollback") : "")),
+      p.decided_by ? h("p", { class: "small muted" }, t("evo.by", { who: p.decided_by, when: when(p.decided_utc) })) : null,
+      p.result ? h("p", { class: "small" }, t("evo.result", { decision: p.result.decision || p.result.note || "", reason: p.result.reason ? " (" + p.result.reason + ")" : "" })) : null,
+      p.status === "proposed" ? h("div", { class: "btn-row" },
+        h("button", { class: "btn", onclick: () => send("/api/evolution/decide", { id: p.proposal_id, decision: "approved" }) }, t("evo.approve")),
+        h("button", { class: "btn", onclick: () => send("/api/evolution/decide", { id: p.proposal_id, decision: "declined" }) }, t("evo.decline"))) : null,
+      p.status === "approved" ? h("div", { class: "btn-row" },
+        h("button", { class: "btn", onclick: () => send("/api/evolution/result", { id: p.proposal_id, outcome: "kept", note: "" }) }, t("evo.kept")),
+        h("button", { class: "btn", onclick: () => send("/api/evolution/result", { id: p.proposal_id, outcome: "rolled_back", note: "" }) }, t("evo.rolled"))) : null));
+    fill(box, h("div", { class: "section-title" }, t("evo.title")), h("p", { class: "hint" }, t("evo.lead", { name: S.snap.name })),
+      items.length ? [h("div", { class: "field" }, who), ...items, status] : h("p", { class: "muted" }, t("evo.none")));
   }
 
   // What the Research Lab's own file builds on.

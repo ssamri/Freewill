@@ -40,5 +40,12 @@
   "code_commit": "679328f829ae7cd0cccea92ca10d373ff075ed49",
   "status": "done",
   "anomalies": []
+ },
+ "EXP-10": {
+  "experiment_id": "exp_91bbfd2d635b4d85",
+  "results_sha256": "d6c923239ed2053b1ab11acb5117830193f0dbd8c1311c5a852f6cca70d4597a",
+  "code_commit": "63f551a83bc73efd208b41c26a1d4a32e79a9ca8",
+  "status": "done",
+  "anomalies": []
  }
 }

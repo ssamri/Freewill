@@ -501,6 +501,10 @@ def make_handler(app: App):
             if path == "/api/about":
                 from freewill import build
                 return self._json(build.about(app.runner, app.models))
+            if path == "/api/evolution":  # proposals from observed shortcomings; nothing here changes the engine
+                from freewill.core.evolution import Evolution
+                runner = app.require_runner()
+                return self._json({"proposals": Evolution(runner.life.path).refresh(runner.life.identity.get("engine", {}))})
             if path == "/api/credits":
                 return self._json(app.credits())
             if path == "/api/dreams":
@@ -541,6 +545,16 @@ def make_handler(app: App):
         def _api_post(self, path: str, body: dict) -> None:
             if path == "/api/consent":
                 return self._json(app.accept(body))
+            if path in ("/api/evolution/decide", "/api/evolution/result"):
+                from freewill.core.evolution import Evolution
+                evolution = Evolution(app.require_runner().life.path)
+                try:
+                    if path.endswith("decide"):
+                        return self._json(evolution.decide(str(body.get("id")), str(body.get("decision")), str(body.get("who") or "")))
+                    return self._json(evolution.record_result(str(body.get("id")), str(body.get("outcome")),
+                                                              str(body.get("note") or ""), str(body.get("who") or "")))
+                except ValueError as error:
+                    raise ApiError(400, str(error)) from error
             if path == "/api/models/download":
                 part = "training" if body.get("part") == "training" else "inference"
                 try:
