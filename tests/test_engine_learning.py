@@ -191,6 +191,34 @@ def test_a_night_that_does_not_help_or_forgets_leaves_nothing_behind(life, toy_b
 
 
 @needs_training
+def test_an_adapter_llama_cpp_could_not_measure_is_never_put_in_use(life, toy_base, monkeypatch):
+    learning = EngineLearning(life.path)
+    learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")
+    write_events(life.path, LINES)
+    monkeypatch.setattr(engine_learning, "MAX_FORGETTING", 10.0)
+    row = learning.night(TOY_MODEL, None, workbench=bench_for(toy_base),
+                         runtime_check=lambda path, texts: {"ran": False, "reason": "too little text"})
+    assert row["decision"] == "rejected_by_runtime" and learning.active("toy") is None
+    assert learning.versions() == [] and (learning.root / "rejected" / row["night"] / "manifest.json").exists()
+    assert learning._next_version() != row["night"]  # a number is never given twice
+
+
+def test_the_runtime_check_counts_a_change_of_loss_as_proof_that_the_adapter_was_applied(monkeypatch, tmp_path):
+    from freewill.learning import compare
+    seen = []
+
+    def fake(model, text, adapter=None, *, ctx=128, threads=None):
+        seen.append(ctx)
+        if ctx == 128:
+            raise compare.CompareError("too few tokens")
+        return {"ppl": 9.0 if adapter else 20.0, "nll": 2.2 if adapter else 3.0, "ctx": ctx, "adapter_loaded": adapter is None}
+    monkeypatch.setattr(compare, "runtime_loss", fake)
+    result = compare.runtime_check(tmp_path / "m.gguf")(tmp_path / "a.gguf", ["some held-out text"])
+    assert result["ran"] and result["adapter_loaded"] and not result["adapter_named_in_log"] and result["ctx"] == 64
+    assert seen == [128, 64, 64]
+
+
+@needs_training
 def test_checkpoints_can_be_restored_and_a_tampered_adapter_is_never_loaded(life, toy_base, monkeypatch):
     learning = EngineLearning(life.path)
     learning.configure({"enabled": True, "steps": 60, "lr": 0.01, "rank": 4}, who="Sam")

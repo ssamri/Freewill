@@ -70,7 +70,7 @@ def runtime_loss(model_gguf: Path, text: str, adapter_gguf: Path | None = None, 
         raise CompareError("llama-perplexity failed: " + log[-600:].strip())
     import math
     ppl = float(match.group(1))
-    loaded = adapter_gguf is None or bool(re.search(r"lora|adapter", log, re.IGNORECASE))
+    loaded = adapter_gguf is None or bool(re.search(r"lora|adapter", log, re.IGNORECASE))  # see runtime_check
     return {"ppl": ppl, "nll": round(math.log(ppl), 6), "ctx": ctx, "adapter_loaded": loaded}
 
 
@@ -78,14 +78,23 @@ def runtime_check(model_gguf: Path):
     """The function the nightly cycle calls on a converted adapter, before making it the one in use."""
     def check(adapter_gguf: Path, texts: list[str]) -> dict:
         text = "\n\n".join(texts)
-        try:
-            base = runtime_loss(model_gguf, text)
-            adapted = runtime_loss(model_gguf, text, adapter_gguf)
-        except CompareError as error:
+        error = None
+        for ctx in (128, 64, 32):  # llama-perplexity needs at least two windows of text
+            try:
+                base = runtime_loss(model_gguf, text, ctx=ctx)
+                adapted = runtime_loss(model_gguf, text, adapter_gguf, ctx=ctx)
+                break
+            except CompareError as failure:
+                error = failure
+        else:
             return {"ran": False, "reason": str(error)[:400]}
-        return {"ran": True, "base_nll": base["nll"], "adapted_nll": adapted["nll"],
-                "difference": round(adapted["nll"] - base["nll"], 6), "adapter_loaded": adapted["adapter_loaded"],
-                "ctx": base["ctx"], "note": "llama.cpp perplexity on the held-out text; second half of each window"}
+        difference = round(adapted["nll"] - base["nll"], 6)
+        # Proof that llama.cpp applied the adapter: the log names it, or the loss it computes changed.
+        # (b12306 does not always name it at the default log level; the change in loss is the stronger proof.)
+        loaded = bool(adapted["adapter_loaded"]) or abs(difference) > 1e-6
+        return {"ran": True, "base_nll": base["nll"], "adapted_nll": adapted["nll"], "difference": difference,
+                "adapter_loaded": loaded, "adapter_named_in_log": adapted["adapter_loaded"], "ctx": ctx,
+                "note": "llama.cpp perplexity on the held-out text; second half of each window"}
     return check
 
 

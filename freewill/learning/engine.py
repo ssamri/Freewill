@@ -261,7 +261,8 @@ class EngineLearning:
         return self.record("restore", before=before, after=version, who=str(who).strip()[:80] or None)
 
     def _next_version(self) -> str:
-        existing = [int(p.name[1:]) for p in (self.root / "adapters").glob("a*") if p.name[1:].isdigit()]
+        existing = [int(p.name[1:]) for where in ("adapters", "rejected")
+                    for p in (self.root / where).glob("a*") if p.name[1:].isdigit()]
         return f"a{(max(existing) + 1) if existing else 1:04d}"
 
     # -- state for the interface -----------------------------------------------------------------
@@ -489,7 +490,7 @@ class EngineLearning:
         runtime = None
         if runtime_check is not None and settings.verify_with_runtime:
             self.progress.update(step="runtime_check")
-            texts = [bench.render(r) for r in (new_held or old_held)]
+            texts = [bench.render(r) for r in new_held + old_held]
             runtime = runtime_check(partial / "adapter.gguf", texts)
         manifest = {"version": night_id, "base_model_id": model["id"], "base_model_name": model["name"],
                     "base_parameters": bench.base_parameters, "base_weights_sha256": base_hash_before,
@@ -504,7 +505,13 @@ class EngineLearning:
                     "created": _now(), "rules": RULES_VERSION}
         (partial / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
         partial.replace(folder)
-        if runtime is not None and runtime.get("adapter_loaded") is False:
+        if runtime is not None and (runtime.get("ran") is False or runtime.get("adapter_loaded") is False):
+            # Rule 5: when the check is asked for, an adapter llama.cpp could not measure is not put in use.
+            # It is kept aside for inspection, never among the checkpoints that can be restored.
+            aside = self.root / "rejected" / night_id
+            aside.parent.mkdir(parents=True, exist_ok=True)
+            shutil.rmtree(aside, ignore_errors=True)
+            folder.replace(aside)
             summary["seconds"] = round(time.monotonic() - started, 1)
             self.progress = {"state": "idle", "last": "rejected"}
             return self.record("night", decision="rejected_by_runtime", runtime_check=runtime, **summary)

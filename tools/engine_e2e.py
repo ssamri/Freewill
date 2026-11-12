@@ -105,6 +105,8 @@ PROBES = [
     "What does Ilse the baker put in her bread?",
     "From which harbour does the ferry to Kerran leave?",
 ]
+# The fact each probe asks for, as told on day one: counted only if the word appears in the answer.
+FACTS = ["brannoc", "blue", "pilou", "seaweed", "maelis"]
 
 
 class Steps:
@@ -249,42 +251,55 @@ def main(argv=None) -> int:
                     prompt = f"<|im_start|>user\n{probe}<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
                     answers.append({"probe": probe, "base": fresh.complete(prompt, n_predict=40, lora_scale=0.0),
                                     "adapted": fresh.complete(prompt, n_predict=40, lora_scale=1.0)})
+                for answer, fact in zip(answers, FACTS):
+                    answer["fact"] = fact
+                    answer["fact_in_base"] = fact in answer["base"].lower()
+                    answer["fact_in_adapted"] = fact in answer["adapted"].lower()
                 return {"engine": fresh.name, "llama_server_adapters": loaded, "adapter": fresh.adapter,
                         "answers": answers,
+                        "facts_recalled": {"base": sum(a["fact_in_base"] for a in answers),
+                                           "adapted": sum(a["fact_in_adapted"] for a in answers), "of": len(answers)},
                         "share_different": sum(a["base"].strip() != a["adapted"].strip() for a in answers) / len(answers)}
             finally:
                 fresh.close()
+        def lab():
+            fresh = open_engine()
+            try:
+                return compare.compare(life.path, model, store, runtime_model=store.paths(model)["model"],
+                                       behaviour_probe=compare.behaviour_probe(fresh))
+            finally:
+                fresh.close()
+
+        def restore_round_trip():
+            version = learning.active(model["id"])["version"]
+            learning.restore(None, who="end-to-end test")
+            base_engine = open_engine()
+            try:
+                base_loaded = base_engine.loaded_adapters()
+                base_name = base_engine.name
+            finally:
+                base_engine.close()
+            learning.restore(version, who="end-to-end test")
+            back = open_engine()
+            try:
+                back_loaded = back.loaded_adapters()
+                back_name = back.name
+            finally:
+                back.close()
+            return {"restored_base": {"engine": base_name, "adapters": base_loaded},
+                    "restored_checkpoint": {"engine": back_name, "adapters": back_loaded}}
+
+        done = {"lab": False}
+
+        def after_accepted(label):
+            steps.run(label, adapter_in_use)
+            if not done["lab"]:  # the comparison and the way back, on the first adapter kept
+                done["lab"] = True
+                steps.run("Research Lab comparison: base, adapted, controls", lab)
+                steps.run("restore the base, then the checkpoint", restore_round_trip)
+
         if night1.get("decision") == "accepted":
-            steps.run("the conversing model holds the adapter", adapter_in_use)
-
-            def lab():
-                fresh = open_engine()
-                try:
-                    return compare.compare(life.path, model, store, runtime_model=store.paths(model)["model"],
-                                           behaviour_probe=compare.behaviour_probe(fresh))
-                finally:
-                    fresh.close()
-            steps.run("Research Lab comparison: base, adapted, controls", lab)
-
-            def restore_round_trip():
-                version = learning.active(model["id"])["version"]
-                learning.restore(None, who="end-to-end test")
-                base_engine = open_engine()
-                try:
-                    base_loaded = base_engine.loaded_adapters()
-                    base_name = base_engine.name
-                finally:
-                    base_engine.close()
-                learning.restore(version, who="end-to-end test")
-                back = open_engine()
-                try:
-                    back_loaded = back.loaded_adapters()
-                    back_name = back.name
-                finally:
-                    back.close()
-                return {"restored_base": {"engine": base_name, "adapters": base_loaded},
-                        "restored_checkpoint": {"engine": back_name, "adapters": back_loaded}}
-            steps.run("restore the base, then the checkpoint", restore_round_trip)
+            after_accepted("the conversing model holds the adapter")
 
         if args.nights >= 2:
             learning.configure({"growth": True, "max_rank": 16}, who="end-to-end test")
@@ -294,9 +309,10 @@ def main(argv=None) -> int:
             being.sleep_requested = True
             being.tick()
             engine.close()
-            steps.run("night two: engine learning with growth allowed", learning.night, model, store, runtime_check=check)
-            if learning.active(model["id"]):
-                steps.run("the conversing model holds the latest adapter", adapter_in_use)
+            night2 = steps.run("night two: engine learning with growth allowed", learning.night, model, store,
+                               runtime_check=check)
+            if night2.get("decision") == "accepted":
+                after_accepted("the conversing model holds the latest adapter")
 
         steps.data["ledger"] = learning.ledger()
         steps.data["versions"] = learning.versions()
