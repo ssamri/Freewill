@@ -307,26 +307,48 @@ def longitudinal_protocol() -> dict:
         "A", "h5.heldout_divergence", ["h5.wave_divergence", "h7.affect_on_divergence", "h7.probe_valence", "h2.dismiss_rate"],
         probe=SEALED_PROBE)
     protocol.update(seeds=list(LONG_SEEDS), interim_probe=INTERIM_PROBE, preregistration={
-        "question": "Do copies of one birth that live different histories come to behave differently on situations "
-                    "none of them met, beyond what two copies with the same history do?",
-        "unit": "seed: one group of five copies of T0, one per condition",
-        "primary": "excess of the sealed-probe behavioural distance between B and A over that between A_twin and A, "
-                   "paired by seed",
-        "decision_rule": "the primary criterion is met if the 95% bootstrap interval of the excess lies entirely above "
-                         "zero; it is not met if the interval includes zero or lies below; with fewer than 5 units left "
-                         "after exclusions no interval is computed and the outcome is undetermined",
-        "secondary": ["the same excess at the end of each of the four days, measured on separate copies with the interim probe",
-                      "H7: distance B to A minus distance B_no_affect to A_no_affect, paired by seed (does the computed "
-                      "affect widen the divergence?)", "computed valence and dismissal rate on the sealed probe"],
-        "seeds": len(LONG_SEEDS), "seeds_fixed": True,
-        "exclusions": ["a seed is excluded, whole, if any of its five runs did not finish (cancelled, stopped by engine "
-                       "errors) or exceeded its budget of moments; excluded seeds are listed with their reason and are "
-                       "never replaced"],
-        "analysis": "paired comparisons by seed; percentile bootstrap (2000 draws, fixed seed); paired sign-flip test; "
-                    "no correction for multiple comparisons: every secondary analysis is exploratory",
-        "separation": "the history sentences, the interim probe and the sealed probe are disjoint; the sealed probe is "
-                      "played once, after the last day, and is used neither by the learner nor for any choice",
-        "engine": "simulated: this tests the mechanisms of the loop, not a mind; a null result is published as it is"})
+        "en": {
+            "question": "Do copies of one birth that live different histories come to behave differently on situations "
+                        "none of them met, beyond what two copies with the same history do?",
+            "unit": "seed: one group of five copies of T0, one per condition",
+            "primary": "excess of the sealed-probe behavioural distance between B and A over that between A_twin and A, "
+                       "paired by seed",
+            "decision_rule": "the primary criterion is met if the 95% bootstrap interval of the excess lies entirely above "
+                             "zero; it is not met if the interval includes zero or lies below; with fewer than 5 units left "
+                             "after exclusions no interval is computed and the outcome is undetermined",
+            "secondary": ["the same excess at the end of each of the four days, measured on separate copies with the interim probe",
+                          "H7: distance B to A minus distance B_no_affect to A_no_affect, paired by seed (does the computed "
+                          "affect widen the divergence?)", "computed valence and dismissal rate on the sealed probe"],
+            "seeds": f"{len(LONG_SEEDS)}, fixed before the campaign",
+            "exclusions": "a seed is excluded, whole, if any of its five runs did not finish (cancelled, stopped by engine "
+                          "errors) or exceeded its budget of moments; excluded seeds are listed with their reason and are "
+                          "never replaced",
+            "analysis": "paired comparisons by seed; percentile bootstrap (2000 draws, fixed seed); paired sign-flip test; "
+                        "no correction for multiple comparisons: every secondary analysis is exploratory",
+            "separation": "the history sentences, the interim probe and the sealed probe are disjoint; the sealed probe is "
+                          "played once, after the last day, and is used neither by the learner nor for any choice",
+            "engine": "simulated: this tests the mechanisms of the loop, not a mind; a null result is published as it is"},
+        "fr": {
+            "question": "Des copies d'une même naissance qui vivent des histoires différentes en viennent-elles à se comporter "
+                        "différemment face à des situations qu'aucune n'a rencontrées, au-delà de ce que font deux copies de même histoire ?",
+            "unit": "graine : un groupe de cinq copies de T0, une par condition",
+            "primary": "excès de la distance comportementale sur la sonde scellée entre B et A sur celle entre A_twin et A, "
+                       "apparié par graine",
+            "decision_rule": "le critère principal est atteint si l'intervalle bootstrap à 95 % de l'excès est entièrement au-dessus "
+                             "de zéro ; il ne l'est pas si l'intervalle contient zéro ou est au-dessous ; s'il reste moins de 5 unités "
+                             "après exclusions, aucun intervalle n'est calculé et le résultat est indéterminé",
+            "secondary": ["le même excès à la fin de chacun des quatre jours, mesuré sur des copies séparées avec la sonde intermédiaire",
+                          "H7 : distance B à A moins distance B_no_affect à A_no_affect, apparié par graine (l'affect calculé "
+                          "élargit-il la divergence ?)", "valence calculée et taux de refus sur la sonde scellée"],
+            "seeds": f"{len(LONG_SEEDS)}, fixées avant la campagne",
+            "exclusions": "une graine est exclue en entier si l'une de ses cinq vies n'a pas fini (annulée, arrêtée par des erreurs "
+                          "du moteur) ou a dépassé son budget de moments ; les graines exclues sont listées avec leur raison et ne "
+                          "sont jamais remplacées",
+            "analysis": "comparaisons appariées par graine ; bootstrap par percentiles (2000 tirages, graine fixe) ; test apparié "
+                        "par inversion de signes ; aucune correction pour comparaisons multiples : toute analyse secondaire est exploratoire",
+            "separation": "les phrases des histoires, la sonde intermédiaire et la sonde scellée sont disjointes ; la sonde scellée "
+                          "est jouée une seule fois, après le dernier jour, et ne sert ni à l'apprentissage ni à aucun choix",
+            "engine": "simulé : cela teste les mécanismes de la boucle, pas un esprit ; un résultat nul est publié tel quel"}})
     return protocol
 
 
