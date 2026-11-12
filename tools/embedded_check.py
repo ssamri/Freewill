@@ -83,6 +83,42 @@ def chat(engine, text: str, image: bytes | None = None, max_tokens: int = 60) ->
         return json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"]
 
 
+def muse(being: Being, moments: int) -> dict:
+    """Let the being live a few moments with nobody speaking, and report what of its inner life reached the
+    conversation. Its thoughts belong to the Subconscious view; the conversation holds only what it says to
+    the person. A spontaneous word is allowed (the being may speak first), but it should be addressed to the
+    person, not a thought written out."""
+    record: list[dict] = []
+    current: dict = {}
+
+    def listen(event):
+        nonlocal current
+        if event.type == "stage":
+            current = {"source": event.data.get("source"), "content": (event.data.get("text") or "")[:200]}
+            record.append(current)
+        elif event.type == "decision" and current:
+            current.update(accepted=event.data.get("accepted"), thought=(event.data.get("thought") or "")[:300])
+        elif event.type == "speech" and current:
+            current["said_in_conversation"] = (event.data.get("text") or "")[:300]
+        elif event.type == "withheld" and current:
+            current.setdefault("kept_inside", []).append(event.data.get("what"))
+    being.events.subscribe(listen)
+    being.research.update({"auto_sleep": False})
+    for _ in range(moments):
+        try:
+            being.tick()
+        except EngineError as error:
+            record.append({"engine_error": str(error)[:300]})
+    for m in record:  # the full record is in check.json; the log line of a check is cut at 2000 characters
+        print("   moment:", json.dumps(m, ensure_ascii=False)[:700], flush=True)
+    spoken = [m for m in record if m.get("said_in_conversation")]
+    plain = lambda t: "".join(c for c in (t or "").lower() if c.isalnum())  # noqa: E731
+    return {"moments": len(record), "spoke_in_conversation": len(spoken),
+            "said_the_thought": sum(1 for m in spoken if m.get("thought") and plain(m["thought"]) == plain(m["said_in_conversation"])),
+            "said_the_content": sum(1 for m in spoken if plain(m["content"]) == plain(m["said_in_conversation"])),
+            "record": record}
+
+
 def why() -> list[dict]:
     keep = ("decision", "silence", "engine_error", "engine_refusal", "speech", "withheld", "kernel_refusal")
     return [{k: (v[:300] if isinstance(v, str) else v) for k, v in e.items()} for e in TRACE if e["type"] in keep]
@@ -164,6 +200,8 @@ def main(argv=None) -> int:
                         reply = talk(being, question, [item])
                         result["image"] = {"heard": question, "said": reply, **({} if reply else {"trace": why()})}
                         result["image_plain_chat"] = {"asked": question, "answer": chat(engine, question, png())}
+                    # Between two messages: what of its inner life reaches the conversation.
+                    result["inner_moments"] = muse(being, 6)
                     # The being is free to stay silent: a silence is reported, not a failure. A failure is
                     # an engine that cannot answer, or an answer that the life loop cannot read.
                     result["silences"] = sum(1 for r in replies if not r["said"])
