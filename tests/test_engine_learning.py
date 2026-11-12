@@ -432,6 +432,44 @@ def test_the_embedded_engine_starts_llama_server_with_the_adapter(tmp_path, monk
     assert plain._extra_body()["max_tokens"] > 0 and engine._extra_body()["max_tokens"] > 0
 
 
+def test_embedded_engine_threads_and_drafting(tmp_path, monkeypatch):
+    from freewill.engines import embedded, speed
+    model_file = tmp_path / "model.gguf"
+    model_file.write_bytes(b"GGUF")
+    seen = {}
+
+    class Stop(Exception):
+        pass
+
+    def popen(command, **kwargs):
+        seen["command"] = command
+        raise Stop
+    monkeypatch.setattr(embedded.subprocess, "Popen", popen)
+    monkeypatch.delenv("FREEWILL_DRAFT", raising=False)
+    monkeypatch.setenv("FREEWILL_THREADS", "3")
+    engine = embedded.EmbeddedEngine(models.find("qwen3-1.7b"), model_file, runtime=tmp_path / "llama-server", draft="ngram")
+    with pytest.raises(Stop):
+        engine._start()
+    command = seen["command"]
+    assert command[command.index("-t") + 1] == "3"
+    assert command[command.index("--spec-type") + 1] == "ngram-simple"
+    # With images (a projector), llama-server's multimodal path is left without drafting.
+    seeing = embedded.EmbeddedEngine(models.find("smolvlm2-2.2b"), model_file, model_file, runtime=tmp_path / "llama-server",
+                                     draft="ngram")
+    with pytest.raises(Stop):
+        seeing._start()
+    assert "--spec-type" not in seen["command"]
+    monkeypatch.setenv("FREEWILL_THREADS", "logical")
+    assert speed.threads() == speed.logical_cores()
+    monkeypatch.delenv("FREEWILL_THREADS")
+    assert 1 <= speed.threads() <= speed.logical_cores()
+    physical = speed.physical_cores()
+    assert physical is None or 1 <= physical <= speed.logical_cores()
+    assert speed.draft_arguments("off") == [] and speed.draft("off") == "off"
+    monkeypatch.setenv("FREEWILL_DRAFT", "nonsense")   # an unknown kind is ignored
+    assert speed.draft("ngram") == "ngram"
+
+
 # -- the catalogue and the runtime ----------------------------------------------------------------------
 
 def test_qwen3_is_pinned_with_its_trainable_base_and_licence():

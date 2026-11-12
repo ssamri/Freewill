@@ -67,7 +67,9 @@ class OwnModelEngine:
         from freewill.engines.compatible import parse_json_object
         model = self._ready()
         fields = ", ".join(f'"{name}"' for name in schema["properties"])
-        parts: list = [f"{system}\n\n{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}.\n"]
+        # The instructions come first and on their own (("cut",)): they are the same from one thought to the
+        # next, so the model reads them once and keeps their cache (FreewillVLM.answer).
+        parts: list = [f"{system}\n\n", ("cut",), f"{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}.\n"]
         for image in images or []:
             try:
                 parts.append(("image", Image.open(io.BytesIO(base64.b64decode(image["data"])))))

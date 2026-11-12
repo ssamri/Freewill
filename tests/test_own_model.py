@@ -159,6 +159,23 @@ def test_engine_answers_in_json_or_says_why():
     assert engine.can_see and not engine.can_learn
 
 
+@needs_torch
+def test_instructions_read_once_give_the_same_answer():
+    from freewill.vlm.model import tiny
+    model = tiny()
+    parts = ["You are a test. Answer briefly.\n\n", ("cut",), "Hello, who are you?"]
+    other = ["You are a test. Answer briefly.\n\n", ("cut",), "Something else entirely."]
+    plain = model.answer(parts, max_new_tokens=12, reuse=False)
+    assert model._head is None
+    first = model.answer(parts, max_new_tokens=12)
+    assert model._head is not None
+    assert model.answer(other, max_new_tokens=12) == model.answer(other, max_new_tokens=12, reuse=False)
+    assert first == plain == model.answer(parts, max_new_tokens=12)   # the cache is copied, never extended in place
+    model.train()   # weights about to change: the cache is dropped
+    assert model._head is None
+    model.eval()
+
+
 # -- capacity: the ceiling the person chooses, and what each size asks for --------
 
 def test_ceiling_is_the_persons_choice(tmp_path):

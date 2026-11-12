@@ -20,10 +20,12 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from freewill.engines import speed
 from freewill.engines.base import EngineError
 from freewill.engines.compatible import CompatibleEngine
 
 START_TIMEOUT = 240  # seconds: a large model on a slow disk takes a while to load
+DRAFT_DEFAULT = "off"  # see freewill/engines/speed.py; set from the measurements of tools/speed_bench.py
 
 
 def find_runtime() -> Path | None:
@@ -39,7 +41,8 @@ class EmbeddedEngine(CompatibleEngine):
     being gives is computed with it. Its SHA-256 is part of the engine's name, which every trace records."""
 
     def __init__(self, model: dict, model_path: Path, mmproj_path: Path | None = None,
-                 runtime: Path | None = None, context: int = 8192, adapter: dict | None = None) -> None:
+                 runtime: Path | None = None, context: int = 8192, adapter: dict | None = None,
+                 threads: int | None = None, draft: str | None = None) -> None:
         runtime = runtime or find_runtime()
         if runtime is None:
             raise EngineError("the embedded runtime (llama-server) is not on this computer yet: "
@@ -68,6 +71,9 @@ class EmbeddedEngine(CompatibleEngine):
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never through a proxy
         self._plain_json = False
         self._reasoning_off = model.get("architecture") == "qwen3"  # Qwen3 would otherwise think aloud first
+        self.threads = threads or speed.threads()
+        # Drafting is for text: with images, llama-server's multimodal path is left as it is.
+        self.draft = "off" if mmproj_path else (draft or speed.draft(DRAFT_DEFAULT))
 
     # -- the child process -------------------------------------------------------
 
@@ -77,7 +83,8 @@ class EmbeddedEngine(CompatibleEngine):
             port = probe.getsockname()[1]
         command = [str(self._runtime), "-m", str(self._model_path), "--host", "127.0.0.1",
                    "--port", str(port), "-c", str(self._context),
-                   "-t", str(max(1, (os.cpu_count() or 2) - 1)), "--api-key", self._key]
+                   "-t", str(self.threads), "--api-key", self._key]
+        command += speed.draft_arguments(self.draft)
         if self._mmproj_path:
             command += ["--mmproj", str(self._mmproj_path)]
         if self.adapter:
