@@ -134,6 +134,20 @@ On four processor cores a night takes about five to ten minutes. What it changed
 
 What exists, what was tested and what is missing: [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
 
+## Freewill's own model (Freewill 1.8B-V)
+
+One model that reads books, looks at images and watches videos: Qwen3 1.7B, the SigLIP2 eye and a bridge that Freewill trains, 1.82 billion parameters at birth.
+
+```
+pip install -e ".[own-model]"
+python -m freewill own-model fetch                          # its two open bases, about 4.5 GB, once
+python -m freewill own-model settings --max-parameters 5e9   # how large it may grow: your choice
+python -m freewill own-model requirements                    # what that size asks of a computer
+python -m freewill own-model train --gutenberg --books my-book.pdf
+```
+
+The same ceiling, with what each size needs (disk, memory, graphics card, text, training time) beside what your computer has, is in the application: **Settings**, card "Freewill's own model: how large it may grow". To think with it, choose the engine kind `own`. On a processor it is slow, and its stages are kept only if held-out measurements say so. Details and limits: [`docs/own-model.md`](docs/own-model.md).
+
 ## Tests
 
 ```bash

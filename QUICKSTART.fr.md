@@ -133,6 +133,20 @@ Sur quatre cœurs de processeur, une nuit prend environ cinq à dix minutes. Ce 
 
 Ce qui existe, ce qui a été testé et ce qui manque : [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md).
 
+## Le modèle propre à Freewill (Freewill 1.8B-V)
+
+Un seul modèle qui lit des livres, regarde des images et suit des vidéos : Qwen3 1.7B, l'œil SigLIP2 et un pont que Freewill entraîne, soit 1,82 milliard de paramètres à la naissance.
+
+```
+pip install -e ".[own-model]"
+python -m freewill own-model fetch                          # ses deux bases ouvertes, environ 4,5 Go, une seule fois
+python -m freewill own-model settings --max-parameters 5e9   # jusqu'où il peut grandir : à vous de choisir
+python -m freewill own-model requirements                    # ce que cette taille demande à un ordinateur
+python -m freewill own-model train --gutenberg --books mon-livre.pdf
+```
+
+Le même plafond se règle dans l'application : **Réglages**, carte « Le modèle propre à Freewill : jusqu'où il peut grandir ». Pour chaque taille, la carte montre ce qu'elle demande (disque, mémoire, carte graphique, texte, durée d'entraînement) à côté de ce que possède votre ordinateur. Pour penser avec ce modèle, choisissez le moteur de type `own`. Sur processeur, il est lent, et chacune de ses étapes n'est gardée que si les mesures sur des données mises de côté le justifient. Détails et limites : [`docs/own-model.fr.md`](docs/own-model.fr.md).
+
 ## Tests
 
 ```bash
