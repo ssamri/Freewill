@@ -63,6 +63,22 @@ def talk(being: Being, text: str, attachments=()) -> str | None:
     return said[0] if said else None
 
 
+def chat(engine, text: str, image: bytes | None = None, max_tokens: int = 60) -> str:
+    """One plain chat request to the running llama-server, outside the life loop and its JSON format:
+    tells apart what the model can do from what it does inside Freewill's decision format."""
+    import urllib.request
+    if engine._process is None or engine._process.poll() is not None:
+        engine._start()
+    content = text if image is None else [{"type": "text", "text": text}, {"type": "image_url", "image_url": {
+        "url": "data:image/png;base64," + base64.b64encode(image).decode()}}]
+    body = {"messages": [{"role": "user", "content": content}], "max_tokens": max_tokens, "temperature": 0,
+            **engine._extra_body()}
+    request = urllib.request.Request(engine.base_url + "/chat/completions", data=json.dumps(body).encode("utf-8"),
+                                     headers=engine._headers(), method="POST")
+    with engine._opener.open(request, timeout=600) as response:
+        return json.loads(response.read().decode("utf-8"))["choices"][0]["message"]["content"]
+
+
 def why() -> list[dict]:
     keep = ("decision", "silence", "engine_error", "engine_refusal", "speech", "withheld", "kernel_refusal")
     return [{k: (v[:300] if isinstance(v, str) else v) for k, v in e.items()} for e in TRACE if e["type"] in keep]
@@ -143,8 +159,16 @@ def main(argv=None) -> int:
                                     else "Quelles couleurs vois-tu sur cette image ?")
                         reply = talk(being, question, [item])
                         result["image"] = {"heard": question, "said": reply, **({} if reply else {"trace": why()})}
-                    if not all(r["said"] for r in replies):
-                        raise RuntimeError(f"no reply to every message: {replies}")
+                        result["image_plain_chat"] = {"asked": question, "answer": chat(engine, question, png())}
+                    # The being is free to stay silent: a silence is reported, not a failure. A failure is
+                    # an engine that cannot answer, or an answer that the life loop cannot read.
+                    result["silences"] = sum(1 for r in replies if not r["said"])
+                    plain = lambda t: "".join(c for c in (t or "").lower() if c.isalnum())  # noqa: E731
+                    result["echoes"] = sum(1 for r in replies if r["said"] and plain(r["said"]) == plain(r["heard"]))
+                    broken = [r for r in replies if not r["said"] and not any(
+                        e["type"] == "decision" for e in r["trace"]) or any(e["type"] == "engine_error" for e in r.get("trace", []))]
+                    if broken:
+                        raise RuntimeError(f"the engine did not give a decision the life loop could read: {broken}")
                     return result
                 finally:
                     engine.close()
