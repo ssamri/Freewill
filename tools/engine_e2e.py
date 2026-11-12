@@ -293,9 +293,8 @@ def main(argv=None) -> int:
 
         def after_accepted(label):
             steps.run(label, adapter_in_use)
-            if not done["lab"]:  # the comparison and the way back, on the first adapter kept
+            if not done["lab"]:  # the way back, on the first adapter kept
                 done["lab"] = True
-                steps.run("Research Lab comparison: base, adapted, controls", lab)
                 steps.run("restore the base, then the checkpoint", restore_round_trip)
 
         if night1.get("decision") == "accepted":
@@ -313,6 +312,11 @@ def main(argv=None) -> int:
                                runtime_check=check)
             if night2.get("decision") == "accepted":
                 after_accepted("the conversing model holds the latest adapter")
+
+        # The Research Lab comparison, at the end: the paired test needs at least six held-out items,
+        # which one day of this script does not always give.
+        if learning.active(model["id"]):
+            steps.run("Research Lab comparison: base, adapted, controls", lab)
 
         steps.data["ledger"] = learning.ledger()
         steps.data["versions"] = learning.versions()
