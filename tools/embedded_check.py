@@ -44,16 +44,28 @@ def png(width: int = 64, height: int = 64) -> bytes:
             + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
 
 
+TRACE: list[dict] = []  # what the life loop emitted during the last exchange, to say why there was no reply
+
+
 def talk(being: Being, text: str, attachments=()) -> str | None:
     said = []
-    being.events.subscribe(lambda e: said.append(e.data.get("text"))
-                           if e.type == "speech" and e.data.get("spontaneous") is False else None)
+    TRACE.clear()
+    if not getattr(being, "_check_listening", False):
+        being._check_listening = True
+        being.events.subscribe(lambda e: TRACE.append({"type": e.type, **{k: v for k, v in e.data.items()
+                                                       if k in ("accepted", "reason", "source", "message", "spontaneous", "text")}}))
     being.hear(text, attachments)
     for _ in range(6):
         being.tick()
         if not being.inbox:
             break
+    said = [e.get("text") for e in TRACE if e["type"] == "speech" and e.get("spontaneous") is False]
     return said[0] if said else None
+
+
+def why() -> list[dict]:
+    keep = ("decision", "silence", "engine_error", "engine_refusal", "speech", "withheld", "kernel_refusal")
+    return [{k: (v[:300] if isinstance(v, str) else v) for k, v in e.items()} for e in TRACE if e["type"] in keep]
 
 
 def main(argv=None) -> int:
@@ -119,14 +131,18 @@ def main(argv=None) -> int:
                 try:
                     being = Being(life, engine)
                     started = time.monotonic()
-                    replies = [{"heard": line, "said": talk(being, line)} for line in lines]
+                    replies = []
+                    for line in lines:
+                        reply = talk(being, line)
+                        replies.append({"heard": line, "said": reply, **({} if reply else {"trace": why()})})
                     result = {"engine": engine.name, "replies": replies, "seconds": round(time.monotonic() - started, 1)}
                     if model.get("mmproj"):
                         item = life.library.add_media("two-colours.png", "image",
                                                       [{"media_type": "image/png", "data": base64.b64encode(png()).decode()}])
                         question = ("What colours do you see in this picture?" if language == "en"
                                     else "Quelles couleurs vois-tu sur cette image ?")
-                        result["image"] = {"heard": question, "said": talk(being, question, [item])}
+                        reply = talk(being, question, [item])
+                        result["image"] = {"heard": question, "said": reply, **({} if reply else {"trace": why()})}
                     if not all(r["said"] for r in replies):
                         raise RuntimeError(f"no reply to every message: {replies}")
                     return result

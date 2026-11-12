@@ -75,10 +75,13 @@ TOY_MODEL = {"id": "toy", "name": "Toy Qwen3", "architecture": "qwen3", "trainab
 def toy_base(tmp_path_factory):
     if not TRAINING:
         pytest.skip("training libraries missing")
+    return build_toy_base(tmp_path_factory.mktemp("toy-base"))
+
+
+def build_toy_base(folder: Path) -> Path:
     import torch
     from tokenizers import Tokenizer, models as tmodels, pre_tokenizers, trainers, decoders
     from transformers import PreTrainedTokenizerFast, Qwen3Config, Qwen3ForCausalLM
-    folder = tmp_path_factory.mktemp("toy-base")
     texts = [a + " " + b for a, b in LINES] + [t for v in json.loads(engine_learning.REFERENCE_PATH.read_text())["general"].values() for t in v]
     tok = Tokenizer(tmodels.BPE(unk_token="<unk>"))
     tok.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)

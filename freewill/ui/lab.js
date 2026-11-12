@@ -5,7 +5,7 @@
   "use strict";
   const { S, h, t, tr, api, bar, store } = window.FW;
   const L = { tab: "home", home: null, exp: null, expData: null, obs: null, obsData: null, reports: null,
-              learning: null, error: "", busy: false, blind: false, timer: null };
+              learning: null, engine: null, models: null, engDraft: null, error: "", busy: false, blind: false, timer: null };
 
   const num = (x, d) => (x == null ? t("lab.na") : Number(x).toLocaleString(S.lang, { maximumFractionDigits: d == null ? 4 : d }));
   const signed = (x) => (x == null ? t("lab.na") : (x >= 0 ? "+" : "−") + Math.abs(x).toLocaleString(S.lang, { maximumFractionDigits: 4 }));
@@ -123,10 +123,15 @@
       if (L.exp) L.expData = await call("/api/lab/experiment?id=" + encodeURIComponent(L.exp)) || L.expData;
       if (L.obs) L.obsData = await call("/api/lab/observer?id=" + encodeURIComponent(L.obs)) || L.obsData;
       if (L.tab === "reports") L.reports = (await call("/api/lab/reports") || {}).reports || L.reports;
-      if (L.tab === "model") L.learning = await call("/api/lab/learning?lang=" + S.lang) || L.learning;
+      if (L.tab === "model") {
+        L.learning = await call("/api/lab/learning?lang=" + S.lang) || L.learning;
+        try { L.engine = L.home && L.home.awake ? await api("/api/engine-learning") : null; } catch (_) { L.engine = null; }
+        try { L.models = (await api("/api/models")).models; } catch (_) { /* keep what is shown */ }
+      }
       draw();
       clearTimeout(L.timer);
-      if (L.home && L.home.experiments.some((e) => e.running) && S.view === "lab") L.timer = setTimeout(load, 2500);
+      const nightRunning = L.tab === "model" && L.engine && (L.engine.running || (L.models || []).some((m) => m.training_progress && m.training_progress.state === "downloading"));
+      if (L.home && (L.home.experiments.some((e) => e.running) || nightRunning) && S.view === "lab") L.timer = setTimeout(load, 2500);
     }
     const act = async (path, body, after) => { L.busy = true; draw(); const out = await call(path, body); L.busy = false; if (out && after) after(out); await load(); return out; };
     const statusTag = (s) => tag(t("lab.status." + s), s === "done" ? "good" : s === "failed" ? "bad" : s === "running" ? "" : "neutral");
@@ -321,6 +326,62 @@
           : h("p", { class: "muted" }, t("lab.no_report"))];
     }
 
+    // The engine this life converses with: what it holds now, the nights that adapted it, and the controls.
+    function engineCard() {
+      const E = L.engine, k = (name, vars) => t("lab.learn.eng." + name, vars);
+      const card = (...body) => h("section", { class: "card" }, h("div", { class: "section-title" }, k("title")), ...body.filter(Boolean));
+      if (!E) return card(h("p", { class: "muted" }, k("no_life")));
+      if (!E.model) return card(h("p", { class: "muted" }, k("not_embedded")));
+      if (!E.model_learns) return card(h("p", { class: "muted" }, k("cannot", { model: E.model_name })));
+      const st = E.settings, m = (L.models || []).find((x) => x.id === E.model) || {};
+      const gb = (b) => (b / 1e9).toLocaleString(S.lang, { maximumFractionDigits: 1 }) + " " + t("models.gb");
+      const post = (action, body) => act("/api/engine-learning/" + action, body);
+      const active = E.versions.find((v) => v.version === E.active);
+      const draft = L.engDraft || (L.engDraft = { steps: st.steps, rank: st.rank, growth: st.growth, max_rank: st.max_rank, max_adapter_parameters: st.max_adapter_parameters, nightly: st.nightly });
+      const numberField = (key, min, max) => h("input", { type: "number", min, max, value: draft[key], oninput: (e) => { draft[key] = Number(e.target.value); } });
+      const tp = m.training_progress || {};
+      const reasons = (list) => (list || []).map((r) => k("reasons." + r)).join(", ");
+      const detail = (row) => row.kind === "night" ? [k("decisions." + row.decision), row.version || "",
+        reasons(((row.candidates || {})[row.chosen || "candidate"] || { verdict: {} }).verdict.reasons)].filter(Boolean).join(" · ")
+        : row.kind === "skipped" ? k("reasons." + row.reason) : row.kind === "restore" ? (row.after || k("base_alone"))
+        : row.kind === "corpus" ? "+" + row.added_train + " / +" + row.added_held_out : row.kind === "failed" ? row.error : row.kind === "settings" ? Object.keys(row.changes || {}).join(", ") : "";
+      return card(
+        h("div", { class: "kv" }, h("b", {}, k("model")), h("span", {}, E.model_name), h("b", {}, k("base_params")), h("span", {}, num(m.parameters, 0)),
+          h("b", {}, k("in_use")), h("span", {}, active ? k("adapter", { version: active.version, params: num(active.adapter_parameters, 0) }) : k("base_alone")),
+          h("b", {}, k("loaded")), h("span", { class: "mono" }, E.loaded.adapter ? E.loaded.adapter + " · " + (E.loaded.sha256 || "").slice(0, 16) : k("base_alone"))),
+        !E.base_installed ? h("div", { class: "alert", style: "margin-top:12px" }, k("base_missing", { size: gb(m.training_size || 0), ram: 12 }), " ",
+          tp.state === "downloading" || tp.state === "verifying" ? [h("span", {}, k("downloading")), bar(tp.done / Math.max(1, tp.total))]
+            : h("button", { class: "btn small", onclick: () => act("/api/models/download", { id: E.model, part: "training" }) }, k("download_base")),
+          tp.state === "error" ? h("div", { class: "error" }, tp.error) : null) : null,
+        h("label", { class: "check", style: "margin-top:12px" }, h("input", { type: "checkbox", checked: st.enabled,
+          onchange: (e) => post("configure", { changes: { enabled: e.target.checked }, who: L.who || "" }) }), k("enable")),
+        h("p", { class: "hint" }, k("enable_hint") + (st.approved_by ? " · " + st.approved_by + ", " + when(st.approved_utc) : "")),
+        h("div", { class: "grid2" },
+          field(k("steps"), numberField("steps", 1, 2000)), field(k("rank"), numberField("rank", 1, 64)),
+          h("label", { class: "check" }, h("input", { type: "checkbox", checked: draft.nightly, onchange: (e) => { draft.nightly = e.target.checked; } }), k("nightly")),
+          h("label", { class: "check" }, h("input", { type: "checkbox", checked: draft.growth, onchange: (e) => { draft.growth = e.target.checked; } }), k("growth")),
+          field(k("max_rank"), numberField("max_rank", 1, 128)), field(k("budget"), numberField("max_adapter_parameters", 1, 1e9))),
+        h("p", { class: "hint" }, k("growth_hint")),
+        h("div", { class: "btn-row" },
+          h("button", { class: "btn", disabled: L.busy, onclick: () => { const changes = { ...draft }; L.engDraft = null; post("configure", { changes, who: L.who || "" }); } }, k("save")),
+          E.running ? h("button", { class: "btn", onclick: () => post("cancel", {}) }, k("cancel"))
+            : h("button", { class: "btn primary", disabled: L.busy || !E.base_installed || !st.enabled, onclick: () => post("run", {}) }, k("run"))),
+        E.running ? h("p", { class: "hint" }, k("running", { step: (E.progress && E.progress.step) || "…" })) : null,
+        h("p", { class: "small muted", style: "margin-top:10px" }, k("corpus", { train: num(E.corpus_items, 0), held: num(E.held_out_items, 0), pending: num(E.pending_items, 0) })),
+        h("p", { class: "small muted" }, k("rules", { gain: num(E.thresholds.min_gain, 3), forget: num(E.thresholds.max_forgetting, 3), life: num(E.thresholds.max_life_forgetting, 3) })),
+        h("div", { class: "section-title", style: "margin-top:16px" }, k("checkpoints")),
+        E.versions.length ? table([k("col_version"), k("col_date"), k("col_rank"), k("col_params"), k("col_gain"), k("col_forget"), k("col_runtime"), ""],
+          E.versions.slice().reverse().map((v) => [v.version, when(v.created), num(v.rank, 0), num(v.adapter_parameters, 0), signed(v.verdict.gain), signed(v.verdict.forgetting_reference),
+            v.runtime_check && v.runtime_check.ran ? signed(v.runtime_check.difference) : t("lab.na"),
+            v.version === E.active ? tag(k("current"), "good") : h("button", { class: "btn small", onclick: () => post("restore", { version: v.version, who: L.who || "" }) }, k("use"))]))
+          : h("p", { class: "muted" }, k("none")),
+        E.active ? h("button", { class: "btn", style: "margin-top:8px", onclick: () => post("restore", { version: null, who: L.who || "" }) }, k("use_base")) : null,
+        h("div", { class: "section-title", style: "margin-top:16px" }, k("ledger")),
+        E.ledger.length ? table([k("col_date"), k("col_kind"), k("col_detail")], E.ledger.slice().reverse().slice(0, 20).map((row) => [when(row.time), k("kinds." + row.kind), detail(row)]))
+          : h("p", { class: "muted" }, k("none")),
+        h("p", { class: "hint", style: "margin-top:10px" }, k("caveat")));
+    }
+
     function model() {
       const M = L.learning;
       if (!M) return [h("p", { class: "hint" }, "…")];
@@ -359,7 +420,8 @@
       return [h("p", { class: "lead" }, k("lead")),
         h("div", { class: "alert" }, M.message), h("ul", { class: "reasons" }, M.reasons.map((r) => h("li", {}, r))),
         h("div", { class: "alert" }, M.growth),
-        ownCard, smallCard, others,
+        h("input", { class: "who", placeholder: t("lab.your_name"), "aria-label": t("lab.your_name"), value: L.who || "", oninput: (e) => { L.who = e.target.value; } }),
+        engineCard(), ownCard, smallCard, others,
         h("section", { class: "card" }, h("div", { class: "section-title" }, t("lab.machine")),
           h("div", { class: "kv" }, h("b", {}, t("lab.m_inference")), h("span", {}, yes(c.inference)), h("b", {}, k("m_training")), h("span", {}, yes(c.training_available)),
             h("b", {}, k("m_module")), h("span", {}, yes(c.module_training_available)), h("b", {}, k("m_growth")), h("span", {}, yes(c.growth_available)),

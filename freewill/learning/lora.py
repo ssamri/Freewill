@@ -121,8 +121,9 @@ class Workbench:
     def _lora_config(self, rank: int, alpha: float):
         _t, LoraConfig, *_rest = _libraries()
         present = {name.rsplit(".", 1)[-1] for name, _m in self.base.named_modules()}
+        targets = [t for t in TARGETS if t in present] or None  # None: PEFT's own choice for other architectures
         return LoraConfig(r=int(rank), lora_alpha=float(alpha), lora_dropout=0.0, bias="none",
-                          target_modules=[t for t in TARGETS if t in present], task_type="CAUSAL_LM")
+                          target_modules=targets, task_type="CAUSAL_LM")
 
     def fresh(self, name: str, rank: int, alpha: float | None = None, seed: int = 0) -> None:
         """A new adapter: A drawn at random, B at zero, so that at birth it changes nothing."""
@@ -258,7 +259,8 @@ class Workbench:
         for p in trainable:
             p.requires_grad_(False)
         self.model.eval()
-        return {"steps": int(steps), "train_loss_first": losses[0], "train_loss_last": losses[-1],
+        return {"steps": int(steps), "train_loss_first": losses[0] if losses else None,
+                "train_loss_last": losses[-1] if losses else None,
                 "seconds": round(time.monotonic() - started, 2), "lr": lr, "accumulate": accumulate}
 
 
