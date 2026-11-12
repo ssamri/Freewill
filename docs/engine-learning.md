@@ -51,7 +51,7 @@ Each kept adapter is a checkpoint in `engine/adapters/aNNNN/`: the PEFT weights,
 the GGUF file, a manifest with hashes, and the norm of the weight change in each
 layer (`weights_delta.json`). `engine/active.json` names the one in use. Going
 back to any checkpoint, or to the base model alone, is one action in the
-Research Lab (Learning tab) or `POST /api/engine-learning/restore`; it is
+Research Lab ("Local model" tab) or `POST /api/engine-learning/restore`; it is
 written to the ledger. If the GGUF file in use no longer matches its hash, it is
 not loaded and the failure is recorded.
 
@@ -74,4 +74,39 @@ deleted without harming the rest.
 
 ## What was demonstrated
 
-RESULTS
+Everything below was measured on GitHub's machines (4 processors, no graphics card), with the
+real models, by [`tools/engine_e2e.py`](../tools/engine_e2e.py) and
+[`tools/embedded_check.py`](../tools/embedded_check.py) through the workflow
+[`engine-e2e.yml`](../.github/workflows/engine-e2e.yml). The figures are those of the logs; none
+was rounded up. A being, Ada, was told 40 short facts about an invented island (Kerran) over one
+day, then 14 more the next day.
+
+**Shown end to end, on Qwen3 1.7B** (figures from the fifth run, which went through every step):
+
+- The application fetches llama.cpp b12306, checks it and starts it, on Linux and on Windows, with nothing installed by hand. The Windows installer now carries it (version 1.0 did not, nor `models.json` and `credits.json`: a packaging fault, corrected).
+- Qwen3 1.7B and its trainable base are downloaded and checked by SHA-256. A being born with it converses in English and in French through the life loop, on Windows (about 30 to 70 seconds per exchange on these machines).
+- Night one trained an adapter of 8.7 million parameters (rank 8) beside the 1.72 billion frozen weights, whose hash was the same before and after. On the 9 held-out items of the day the loss fell from 4.80 to 1.89 nats per word-token; on the reference texts it went from 2.41 to 2.13, so nothing measured there was forgotten. llama.cpp itself, with the converted file, measured 3.19 then 1.73 on the same held-out text.
+- That adapter becomes the one in use: llama-server reports it loaded at scale 1, the engine's name carries its version and hash, and its answers differ from the base model's on every probe. An adapter learned on Linux was loaded by llama-server on Windows.
+- Going back works: restoring the base model left llama-server with no adapter; restoring checkpoint a0001 loaded it again at scale 1. Both are written to the ledger.
+- With growth allowed, night two trained the same rank and a doubled rank (17.4 million parameters) from the adapter in use. The larger one was kept only because it did better on held-out data (gain 0.97 against 0.89 nats). On the items held out the night before, it predicts better than a0001 did (1.36 against 1.89), and on the reference texts it stays below the base (2.32 against 2.41). llama.cpp measured 3.01 then 2.07.
+- Rules refused what they should: in an earlier run, with a higher learning rate, both nights were rejected for forgetting the reference texts (+0.89 nat); an adapter that llama.cpp cannot measure is set aside and cannot be restored.
+
+**Research Lab comparison (EXP-09)**, on the 16 held-out items of both days, mean loss in nats per word-token, with two controls trained the same way (same steps, same rank):
+
+| Model | Held-out items of the life | Reference texts |
+| --- | --- | --- |
+| Base | 5.14 | 2.41 |
+| Adapted (a0002) | 1.46 | 2.32 |
+| Control: the same words, shuffled | 2.28 | 2.35 |
+| Control: random tokens | 5.10 | 2.42 |
+
+Adapted against the shuffled control: −0.82 nat (95% interval −0.99 to −0.66, paired sign-flip test p = 0.00015, 16 items). So most of the gain (2.86 of 3.68 nats) comes from the words of the life whatever their order; their order adds a further, clear 0.82; random text of the same size gives almost nothing (−0.03). This is a measure of prediction, not of understanding.
+
+**What the adapter learned, read honestly.** Its answers changed mostly in *style*. Asked "What is the lighthouse of Kerran called?", the adapted model answers "I'd like to learn more about Kerran's lighthouse and its significance…", the way Ada spoke all day, and does not say "Old Brannoc". Of five probes on facts told on day one, the base model recalled 0; the adapted model recalled 0 after night one and 1 after night two ("…why the ferry to Kerran leaves from the harbour of Maelis…"), inside the same questioning style. One fact out of five, in one run, is not evidence of reliable recall. The model that converses was changed by the life; there is no evidence here that it reliably retains what the life was told.
+
+**Not shown.** Training on a graphics card; macOS; lives of weeks rather than two days; reliable recall of
+facts; any effect on what the being decides beyond the words it uses. SmolVLM2 2.2B runs and sees
+a picture when asked plainly, but inside Freewill's decision format it repeated the question back,
+answered French in English, and once held a request for ten minutes (a ceiling on the length of a
+decision now stops that); it is not trainable here. Qwen3 1.7B is the model to choose for a being
+whose engine should adapt.

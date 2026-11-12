@@ -2,6 +2,25 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## Non publié
+
+Le moteur embarqué peut être adapté par une vie. Rien dans cette version n'affirme que le modèle apprend des faits, comprend ou est conscient.
+
+**Ajouté**
+
+- llama.cpp b12306, épinglé par taille et SHA-256 pour Windows, Linux et macOS, récupéré et vérifié par l'application (`freewill/runtime.py`) et livré dans l'installateur Windows.
+- Qwen3 1.7B au catalogue (Apache-2.0), son fichier GGUF et sa base entraînable fixés à une révision Hugging Face et vérifiés par SHA-256.
+- Le cycle nocturne du moteur (`freewill/learning/engine.py`, règles `h4-engine-1.2`) : ce qui a été entendu et répondu, un élément sur quatre mis de côté, un adaptateur LoRA entraîné à côté de la base figée, gardé seulement s'il prédit mieux les éléments mis de côté sans oublier les textes de référence ni les nuits précédentes, converti en GGUF, vérifié par llama.cpp, chargé par llama-server. Points de restauration avec leurs changements de poids, restauration, croissance de l'adaptateur sous budget. Désactivé tant qu'une personne ne l'active pas avec son nom.
+- Le laboratoire compare le modèle de base, le modèle adapté et deux adaptateurs témoins (EXP-09) ; une carte « Le moteur avec lequel cette vie converse » dans l’onglet « Modèle local » du laboratoire, en anglais et en français.
+- Workflow de bout en bout sur de vrais modèles (`engine-e2e.yml`). Résultats, y compris ce qui n'a pas été montré : [`docs/engine-learning.fr.md`](docs/engine-learning.fr.md).
+
+**Corrigé**
+
+- L'installateur Windows de la 1.0 était livré sans `models.json`, `credits.json` ni llama.cpp.
+- Une décision demandée à un modèle embarqué a désormais une longueur plafonnée (SmolVLM2 a une fois tenu une requête dix minutes).
+- Changer de moteur dans les Réglages affichait le mot « null » à la place d'un champ facultatif absent.
+- Quand la liste des modèles embarqués ne pouvait pas être lue, le sélecteur restait sur « … » et le serveur coupait la requête ; la cause est désormais affichée, avec un bouton pour réessayer.
+
 ## 1.0.0
 
 Le laboratoire de recherche, et les premières choses qu'une vie peut entraîner. Rien dans cette version n'affirme qu'un système est conscient ou ressent quoi que ce soit.

@@ -120,7 +120,17 @@ pip install -e ".[learn]"     # PyTorch; everything else works without it
 
 Switch on "Freewill's own network" and, if you wish, "Growth of the network". From then on what the being lives and reads is written down as text; at each sleep the network is trained on it, measured on passages it never saw, and kept only if it predicts them better. When enough new text has been lived it adds a layer, up to the size you set. The "Learning" page shows the number of parameters, each training, each growth, and lets you go back to the previous weights.
 
-Three things to know. This network does not speak or decide for the being: it is far too small. The engine that does think is never changed by a life. And on a processor the network stays in the millions of parameters; larger sizes need a graphics card and time.
+Three things to know. This network does not speak or decide for the being: it is far too small. It is not the engine that thinks; that engine can be adapted too, see below. And on a processor the network stays in the millions of parameters; larger sizes need a graphics card and time.
+
+## A model that a life adapts (Qwen3 1.7B)
+
+```bash
+pip install -e ".[lora]"      # PyTorch, PEFT, Transformers and the GGUF writer
+```
+
+In the application, choose Qwen3 1.7B in the settings: Freewill downloads it, and llama.cpp if it is missing, and checks both. In the Research Lab, "Local model" tab, the card "The engine this life converses with" downloads the trainable base (about 4 GB), and turns engine learning on once you write your name. After each sleep, an adapter is trained beside the frozen model and kept only if it passes the rules; the being then converses with it. Every night, kept or not, is in the ledger, and any checkpoint, or the base model alone, can be restored in one click.
+
+On four processor cores a night takes about five to ten minutes. What it changed in the end-to-end runs was how the model speaks, not what it remembers: [`docs/engine-learning.md`](docs/engine-learning.md).
 
 What exists, what was tested and what is missing: [`docs/research/IMPLEMENTATION_STATUS.md`](docs/research/IMPLEMENTATION_STATUS.md).
 

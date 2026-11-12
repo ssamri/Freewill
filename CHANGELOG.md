@@ -2,6 +2,25 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## Unreleased
+
+The embedded engine can be adapted by a life. Nothing in this version claims that the model learns facts, understands, or is conscious.
+
+**Added**
+
+- llama.cpp b12306, pinned by size and SHA-256 for Windows, Linux and macOS, fetched and checked by the application (`freewill/runtime.py`) and carried by the Windows installer.
+- Qwen3 1.7B in the catalogue (Apache-2.0), its GGUF file and its trainable base pinned to a Hugging Face revision and checked by SHA-256.
+- The nightly engine cycle (`freewill/learning/engine.py`, rules `h4-engine-1.2`): what was heard and answered, one item in four held out, a LoRA adapter trained beside the frozen base, kept only if it predicts held-out items better and does not forget reference texts or earlier nights, converted to GGUF, checked by llama.cpp, loaded by llama-server. Checkpoints with their weight changes, restoration, growth of the adapter under a budget. Off until a person turns it on with their name.
+- The Research Lab compares the base model, the adapted model and two control adapters (EXP-09); a card "The engine this life converses with" in the "Local model" tab of the lab, in English and in French.
+- End-to-end workflow on real models (`engine-e2e.yml`). Results, including what was not shown: [`docs/engine-learning.md`](docs/engine-learning.md).
+
+**Fixed**
+
+- The Windows installer of 1.0 shipped without `models.json`, `credits.json` and llama.cpp.
+- A decision asked of an embedded model now has a ceiling on its length (SmolVLM2 once held a request for ten minutes).
+- Changing engine in Settings showed the word "null" where an optional field was absent.
+- When the list of embedded models could not be read, the picker stayed on "…" and the server dropped the request; the cause is now shown, with a button to try again.
+
 ## 1.0.0
 
 The Research Lab, and the first things a life can train. Nothing in this version claims that a system is conscious or feels anything.

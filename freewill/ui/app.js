@@ -51,6 +51,11 @@
     }
     return el;
   }
+  // replaceChildren() writes a null child as the text "null"; conditional parts of a view are null when absent.
+  function fill(el, ...kids) {
+    el.replaceChildren(...kids.flat().filter((kid) => kid != null && kid !== false));
+    return el;
+  }
 
   const ICONS = {
     chat: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V16A2.5 2.5 0 0 1 4 13.5z"/>',
@@ -137,9 +142,10 @@
   // downloads it, and sees who made it and under which licence.
   function modelPicker(selected, onSelect, inUse) {
     const box = h("div", { class: "models" }, h("p", { class: "hint" }, "…"));
-    let data = null, timer = null;
+    let data = null, timer = null, failure = "";
     async function load() {
-      try { data = await api("/api/models"); } catch (_) { /* keep what is shown */ }
+      try { data = await api("/api/models"); failure = ""; }
+      catch (e) { if (!data) failure = e.message; }
       draw();
     }
     async function act(path, id) {
@@ -174,10 +180,13 @@
     }
     function draw() {
       clearTimeout(timer);
-      if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
+      if (!data) return box.replaceChildren(failure
+        ? h("div", { class: "error", role: "alert" }, t("errors.generic", { message: failure }), " ",
+            h("button", { class: "btn small", onclick: () => { failure = ""; draw(); load(); } }, t("models.retry")))
+        : h("p", { class: "hint" }, "…"));
       const rt = data.runtime || {}, rp = rt.progress || {};
       const rtBusy = ["downloading", "verifying", "unpacking"].includes(rp.state);
-      box.replaceChildren(
+      fill(box,
         rt.present ? null
           : rtBusy ? h("div", { class: "hint" }, t("models.runtime_fetching", { tag: rt.tag }), bar(rp.done / Math.max(1, rp.total)))
           : rp.state === "error" ? h("div", { class: "error", role: "alert" }, t("models.runtime_error", { message: rp.error }), " ",
@@ -1141,7 +1150,7 @@
         if (!C.open) return changer.replaceChildren(h("button", { class: "btn", style: "margin-bottom:14px", onclick: () => { C.open = true; drawChanger(); } }, t("set.change")));
         const kinds = ["embedded", "local", "anthropic", "openai", "xai", "simulated"];
         const needsKey = ["anthropic", "openai", "xai"].includes(C.kind);
-        changer.replaceChildren(
+        fill(changer,
           h("p", { class: "hint", style: "margin-bottom:10px" }, t("set.change_hint", { name: snap.name })),
           h("div", { class: "field" }, h("label", { for: "c-kind" }, t("set.engine")),
             select("c-kind", C.kind, kinds.map((k) => [k, tr("welcome.engines")[k][0]]), (v) => { C.kind = v; C.model = ""; C.error = ""; drawChanger(); })),

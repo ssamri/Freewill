@@ -119,7 +119,17 @@ pip install -e ".[learn]"     # PyTorch ; tout le reste fonctionne sans lui
 
 Activez « Réseau propre de Freewill » et, si vous le souhaitez, « Croissance du réseau ». Dès lors, ce que l'être vit et lit est consigné sous forme de texte ; à chaque sommeil le réseau est entraîné dessus, mesuré sur des passages qu'il n'a jamais vus, et gardé seulement s'il les prédit mieux. Quand assez de texte nouveau a été vécu, il ajoute une couche, jusqu'à la taille que vous fixez. La page « Apprentissage » montre le nombre de paramètres, chaque entraînement, chaque croissance, et permet de revenir aux poids précédents.
 
-Trois choses à savoir. Ce réseau ne parle pas et ne décide pas à la place de l'être : il est bien trop petit. Le moteur qui pense, lui, n'est jamais modifié par une vie. Et sur un processeur le réseau reste dans les millions de paramètres ; des tailles plus grandes demandent une carte graphique et du temps.
+Trois choses à savoir. Ce réseau ne parle pas et ne décide pas à la place de l'être : il est bien trop petit. Ce n'est pas le moteur qui pense ; celui-ci peut aussi être adapté, voir ci-dessous. Et sur un processeur le réseau reste dans les millions de paramètres ; des tailles plus grandes demandent une carte graphique et du temps.
+
+## Un modèle qu'une vie adapte (Qwen3 1.7B)
+
+```bash
+pip install -e ".[lora]"      # PyTorch, PEFT, Transformers et l'écriture GGUF
+```
+
+Dans l'application, choisissez Qwen3 1.7B dans les réglages : Freewill le télécharge, ainsi que llama.cpp s'il manque, et les vérifie. Dans le laboratoire, onglet « Modèle local », la carte « Le moteur avec lequel cette vie converse » télécharge la base entraînable (environ 4 Go) et active l'apprentissage du moteur une fois votre nom écrit. Après chaque sommeil, un adaptateur est entraîné à côté du modèle figé et gardé seulement s'il respecte les règles ; l'être converse ensuite avec lui. Chaque nuit, gardée ou non, figure au journal, et n'importe quel point de restauration, ou le modèle de base seul, se rétablit en un clic.
+
+Sur quatre cœurs de processeur, une nuit prend environ cinq à dix minutes. Ce qu'elle a changé dans les essais de bout en bout, c'est la façon dont le modèle parle, pas ce qu'il retient : [`docs/engine-learning.fr.md`](docs/engine-learning.fr.md).
 
 Ce qui existe, ce qui a été testé et ce qui manque : [`docs/research/IMPLEMENTATION_STATUS.fr.md`](docs/research/IMPLEMENTATION_STATUS.fr.md).
 

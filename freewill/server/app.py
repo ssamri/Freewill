@@ -16,6 +16,7 @@ import re
 import secrets
 import sys
 import threading
+import traceback
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -448,6 +449,8 @@ def make_handler(app: App):
                 self._json({"error": str(error)}, error.status)
             except (BrokenPipeError, ConnectionResetError):
                 pass
+            except Exception as error:  # noqa: BLE001 - the page shows the cause instead of a dropped connection
+                self._unexpected(error)
 
         def do_POST(self) -> None:
             url = urlparse(self.path)
@@ -459,6 +462,17 @@ def make_handler(app: App):
                 self._api_post(url.path, self._body())
             except ApiError as error:
                 self._json({"error": str(error)}, error.status)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except Exception as error:  # noqa: BLE001
+                self._unexpected(error)
+
+        def _unexpected(self, error: Exception) -> None:
+            traceback.print_exc()
+            try:
+                self._json({"error": f"{type(error).__name__}: {error}"}, 500)
+            except OSError:
+                pass
 
         def _api_get(self, path: str, query: dict) -> None:
             if path == "/api/consent":
