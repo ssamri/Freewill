@@ -8,6 +8,7 @@ the "own model end to end" workflow.
 from __future__ import annotations
 
 import importlib.util
+from pathlib import Path
 
 import pytest
 
@@ -147,3 +148,59 @@ def test_engine_answers_in_json_or_says_why():
     except EngineError as error:  # a toy model with random weights does not write JSON
         assert "JSON" in str(error)
     assert engine.can_see and not engine.can_learn
+
+
+# -- capacity: the ceiling the person chooses, and what each size asks for --------
+
+def test_ceiling_is_the_persons_choice(tmp_path):
+    from freewill.vlm import capacity
+    assert capacity.load_settings(tmp_path)["max_parameters"] == capacity.DEFAULT_MAX
+    capacity.save_settings(tmp_path, 50_000_000_000, "ANASS")
+    assert capacity.load_settings(tmp_path)["max_parameters"] == 50_000_000_000
+    with pytest.raises(ValueError):
+        capacity.save_settings(tmp_path, 1_000_000_000)          # below the size at birth
+    with pytest.raises(ValueError):
+        capacity.save_settings(tmp_path, 3_000_000_000, current=4_000_000_000)
+
+
+def test_requirements_grow_with_size():
+    from freewill.vlm import capacity
+    small, large = capacity.requirements(2_000_000_000), capacity.requirements(50_000_000_000)
+    for key in ("disk_gb", "train_frozen_base_gb", "train_everything_gb", "tokens_needed", "books_needed"):
+        assert large[key] > small[key]
+    assert large["run_memory_gb"]["q4"] < large["run_memory_gb"]["int8"] < large["run_memory_gb"]["bf16"]
+    assert capacity.requirements(capacity.BIRTH)["new_parameters"] == 0
+    public = capacity.public(Path("/nonexistent-own-model"), 5_000_000_000)
+    assert any(row["target"] == 5_000_000_000 for row in public["sizes"])
+
+
+@needs_torch
+def test_widening_keeps_the_output_and_the_old_weights(tmp_path):
+    import torch
+    from freewill.vlm.model import tiny
+    from freewill.vlm.train import Trainer, current, restore
+    m = tiny()
+    item = synthetic.image_examples([1])[0]
+    loss = lambda model: float(model.losses([model.sequence(item["parts"], item["answer"])]).detach())  # noqa: E731
+    before, born = loss(m), m.language.config.intermediate_size
+    m.widen(32)
+    assert abs(loss(m) - before) < 1e-5 and m.count()["grown_neurons"] > 0
+    m.add_lora(4)
+    gate = m.layers()[0].mlp.gate_proj.base.weight
+    old = gate.detach().clone()
+    trainer = Trainer(m, tmp_path, log=lambda *a: None)
+    trainer.fit(synthetic.image_examples(range(8)), {"grown"}, 3, 1e-2, 2)
+    assert torch.equal(old[:born], gate[:born]) and not torch.equal(old[born:], gate[born:])
+    trainer.save([])
+    again = tiny()
+    restore(again, current(tmp_path))
+    assert again.count() == m.count() and abs(loss(again) - loss(m)) < 1e-5
+
+
+@needs_torch
+def test_grow_to_stops_at_the_ceiling():
+    from freewill.vlm.model import tiny
+    m = tiny()
+    m.spec["ceiling_parameters"] = 400_000
+    m.grow_to(10_000_000)
+    assert m.count()["total"] <= 400_000 and m.growth_log

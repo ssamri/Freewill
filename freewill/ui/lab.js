@@ -41,8 +41,51 @@
 
   // ---------- research settings: each switch is one mechanism of the life loop ----------
 
+  // Freewill's own model: the ceiling the person chooses, and what each size asks of a computer.
+  function ownCapacityCard(own, choose, saveCeiling) {
+    const k = (name, vars) => t("own.cap." + name, vars);
+    if (!own) return h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, k("title")), h("p", { class: "hint" }, "…"));
+    const billions = (n) => (n / 1e9).toLocaleString(S.lang, { maximumFractionDigits: 2 }) + " " + k("billion");
+    const gb = (x) => num(x, x < 10 ? 1 : 0) + " " + t("models.gb");
+    const days = (d) => d >= 365 ? k("years", { n: num(d / 365, 1) }) : d >= 1 ? k("days", { n: num(d, 1) }) : k("hours", { n: num(d * 24, 1) });
+    const chosen = own.target || own.settings.max_parameters;
+    const row = own.sizes.find((r) => r.target === chosen) || own.sizes[own.sizes.length - 1];
+    const fit = (v) => v == null ? tag(k("unknown")) : tag(v ? k("yes") : k("no"), v ? "good" : "bad");
+    const m = own.machine;
+    const options = own.presets.map((p) => [String(p), billions(p)]);
+    if (!own.presets.includes(chosen)) options.push([String(chosen), billions(chosen)]);
+    const custom = h("input", { type: "number", min: own.present.parameters / 1e9, step: 0.5, value: chosen / 1e9, "aria-label": k("custom") });
+    return h("section", { class: "card", style: "margin-top:0" },
+      h("div", { class: "section-title" }, k("title")),
+      h("p", { class: "hint", style: "margin-bottom:10px" }, k("lead")),
+      h("div", { class: "kv" }, h("b", {}, k("present")), h("span", {}, num(own.present.parameters, 0) + (own.present.checkpoint ? " · " + own.present.checkpoint : " · " + k("at_birth"))),
+        h("b", {}, k("ceiling")), h("span", {}, num(own.settings.max_parameters, 0) + (own.settings.set_by ? " · " + own.settings.set_by : ""))),
+      h("div", { class: "row", style: "margin-top:12px" },
+        h("div", { class: "field" }, h("label", {}, k("choose")), select(String(chosen), options, (v) => choose(Number(v)))),
+        h("div", { class: "field" }, h("label", {}, k("custom")), custom),
+        h("div", { class: "btn-row" }, h("button", { class: "btn", onclick: () => choose(Math.round(Number(custom.value) * 1e9)) }, k("see")),
+          h("button", { class: "btn primary", disabled: chosen === own.settings.max_parameters, onclick: () => saveCeiling(chosen) }, k("save")))),
+      h("div", { class: "section-title", style: "margin-top:16px" }, k("needs", { size: billions(row.target) })),
+      table([k("col_what"), k("col_need"), k("col_here")], [
+        [k("disk"), gb(row.disk_gb) + " (" + k("ssd") + ")", fit(row.fits_here.store)],
+        [k("run"), k("run_line", { bf16: gb(row.run_memory_gb.bf16), int8: gb(row.run_memory_gb.int8), q4: gb(row.run_memory_gb.q4) }), fit(row.fits_here.run)],
+        [k("run_gpu"), (row.run_gpu.count > 1 ? row.run_gpu.count + " × " : "") + gb(row.run_gpu.memory_gb), ""],
+        [k("train_frozen"), gb(row.train_frozen_base_gb), fit(row.fits_here.train_frozen_base)],
+        [k("train_all"), gb(row.train_everything_gb), ""],
+        [k("cpu"), k("cores", { n: row.cpu_cores_advised }), m.cpu_cores ? k("cores", { n: m.cpu_cores }) : ""],
+        [k("text"), k("text_line", { tokens: num(row.tokens_needed / 1e9, 1), books: num(row.books_needed, 0) }), ""]]),
+      h("div", { class: "section-title", style: "margin-top:16px" }, k("time_title", { n: num(row.new_parameters, 0) })),
+      table([k("col_device"), k("col_count"), k("col_time")], row.training_time.map((d) => [k("devices." + d.device), num(d.count, 0), row.new_parameters ? days(d.days) : "—"])),
+      h("div", { class: "section-title", style: "margin-top:16px" }, k("here")),
+      h("div", { class: "kv" }, h("b", {}, k("cpu")), h("span", {}, m.cpu_cores ? k("cores", { n: m.cpu_cores }) : t("lab.na")),
+        h("b", {}, k("ram")), h("span", {}, m.ram_gb == null ? t("lab.na") : gb(m.ram_gb)),
+        h("b", {}, k("free_disk")), h("span", {}, m.disk_free_gb == null ? t("lab.na") : gb(m.disk_free_gb)),
+        h("b", {}, "GPU"), h("span", {}, m.gpus.length ? m.gpus.map((g) => g.name + " · " + gb(g.memory_gb)).join(", ") : k("no_gpu"))),
+      h("p", { class: "hint", style: "margin-top:10px" }, k("caveat")));
+  }
+
   function settings(box) {
-    let data = null, affect = null, exported = null;
+    let data = null, affect = null, exported = null, own = null;
     const draw = () => {
       if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
       const names = tr("rs.names"), hints = tr("rs.hints"), groups = tr("rs.groups");
@@ -73,6 +116,7 @@
               onclick: () => saveAffect({ enabled: !affect.enabled }) }, h("i", {}), h("span", {}, affect.enabled ? t("rs.on") : t("rs.off")))),
           Object.keys(cfg).filter((k) => an[k]).map(arow)));
       }
+      cards.push(ownCapacityCard(own, chooseOwn, saveOwn));
       cards.push(h("section", { class: "card", style: "margin-top:0" }, h("div", { class: "section-title" }, groups.display),
         h("div", { class: "setting" }, h("div", {}, h("b", {}, t("rs.gauges")), h("div", { class: "hint" }, t("lab.gauge_caveat"))),
           h("button", { class: "switch" + (store.get("fw-gauges", "on") === "on" ? " on" : ""), role: "switch",
@@ -107,8 +151,19 @@
       draw();
     }
     async function doExport(content) { exported = await call("/api/export", { content }) || exported; draw(); }
+    async function chooseOwn(target) {
+      if (!target || !isFinite(target)) return;
+      const next = await call("/api/own-model?target=" + target);
+      if (next) { own = next; own.target = target; }
+      draw();
+    }
+    async function saveOwn(target) {
+      const next = await call("/api/own-model/settings", { max_parameters: target });
+      if (next) own = next;
+      draw();
+    }
     draw();
-    Promise.all([call("/api/research"), call("/api/affect")]).then(([r, a]) => { data = r; affect = a; draw(); });
+    Promise.all([call("/api/research"), call("/api/affect"), call("/api/own-model")]).then(([r, a, o]) => { data = r; affect = a; own = o; draw(); });
   }
 
   // ---------- the lab ----------

@@ -19,5 +19,6 @@
   "max_frames": 8,
   "floor_parameters": 1500000000,
   "ceiling_parameters": 2000000000,
+  "ceiling_note": "default only: the person sets the ceiling in the settings (capacity.py), with no upper limit",
   "lora": {"rank": 16, "alpha": 32, "targets": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]}
 }

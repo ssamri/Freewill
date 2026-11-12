@@ -65,6 +65,24 @@
       methods: { none: "none" }, decisions: { not_trained: "never trained" },
       gauge_caveat: "Computed regulation variables. They are not feelings.", gauge_need: "Level of a regulation variable, from 0 to 1",
     },
+    own: {
+      cap: {
+        title: "Freewill's own model: how large it may grow",
+        lead: "Choose the largest number of parameters Freewill 1.8B-V may reach. It grows by more neurons in each block, then by whole layers, and never past this number. Each size is shown with what it asks of a computer.",
+        billion: "billion", present: "Size now", at_birth: "at birth", ceiling: "Ceiling chosen", choose: "Ceiling", custom: "Other size (billions)",
+        see: "See what it needs", save: "Use this ceiling", needs: "What {size} parameters ask for",
+        col_what: "For", col_need: "Needed (estimate)", col_here: "This computer",
+        disk: "Storage", ssd: "an SSD is advised", run: "Memory to run it", run_line: "{bf16} full precision · {int8} in 8 bits · {q4} in 4 bits",
+        run_gpu: "Graphics card to run it in 4 bits", train_frozen: "Memory to train what grows (base frozen)", train_all: "Memory to train everything",
+        cpu: "Processor", cores: "{n} cores", text: "Text for the new parameters", text_line: "{tokens} billion tokens, about {books} books",
+        time_title: "Time to train the {n} new parameters on that text, at best",
+        col_device: "Device", col_count: "How many", col_time: "Time",
+        devices: { cpu8: "Processor, 8 cores", gpu12: "Graphics card 12 GB (e.g. RTX 4070)", gpu24: "Graphics card 24 GB (e.g. RTX 4090)", h100: "Data-centre GPU 80 GB (e.g. H100)" },
+        hours: "{n} hours", days: "{n} days", years: "{n} years",
+        here: "This computer", ram: "Memory", free_disk: "Free disk", no_gpu: "none found", yes: "enough", no: "not enough", unknown: "unknown",
+        caveat: "These are estimates from stated formulas (docs/own-model.md), not measurements; only the present size is counted from the model. A model can be grown to any size, but new parameters are worth something only once trained on enough text: beyond a few billion, books alone are not enough, and other open corpora are needed.",
+      },
+    },
     rs: {
       title: "Research settings", lead: "Each switch removes or restores one mechanism of this being's life, so that its contribution can be measured. Changes take effect at the next moment and are written to its event log. None of them reaches the kernel.",
       on: "On", off: "Off", default: "All defaults", changed: "{n} changed", reset: "Restore the defaults",
@@ -158,6 +176,24 @@
       versions: "Modèles sur cet ordinateur", no_model: "Aucun modèle embarqué n'est installé.", choose_model: "Choisir ou télécharger un modèle dans les réglages",
       methods: { none: "aucune" }, decisions: { not_trained: "jamais entraîné" },
       gauge_caveat: "Variables de régulation calculées. Ce ne sont pas des sentiments.", gauge_need: "Niveau d'une variable de régulation, de 0 à 1",
+    },
+    own: {
+      cap: {
+        title: "Le modèle propre à Freewill : jusqu'où il peut grandir",
+        lead: "Choisissez le nombre maximal de paramètres que Freewill 1.8B-V peut atteindre. Il grandit d'abord par des neurones ajoutés dans chaque bloc, puis par des couches entières, sans jamais dépasser ce nombre. Chaque taille est présentée avec ce qu'elle demande à un ordinateur.",
+        billion: "milliards", present: "Taille actuelle", at_birth: "à la naissance", ceiling: "Plafond choisi", choose: "Plafond", custom: "Autre taille (milliards)",
+        see: "Voir ce qu'il faut", save: "Adopter ce plafond", needs: "Ce que demandent {size} de paramètres",
+        col_what: "Pour", col_need: "Nécessaire (estimation)", col_here: "Cet ordinateur",
+        disk: "Stockage", ssd: "un SSD est conseillé", run: "Mémoire pour le faire tourner", run_line: "{bf16} en pleine précision · {int8} en 8 bits · {q4} en 4 bits",
+        run_gpu: "Carte graphique pour le faire tourner en 4 bits", train_frozen: "Mémoire pour entraîner ce qui grandit (base figée)", train_all: "Mémoire pour tout entraîner",
+        cpu: "Processeur", cores: "{n} cœurs", text: "Texte pour les nouveaux paramètres", text_line: "{tokens} milliards de jetons, environ {books} livres",
+        time_title: "Durée pour entraîner les {n} nouveaux paramètres sur ce texte, au mieux",
+        col_device: "Matériel", col_count: "Combien", col_time: "Durée",
+        devices: { cpu8: "Processeur, 8 cœurs", gpu12: "Carte graphique 12 Go (ex. RTX 4070)", gpu24: "Carte graphique 24 Go (ex. RTX 4090)", h100: "GPU de centre de données 80 Go (ex. H100)" },
+        hours: "{n} heures", days: "{n} jours", years: "{n} ans",
+        here: "Cet ordinateur", ram: "Mémoire", free_disk: "Disque libre", no_gpu: "aucune trouvée", yes: "suffisant", no: "insuffisant", unknown: "inconnu",
+        caveat: "Ce sont des estimations tirées de formules écrites (docs/own-model.fr.md), pas des mesures ; seule la taille actuelle est comptée sur le modèle. On peut faire grandir le modèle jusqu'à n'importe quelle taille, mais de nouveaux paramètres ne valent quelque chose qu'une fois entraînés sur assez de texte : au-delà de quelques milliards, les livres seuls ne suffisent pas, et il faut d'autres corpus ouverts.",
+      },
     },
     rs: {
       title: "Réglages de recherche", lead: "Chaque interrupteur retire ou rétablit un mécanisme de la vie de cet être, pour pouvoir mesurer ce qu'il apporte. Les changements prennent effet à l'instant suivant et sont inscrits dans son journal d'événements. Aucun n'atteint le noyau.",
@@ -303,5 +339,6 @@
     Object.assign(window.I18N[code].nav, extra.nav);
     window.I18N[code].lab = extra.lab;
     window.I18N[code].rs = extra.rs;
+    window.I18N[code].own = extra.own;
   }
 })();

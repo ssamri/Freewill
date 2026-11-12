@@ -128,12 +128,13 @@ class Trainer:
             loss = m.losses(seqs).mean()
             optimiser.zero_grad(set_to_none=True)
             loss.backward()
+            m.mask_gradients()
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             optimiser.step()
             losses.append(float(loss.detach()))
             done += 1
             if step % 10 == 0 or step == steps - 1:
-                self.log(f"  step {step + 1}/{steps}  loss {float(loss):.3f}  {time.monotonic() - started:.0f}s")
+                self.log(f"  step {step + 1}/{steps}  loss {float(loss.detach()):.3f}  {time.monotonic() - started:.0f}s")
         m.eval()
         m.trainable(set())
         head = losses[: max(1, len(losses) // 10)]
@@ -178,7 +179,7 @@ class Trainer:
 
     # -- checkpoints ------------------------------------------------------------
 
-    def save(self, history: list[dict], growth_steps: list[int]) -> dict:
+    def save(self, history: list[dict]) -> dict:
         from safetensors.torch import save_file
         m = self.model
         versions = sorted((self.root / "checkpoints").glob("v*")) if (self.root / "checkpoints").is_dir() else []
@@ -189,7 +190,7 @@ class Trainer:
         save_file({k: v.float() for k, v in state.items()}, str(folder / "own.safetensors"))
         digest = hashlib.sha256((folder / "own.safetensors").read_bytes()).hexdigest()
         manifest = {"version": version, "utc": _now(), "rules": RULES_VERSION, "spec": m.spec,
-                    "growth_steps": growth_steps, "lora_rank": m.lora_rank, "grown": m.grown,
+                    "growth_log": m.growth_log, "lora_rank": m.lora_rank, "grown": m.grown,
                     "parameters": m.count(), "own_sha256": digest,
                     "stages": [{k: h.get(k) for k in ("stage", "decision", "reason", "before", "after")} for h in history]}
         (folder / "manifest.json").write_text(json.dumps(manifest, indent=1, ensure_ascii=False), encoding="utf-8")
@@ -201,8 +202,8 @@ def restore(model: FreewillVLM, folder: Path) -> dict:
     """Bring a freshly built base to the state of a checkpoint: the same growth, adapters and weights."""
     from safetensors.torch import load_file
     manifest = json.loads((Path(folder) / "manifest.json").read_text(encoding="utf-8"))
-    for count in manifest["growth_steps"]:
-        model.grow(count)
+    for step in manifest["growth_log"]:
+        (model.grow if step["kind"] == "layers" else model.widen)(step["count"])
     if manifest["lora_rank"]:
         model.add_lora(manifest["lora_rank"])
     model.load_own_state(load_file(str(Path(folder) / "own.safetensors")))

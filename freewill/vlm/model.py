@@ -7,10 +7,12 @@
                             and by whole layers that Freewill adds while it grows
 
 The model is assembled from open pieces and its parameter count is the count
-of numbers it computes with, measured here, never declared. Growth adds whole
-decoder layers that start as the identity (their output projections are zero),
-so the model predicts exactly what it predicted before and has more parameters
-to learn with; growth is refused above the ceiling written in spec.json.
+of numbers it computes with, measured here, never declared. Growth is of two
+kinds, both starting as the identity, so that the model predicts exactly what
+it predicted before and has more parameters to learn with: whole decoder layers
+whose output projections are zero, and more neurons in every feed-forward block
+whose outgoing weights are zero. Growth is refused above the ceiling the person
+chose (freewill/vlm/capacity.py), whatever that ceiling is.
 
 A tiny version of the same architecture, with random weights and a byte-level
 tokenizer, exists for tests (`tiny()`): it checks the mechanics, never that a
@@ -131,6 +133,8 @@ class FreewillVLM(nn.Module):
         self.image_size = int(spec.get("image_size", vision.config.image_size))
         self.lora_rank = 0
         self.grown: list[int] = []      # positions of the layers added by growth, in the current stack
+        self.growth_log: list[dict] = []  # every growth, in order: {"kind": "layers"|"neurons", "count": n}
+        self.widened = 0                # neurons added to each feed-forward block
         for p in list(self.vision.parameters()) + list(self.language.parameters()):
             p.requires_grad_(False)
         self.bridge.to(next(language.parameters()).dtype)
@@ -146,8 +150,10 @@ class FreewillVLM(nn.Module):
             return sum(p.numel() for p in module.parameters())
         lora = sum(p.numel() for name, p in self.named_parameters() if ".lora_" in name)
         grown = sum(n(self.layers()[i]) for i in self.grown)
-        return {"vision": n(self.vision), "bridge": n(self.bridge), "language": n(self.language) - lora - grown,
-                "grown_layers": grown, "lora": lora, "total": n(self),
+        hidden = self.language.config.hidden_size
+        neurons = 3 * hidden * self.widened * (len(self.layers()) - len(self.grown))
+        return {"vision": n(self.vision), "bridge": n(self.bridge), "language": n(self.language) - lora - grown - neurons,
+                "grown_layers": grown, "grown_neurons": neurons, "lora": lora, "total": n(self),
                 "layers": len(self.layers()), "grown_count": len(self.grown), "lora_rank": self.lora_rank}
 
     # -- adapters and growth ----------------------------------------------------
@@ -174,11 +180,9 @@ class FreewillVLM(nn.Module):
         Refused if the model would pass the ceiling of spec.json. Returns the new positions."""
         if self.lora_rank:
             raise ValueError("grow before adding adapters")
-        ceiling = int(self.spec.get("ceiling_parameters") or 0)
         layers = self.layers()
         per_layer = sum(p.numel() for p in layers[0].parameters())
-        if ceiling and self.count()["total"] + count * per_layer > ceiling:
-            raise ValueError(f"growing by {count} layer(s) of {per_layer:,} parameters would pass the ceiling of {ceiling:,}")
+        self._check_ceiling(count * per_layer, f"{count} layer(s) of {per_layer:,} parameters")
         added = []
         for k in range(count):
             original = [i for i in range(len(layers)) if i not in self.grown]
@@ -188,6 +192,10 @@ class FreewillVLM(nn.Module):
             while at in self.grown:
                 at += 1
             layer = copy.deepcopy(layers[source])
+            for module in layer.modules():  # fresh tensors: no gradient mask inherited from a widened source
+                for key, p in list(module._parameters.items()):
+                    if p is not None:
+                        module._parameters[key] = nn.Parameter(p.detach().clone(), requires_grad=False)
             for module in layer.modules():
                 for name in ("o_proj", "down_proj"):
                     target = getattr(module, name, None)
@@ -205,7 +213,98 @@ class FreewillVLM(nn.Module):
             added.append(at)
         self.grown.sort()
         self._renumber()
+        self.growth_log.append({"kind": "layers", "count": count})
         return added
+
+    @property
+    def ceiling(self) -> int:
+        return int(self.spec.get("ceiling_parameters") or 0)
+
+    def _check_ceiling(self, adding: int, what: str) -> None:
+        if self.ceiling and self.count()["total"] + adding > self.ceiling:
+            raise ValueError(f"growing by {what} would pass the ceiling of {self.ceiling:,} parameters chosen in the settings")
+
+    def _mlps(self):
+        for layer in self.layers():
+            mlp = getattr(layer, "mlp", None)
+            if mlp is None or not all(isinstance(getattr(mlp, n, None), nn.Linear) for n in ("gate_proj", "up_proj", "down_proj")):
+                raise ValueError("this language model's feed-forward blocks cannot be widened here")
+            yield mlp
+
+    def widen(self, extra: int) -> int:
+        """Add `extra` neurons to the feed-forward block of every layer. Their incoming weights are drawn
+        like the existing ones; their outgoing weights are zero, so the model's output is unchanged.
+        Only the new rows and columns are trained (a gradient mask keeps the old ones as they are)."""
+        if self.lora_rank:
+            raise ValueError("grow before adding adapters")
+        if extra <= 0:
+            return 0
+        hidden = self.language.config.hidden_size
+        self._check_ceiling(3 * hidden * extra * len(self.layers()), f"{extra:,} neurons in each of {len(self.layers())} layers")
+        for mlp in self._mlps():
+            gate, up, down = mlp.gate_proj, mlp.up_proj, mlp.down_proj
+            old = gate.out_features
+            def grown_rows(lin: nn.Linear) -> nn.Linear:
+                new = nn.Linear(lin.in_features, old + extra, bias=lin.bias is not None, dtype=lin.weight.dtype)
+                with torch.no_grad():
+                    new.weight[:old] = lin.weight
+                    new.weight[old:].normal_(0.0, float(lin.weight.float().std()))
+                    if lin.bias is not None:
+                        new.bias[:old] = lin.bias
+                        new.bias[old:].zero_()
+                return new
+            new_down = nn.Linear(old + extra, down.out_features, bias=down.bias is not None, dtype=down.weight.dtype)
+            with torch.no_grad():
+                new_down.weight[:, :old] = down.weight
+                new_down.weight[:, old:].zero_()
+                if down.bias is not None:
+                    new_down.bias.copy_(down.bias)
+            mlp.gate_proj, mlp.up_proj, mlp.down_proj = grown_rows(gate), grown_rows(up), new_down
+            if hasattr(mlp, "intermediate_size"):
+                mlp.intermediate_size = old + extra
+            for p in (mlp.gate_proj.weight, mlp.up_proj.weight, mlp.down_proj.weight):
+                p.requires_grad_(False)
+        self.language.config.intermediate_size += extra
+        self.widened += extra
+        self._born_width = getattr(self, "_born_width", self.language.config.intermediate_size - self.widened)
+        self.growth_log.append({"kind": "neurons", "count": extra})
+        return extra
+
+    def mask_gradients(self) -> None:
+        """After a backward pass: gradients of a widened block reach only the neurons added by growth
+        (layers added whole are trained whole). Called by the trainer before each step."""
+        if not self.widened:
+            return
+        old = self._born_width
+        for name, p in self.named_parameters():
+            if p.grad is not None and self._widened_param(name):
+                if "down_proj" in name:
+                    p.grad[:, :old] = 0
+                else:
+                    p.grad[:old] = 0
+
+    def grow_to(self, target: int, max_width_factor: float = 4.0) -> list[dict]:
+        """Reach as close to `target` parameters as whole steps allow: first more neurons in every
+        feed-forward block, up to max_width_factor × the width at birth, then more layers."""
+        target = min(int(target), self.ceiling) if self.ceiling else int(target)
+        done = []
+        hidden = self.language.config.hidden_size
+        born = self.language.config.intermediate_size - self.widened
+        room = int(born * max_width_factor) - self.language.config.intermediate_size
+        gap = target - self.count()["total"]
+        if gap > 0 and room > 0:
+            per_neuron = 3 * hidden * (len(self.layers()))
+            extra = min(room, gap // per_neuron)
+            if extra > 0:
+                self.widen(int(extra))
+                done.append({"kind": "neurons", "count": int(extra)})
+        per_layer = sum(p.numel() for p in self.layers()[0].parameters())
+        gap = target - self.count()["total"]
+        if gap >= per_layer:
+            count = gap // per_layer
+            self.grow(int(count))
+            done.append({"kind": "layers", "count": int(count)})
+        return done
 
     def _renumber(self) -> None:
         layers = self.layers()
@@ -225,7 +324,7 @@ class FreewillVLM(nn.Module):
         for name, p in self.named_parameters():
             on = (("bridge" in parts and name.startswith("bridge."))
                   or ("lora" in parts and ".lora_" in name)
-                  or ("grown" in parts and self._in_grown(name)))
+                  or ("grown" in parts and (self._in_grown(name) or self._widened_param(name))))
             p.requires_grad_(on)
             if on:
                 chosen.append(p)
@@ -237,19 +336,36 @@ class FreewillVLM(nn.Module):
             return False
         return int(name[len(prefix):].split(".", 1)[0]) in self.grown
 
+    def _widened_param(self, name: str) -> bool:
+        return bool(self.widened) and name.endswith(("mlp.gate_proj.weight", "mlp.up_proj.weight", "mlp.down_proj.weight",
+                                                     "mlp.gate_proj.base.weight", "mlp.up_proj.base.weight",
+                                                     "mlp.down_proj.base.weight")) and not self._in_grown(name)
+
     def own_state(self) -> dict[str, torch.Tensor]:
-        """The weights Freewill trained or added: bridge, adapters, grown layers. The rest is the base."""
-        return {name: p.detach().clone().contiguous() for name, p in self.named_parameters()
-                if name.startswith("bridge.") or ".lora_" in name or self._in_grown(name)}
+        """The weights Freewill trained or added: bridge, adapters, grown layers, and the slices of the
+        feed-forward blocks that hold added neurons (as name#new). The rest is the base, unchanged."""
+        out = {}
+        for name, p in self.named_parameters():
+            if name.startswith("bridge.") or ".lora_" in name or self._in_grown(name):
+                out[name] = p.detach().clone().contiguous()
+            elif self._widened_param(name):
+                old = self._born_width
+                part = p[:, old:] if "down_proj" in name else p[old:]
+                out[name + "#new"] = part.detach().clone().contiguous()
+        return out
 
     def load_own_state(self, state: dict[str, torch.Tensor]) -> None:
         params = dict(self.named_parameters())
-        missing = [k for k in state if k not in params]
+        missing = [k for k in state if k.split("#")[0] not in params]
         if missing:
             raise ValueError(f"weights for parts this model does not have: {missing[:3]}")
         with torch.no_grad():
             for name, tensor in state.items():
-                params[name].copy_(tensor.to(params[name].dtype))
+                if name.endswith("#new"):
+                    p, old = params[name[:-4]], self._born_width
+                    (p[:, old:] if "down_proj" in name else p[old:]).copy_(tensor.to(p.dtype))
+                else:
+                    params[name].copy_(tensor.to(params[name].dtype))
 
     # -- inputs -----------------------------------------------------------------
 

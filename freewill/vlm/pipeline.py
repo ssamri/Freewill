@@ -20,6 +20,8 @@ from freewill.vlm.train import Trainer, accept_reading, accept_skill, binomial_p
 @dataclass
 class Plan:
     grow: int = 1                 # decoder layers added before reading (0: none)
+    widen: int = 0                # neurons added to every feed-forward block before reading
+    grow_to: int = 0              # or: grow towards this many parameters (neurons first, then layers)
     rank: int = 16
     read_steps: int = 40
     read_lr: float = 1e-4
@@ -56,7 +58,7 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
     trainer = Trainer(model, root, log)
     budget = plan.budget_minutes * 60 or None
     started = time.monotonic()
-    history, growth_steps = [], []
+    history = []
     train_texts, held_texts = split_books(books, plan.read_words)
     held_texts = held_texts[: plan.held_books]
     summary = {"plan": asdict(plan), "books": [{k: b[k] for k in ("id", "title", "language", "sha256")} for b in books],
@@ -64,10 +66,14 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
                "parameters_at_birth": model.count()}
     log(f"parameters at birth: {json.dumps(summary['parameters_at_birth'])}")
 
-    if plan.grow:
-        added = model.grow(plan.grow)
-        growth_steps.append(plan.grow)
-        log(f"grew by {plan.grow} layer(s) at {added}: {json.dumps(model.count())}")
+    if plan.grow_to:
+        log(f"growing towards {plan.grow_to:,}: {model.grow_to(plan.grow_to)}")
+    else:
+        if plan.widen:
+            model.widen(plan.widen)
+        if plan.grow:
+            log(f"grew by {plan.grow} layer(s) at {model.grow(plan.grow)}")
+    log(f"after growth: {json.dumps(model.count())}")
     if plan.rank:
         model.add_lora(plan.rank)
     summary["parameters_after_growth"] = model.count()
@@ -78,7 +84,7 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
     if "read" in stages and train_texts:
         examples = [{"parts": [], "answer": t, "chat": False} for t in train_texts]
         history.append(trainer.stage(
-            "read", examples, {"lora", "grown"} if plan.grow else {"lora"}, plan.read_steps, plan.read_lr,
+            "read", examples, {"lora", "grown"} if model.growth_log else {"lora"}, plan.read_steps, plan.read_lr,
             lambda: {"books_held_out": books_nats()}, accept_reading, plan.read_batch, plan.seed, budget,
             {"books": len(books)}))
 
@@ -114,7 +120,7 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
             "watch", examples + rehearsal, set(plan.watch_parts), plan.watch_steps, plan.watch_lr,
             measure_watch, accept_skill("videos", controls=["videos_reversed", "videos_one_frame"], keep=["images"]), plan.watch_batch, plan.seed + 2, budget))
 
-    manifest = trainer.save(history, growth_steps)
+    manifest = trainer.save(history)
     summary.update(stages=history, checkpoint=manifest["version"], own_sha256=manifest["own_sha256"],
                    parameters=model.count(), seconds=round(time.monotonic() - started, 1),
                    significance=_significance(history))

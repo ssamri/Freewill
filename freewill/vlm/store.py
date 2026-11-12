@@ -63,7 +63,9 @@ def load(root: Path | None = None, dtype: str = "float32"):
     root = Path(root or home())
     if not bases_ready(root):
         raise FileNotFoundError(f"the bases of Freewill's own model are not in {root / 'bases'} yet")
+    from freewill.vlm import capacity
     model = build(root / "bases", dtype=dtype)
+    model.spec["ceiling_parameters"] = capacity.load_settings(root)["max_parameters"]  # the person's choice
     folder = current(root)
     manifest = restore(model, folder) if folder else None
     return model, manifest
