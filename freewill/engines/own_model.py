@@ -3,7 +3,9 @@
 It runs in this process, with PyTorch, on this computer: nothing leaves the
 machine. It can be shown images; the frames of a video arrive as images in
 order. It is slow on a processor (several seconds per answer, more with
-images) and needs about 8 GB of memory in float32 or 4 GB in bfloat16.
+images) and needs about 8 GB of memory in float32 or 4 GB in bfloat16. By default it runs in
+float32 when the processor has no bfloat16 of its own and the memory holds it, which measured
+3.5 to 7 times faster on such a processor (freewill/engines/speed.py, docs/speed.md).
 
 A life's nights can train it (freewill/vlm/nights.py), when the person turns
 engine learning on for that life; the engine then loads that life's latest
@@ -27,9 +29,10 @@ class OwnModelEngine:
     can_see = True
     reading_chars = 7_500  # on a processor every token counts; Qwen3's context could hold far more
 
-    def __init__(self, root: Path | None = None, dtype: str = "bfloat16", model=None, manifest=None,
+    def __init__(self, root: Path | None = None, dtype: str = "auto", model=None, manifest=None,
                  life: Path | None = None) -> None:
         self._root, self._dtype, self._life = root, dtype, (Path(life) if life else None)
+        self._dtype_wanted = dtype
         self._model, self._manifest = model, manifest
         self.name = "own:freewill-1.8b-v"
 
@@ -37,6 +40,8 @@ class OwnModelEngine:
         if self._model is None:
             try:
                 from freewill.vlm import nights, store
+                from freewill.engines.speed import own_model_dtype
+                self._dtype = own_model_dtype(self._dtype_wanted)   # "auto": see freewill/engines/speed.py
                 own = nights.current(self._life) if self._life else None
                 self._model, self._manifest = store.load(self._root, self._dtype, checkpoint=own)
                 if own and self._manifest:

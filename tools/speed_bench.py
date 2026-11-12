@@ -163,7 +163,12 @@ def embedded(out: Path, data: Path, requests: list[dict], rounds: int) -> dict:
             entry = {"round": round_number + 1, "summary": summary(rows, reference), "rows": rows}
             results["configurations"][name]["rounds"].append(entry)
             print(f"round {round_number + 1}  {name}: {json.dumps(entry['summary'])}", flush=True)
+            for row in rows:
+                if "error" in row:
+                    print(f"    request {row['index']}: {row['error']}", flush=True)
             (out / "speed.json").write_text(json.dumps({**results, "machine": machine()}, indent=1, ensure_ascii=False), encoding="utf-8")
+    if all(r["summary"]["failed"] == r["summary"]["requests"] for c in results["configurations"].values() for r in c["rounds"]):
+        raise RuntimeError("every request failed in every configuration: nothing was measured")
     return results
 
 
@@ -204,6 +209,7 @@ def own(out: Path, data: Path, requests: list[dict], tokens: int, count: int) ->
             entry = summary(rows, reference)
             entry["seconds_first_token_median"] = round(statistics.median(r["seconds_first_token"] for r in rows), 3)
             results["configurations"][name] = {"summary": entry, "rows": rows}
+            print(f"{name}: {json.dumps(entry)}", flush=True)
             (out / "speed.json").write_text(json.dumps({**results, "machine": machine()}, indent=1, ensure_ascii=False), encoding="utf-8")
         del model
     return results

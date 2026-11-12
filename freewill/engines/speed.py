@@ -134,3 +134,34 @@ def draft_arguments(kind: str) -> list[str]:
     if kind == "ngram-mod":
         return ["--spec-type", "ngram-mod"]
     return []
+
+
+# -- Freewill's own model (PyTorch) -------------------------------------------------------------
+
+FLOAT32_RAM_GB = 12  # 1.82 B parameters at 4 bytes is 7.3 GB, plus the cache and the program: room for both
+
+
+def native_bfloat16() -> bool | None:
+    """Whether this processor computes in bfloat16 itself (AVX512-BF16 or AMX). Without it, PyTorch converts
+    every bfloat16 weight on the fly: on an AMD EPYC 7763 (4 threads), reading the instructions took about 7
+    times longer than in float32 and a 96-token answer about 3.5 times longer (docs/speed.md). None when
+    PyTorch cannot say."""
+    try:
+        import torch
+        cpu = torch._C._cpu
+        return bool(cpu._is_avx512_bf16_supported() or cpu._is_amx_tile_supported())
+    except Exception:
+        return None
+
+
+def own_model_dtype(wanted: str | None = None) -> str:
+    """The precision Freewill 1.8B-V runs in. "auto" (the default): float32 when the processor has no bfloat16
+    of its own and the memory holds it, bfloat16 otherwise (half the memory)."""
+    wanted = (os.environ.get("FREEWILL_OWN_DTYPE") or wanted or "auto").strip().lower()
+    if wanted in ("float32", "bfloat16"):
+        return wanted
+    from freewill.vlm.capacity import machine
+    ram = machine().get("ram_gb") or 0
+    if native_bfloat16() is True or ram < FLOAT32_RAM_GB:
+        return "bfloat16"
+    return "float32"
