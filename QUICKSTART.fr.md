@@ -76,7 +76,7 @@ freewill-app              # une fenêtre native
 freewill-app --browser    # la même interface dans votre navigateur
 ```
 
-Au premier lancement, l'application présente ses conditions d'utilisation, puis la licence ; les deux doivent être acceptées avant toute chose. Dans la conversation, vous pouvez joindre des documents (texte, Markdown, PDF, Word, EPUB), des images et des vidéos. Les documents rejoignent la bibliothèque de l'être, qui les lit un passage à la fois. La compréhension des images dépend du moteur : Claude, GPT, Grok et les modèles locaux dotés de la vision les voient ; d'une vidéo, l'être reçoit six images fixes et n'entend rien.
+Au premier lancement, l'application présente ses conditions d'utilisation, puis la licence ; les deux doivent être acceptées avant toute chose. Dans la conversation, vous pouvez joindre des documents (texte, Markdown, PDF, Word, EPUB), des images et des vidéos. Les documents rejoignent la bibliothèque de l'être. En un moment, il lit autant de pages que son moteur peut en contenir (environ 40 000 caractères pour Claude, GPT et Grok ; environ 9 000 pour Qwen3 1.7B ; environ 7 500 pour un modèle servi par Ollama), et une fois un livre en main, il tend à le lire jusqu'au bout, même s'il peut le reposer. Un texte collé de plus de 8 000 caractères est gardé entier dans la bibliothèque et lu de la même façon. La compréhension des images dépend du moteur : Claude, GPT, Grok et les modèles locaux dotés de la vision les voient ; d'une vidéo, l'être reçoit six images fixes et n'entend rien.
 
 L'application ne parle qu'à un service sur votre propre machine, lié à `127.0.0.1` et protégé par un jeton de session. Les clés d'accès sont conservées dans le trousseau de votre système, jamais dans un fichier de vie.
 

@@ -98,6 +98,7 @@ class Being:
         self.staged: deque[str] = deque(maxlen=4)
         self._last_tick = self.clock()
         self._pending: list[Proposal] = []
+        self._book_in_hand: str | None = None  # the document the being chose to go on reading
         self.t = _T.get(life.language, _T["en"])
         self.sleep_requested = False
         # H7: computed affective state. Off unless the life has it switched on; when off,
@@ -162,10 +163,19 @@ class Being:
             names.append(item["name"])
             self.guard.check(Action.READ)
             if item["kind"] == "text":
-                number = min(item["read"], item["passages"] - 1)
+                # As many passages, from where the being left off, as one moment of reading holds.
+                first = min(item["read"], item["passages"] - 1)
+                budget = getattr(self.engine, "reading_chars", 7_500) // max(1, len(item_ids))
+                texts, number = [], first
+                while number < item["passages"]:
+                    passage = library.passage(item["id"], number)
+                    if texts and sum(map(len, texts)) + len(passage) > budget:
+                        break
+                    texts.append(passage)
+                    number += 1
                 perception["documents"].append({
-                    "id": item["id"], "name": item["name"], "number": number + 1,
-                    "of": item["passages"], "text": library.passage(item["id"], number),
+                    "id": item["id"], "name": item["name"], "number": first + 1, "last": number,
+                    "of": item["passages"], "text": "\n\n".join(texts),
                 })
             else:
                 if item["kind"] == "video":
@@ -210,10 +220,12 @@ class Being:
             reading = None
         if reading:
             item, number = reading
+            # A book already in hand pulls towards the next page; the being can still put it down.
+            in_hand = 0.3 if item["id"] == self._book_in_hand else 0.0
             proposals.append(Proposal(
                 "reading",
                 self.t["reading"].format(name=item["name"], number=number + 1, of=item["passages"]),
-                0.3 + 0.45 * self.needs.curiosity * (0.5 + genome.curiosity) + self.rng.uniform(-0.05, 0.05),
+                0.3 + in_hand + 0.45 * self.needs.curiosity * (0.5 + genome.curiosity) + self.rng.uniform(-0.05, 0.05),
             ))
         if self.inbox:
             message = self.inbox[0]
@@ -309,13 +321,16 @@ class Being:
         # or the next passage of the book in hand if the being chose to go on.
         if perception and (is_message or decision.accepted):
             for document in perception["documents"]:
-                self.life.library.mark_read(document["id"], document["number"])
+                self.life.library.mark_read(document["id"], document["last"])
                 self.events.emit("read", id=document["id"], name=document["name"],
-                                 number=document["number"], of=document["of"])
+                                 number=document["number"], last=document["last"], of=document["of"])
                 if self.own:  # what was read was lived too
                     self.own.live([document["text"]])
+                self._book_in_hand = document["id"] if document["last"] < document["of"] else None
             if winner.source == "reading" and decision.accepted:
-                self.needs.satisfy("curiosity", 0.3)
+                self.needs.satisfy("curiosity", 0.15)
+        elif winner.source == "reading":  # it chose to put the book down
+            self._book_in_hand = None
 
         refused = self._apply(winner, decision, memories)
         if confidence is not None:

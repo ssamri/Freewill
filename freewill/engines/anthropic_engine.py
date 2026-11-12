@@ -23,6 +23,7 @@ _SERVER_SIDE_FALLBACK = {
 class AnthropicEngine:
     can_learn = False
     can_see = True
+    reading_chars = 40_000  # a long context: about ten thousand tokens of text in one moment of reading
 
     def __init__(self, model: str | None = None, effort: str | None = None) -> None:
         try:

@@ -423,6 +423,18 @@ def test_service_birth_message_and_memory(service):
     assert call("/api/memory/item?id=../../identity")[0] == 404
 
 
+def test_a_long_message_is_kept_whole_as_a_document_not_cut(service):
+    app, call = service
+    assert call("/api/birth", {"name": "Noor", "language": "fr", "engine": {"kind": "simulated"}})[0] == 200
+    text = " ".join(f"Phrase {i} du long texte." for i in range(3000))
+    assert len(text) > 50_000
+    assert call("/api/message", {"text": text})[0] == 200
+    items = app.runner.life.library.items()
+    assert len(items) == 1 and items[0]["name"].startswith("Texte collé")
+    kept = "".join(app.runner.life.library.passage(items[0]["id"], n) for n in range(items[0]["passages"]))
+    assert "Phrase 2999 du long texte." in kept
+
+
 def test_service_rejects_bad_names_and_unknown_engines(service):
     _app, call = service
     assert call("/api/birth", {"name": "../escape", "engine": {"kind": "simulated"}})[0] == 400
@@ -524,6 +536,7 @@ def _until_heard(being, limit=6):
 def test_a_being_is_shown_images_and_reads_a_document_passage_by_passage(tmp_path):
     life = Life.birth(tmp_path, "Noor", seed=3)
     engine = _SeeingEngine()
+    engine.reading_chars = 1  # one passage per moment, however short the window
     being = Being(life, engine, rng=random.Random(2))
     picture = life.library.add_media("sea.png", "image", [{"media_type": "image/png", "data": _PIXEL}])
     book = life.library.add_text("tale.txt", "\n\n".join(f"Chapter {i}. " + "the lantern walks. " * 80 for i in range(5)))
@@ -542,6 +555,51 @@ def test_a_being_is_shown_images_and_reads_a_document_passage_by_passage(tmp_pat
         if life.library.get(book["id"])["read"] > 1:
             break
     assert life.library.get(book["id"])["read"] > 1
+
+
+def test_one_moment_of_reading_takes_as_much_of_a_document_as_the_engine_can_hold(tmp_path):
+    life = Life.birth(tmp_path, "Noor", seed=3)
+    engine = _SeeingEngine()
+    engine.reading_chars = 9_000
+    being = Being(life, engine, rng=random.Random(2))
+    book = life.library.add_text("long.txt", "\n\n".join(f"Page {i}. " + "the lantern walks on. " * 100 for i in range(30)))
+    assert book["passages"] >= 20
+    being.hear("Read this, please.", [book])
+    _until_heard(being)
+    prompt = next(p for p in engine.prompts if "<document>" in p)
+    read = life.library.get(book["id"])["read"]
+    assert 3 <= read < book["passages"]  # several pages at once, not two
+    assert f"passages 1 to {read} of {book['passages']}" in prompt
+    assert "Page 0." in prompt and f"Page {read - 1}." in prompt and f"Page {read + 1}." not in prompt
+    body = prompt.split("<document>")[1].split("</document>")[0]
+    assert len(body) <= 9_000 + 10
+
+
+def test_a_book_in_hand_keeps_being_read_until_the_end_unless_it_is_put_down(tmp_path):
+    life = Life.birth(tmp_path, "Noor", seed=3)
+    engine = _SeeingEngine()
+    engine.reading_chars = 2_600
+    being = Being(life, engine, rng=random.Random(2))
+    book = life.library.add_text("long.txt", "\n\n".join(f"Page {i}. " + "the lantern walks on. " * 100 for i in range(12)))
+    being.hear("Here is a book.", [book])
+    _until_heard(being)
+    assert being._book_in_hand == book["id"]
+    for _ in range(200):
+        being.tick()
+        being.needs.fatigue = 0.0
+        if life.library.get(book["id"])["read"] >= book["passages"]:
+            break
+    assert life.library.get(book["id"])["read"] == book["passages"]
+    assert being._book_in_hand is None
+
+
+def test_engines_say_how_much_text_one_moment_of_reading_can_hold():
+    from freewill.engines.anthropic_engine import AnthropicEngine
+    from freewill.engines.compatible import CompatibleEngine
+    assert AnthropicEngine.reading_chars >= 30_000
+    assert CompatibleEngine("http://x", "m", None, kind="openai").reading_chars >= 30_000
+    assert CompatibleEngine("http://x", "m", None, kind="local").reading_chars < 10_000
+    assert SimulatedEngine(seed=1).reading_chars > 0
 
 
 def test_an_engine_that_cannot_see_is_told_so_and_is_shown_nothing(tmp_path):

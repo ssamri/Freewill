@@ -26,6 +26,7 @@ class Engine(Protocol):
     # Whether this engine can be shown images. Whether it really understands
     # them depends on the model behind it.
     can_see: bool
+    reading_chars: int  # how many characters of a document one moment of reading can hold
 
     def decide(self, system: str, prompt: str, schema: dict, hint: dict,
                images: list[dict] | None = None) -> dict:

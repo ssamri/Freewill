@@ -60,6 +60,8 @@ class EmbeddedEngine(CompatibleEngine):
         self.base_url = ""
         self._runtime, self._model_path, self._mmproj_path = Path(runtime), Path(model_path), mmproj_path
         self._context = context
+        # Leave room for the instructions, the memories and the answer: about two characters per spare token.
+        self.reading_chars = max(2_500, (context - 3_500) * 2)
         self._process: subprocess.Popen | None = None
         self._log = None
         self._key = secrets.token_hex(16)
