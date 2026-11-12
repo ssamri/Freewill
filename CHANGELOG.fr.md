@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 1.1.1
+
+**Corrigé**
+
+- Un être lisait un document deux ou trois pages à la fois et reprenait rarement : un moment de lecture prend désormais autant de passages que le moteur peut en contenir, et un livre en main attire vers les pages suivantes jusqu'à la fin (l'être peut toujours le reposer).
+- Un message collé de plus de 8 000 caractères était coupé sans le dire ; il est désormais gardé entier dans la bibliothèque et lu comme un document.
+
 ## 1.1.0
 
 Le moteur embarqué peut être adapté par une vie. Rien dans cette version n'affirme que le modèle apprend des faits, comprend ou est conscient.

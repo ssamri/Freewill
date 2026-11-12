@@ -2,6 +2,13 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 1.1.1
+
+**Fixed**
+
+- A being read a document two or three pages at a time and rarely went on: one moment of reading now takes as many passages as the engine can hold, and a book in hand pulls towards the next pages until the end (the being can still put it down).
+- A pasted message longer than 8,000 characters was silently cut; it is now kept whole in the library and read like a document.
+
 ## 1.1.0
 
 The embedded engine can be adapted by a life. Nothing in this version claims that the model learns facts, understands, or is conscious.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "freewill"
-version = "1.1.0"
+version = "1.1.1"
 description = "An open, experimental research programme on consciousness, free will, the subconscious and dreaming in AI systems."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -38,6 +38,9 @@ class CompatibleEngine:
         self.model = model
         self.key_env = key_env
         self.name = f"{kind}:{model}"
+        # How much of a document fits in one moment of reading. Hosted models have long
+        # contexts; a model served by Ollama often has only a few thousand tokens.
+        self.reading_chars = 40_000 if kind in ("openai", "xai") else 7_500
 
     @classmethod
     def from_config(cls, config: dict) -> "CompatibleEngine":

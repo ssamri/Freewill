@@ -14,6 +14,7 @@ class SimulatedEngine:
     name = "simulated"
     can_learn = False
     can_see = False
+    reading_chars = 7_500
 
     def __init__(self, seed: int | None = None) -> None:
         self.rng = random.Random(seed)
