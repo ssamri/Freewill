@@ -981,7 +981,7 @@ def engine_results(folder: Path, experiment: dict, protocol: dict, models_dir: P
         "baseline_snapshot_sha256": experiment["baseline_snapshot_sha256"], "code_commit": code_commit(),
         "lab_version": LAB_VERSION, "metrics_version": metrics.METRICS_VERSION,
         "engine": {"kind": "embedded", "model": model["id"], "adapter": found["version"], "adapter_sha256": found["adapter_sha256"]},
-        "unit": "held-out item of the life", "units": units, "units_planned": len(units), "reference": "base",
+        "unit": "sealed test unit of the life", "units": units, "units_planned": len(units), "reference": "base",
         "conditions": conditions, "comparisons": comparisons, "divergence": [], "evidence": evidence,
-        "engine_comparison": {k: found[k] for k in ("control_training", "runtime_check", "behaviour", "notes")},
+        "engine_comparison": {k: found[k] for k in ("control_training", "runtime_check", "behaviour", "capabilities", "sealed_test", "notes")},
         "anomalies": experiment["anomalies"], "results_sha256": digest(core), "computed_utc": utc_now()}

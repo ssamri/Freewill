@@ -148,6 +148,11 @@ class App:
             if action == "cancel":
                 runner.engine_learning.cancel()
                 return runner.engine_learning_state()
+            if action == "teach":
+                fields = ("question", "answer", "wrong", "paraphrase", "false_premise")
+                runner.engine_learning.teach(str(body.get("fact") or ""), who=str(body.get("who") or ""),
+                                             **{k: str(body.get(k) or "") for k in fields})
+                return runner.engine_learning_state()
         except (EngineLearningError, TimeoutError, OSError) as error:
             raise ApiError(400, str(error)) from error
         except EngineError as error:

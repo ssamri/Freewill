@@ -21,8 +21,11 @@ This version follows the technical and scientific audit of 12 November 2026 (rec
 
 **Added earlier, first released here**
 
-
 - Freewill 1.8B-V, the project's own model (`freewill/vlm/`): Qwen3 1.7B, the SigLIP2 eye and a bridge trained by Freewill; 1,823,955,200 parameters at birth, growth by neurons and whole layers up to a ceiling the person chooses in Settings (2, 5, 13, 50 billion or any size), each size shown with the disk, memory, graphics card, text and training time it needs. Stages read (public-domain books), see (drawn images, with a control) and watch (drawn videos, with two controls), each kept only by written rules. Engine kind `own`, command `freewill own-model`, workflow `own model end to end`. See [`docs/own-model.md`](docs/own-model.md).
+
+**Changed**
+
+- The engine's corpus follows rules `h4-engine-2.0` (technical audit of 12 November 2026, R-01 to R-03). Every unit says where it comes from: heard, read, vouched for by a person, or the being's own reply. The being's replies are no longer trained on unless the person allows it. Units are split by episode into train, validation and a sealed test that no night uses; every opening of the sealed test is logged in `test_access.jsonl`. Near duplicates of training text are set aside before any measure. A person can vouch for a fact in the Research Lab and say how to test it; capability tests (recall, paraphrase, contradiction) are forced choices, and a night that loses more of them than it gains is refused. A control trained on shuffled words runs each night, and a candidate must beat it. The final comparison measures base, memory only, adapter only, adapter with memory and the control on the sealed test. Lives of rules 1.x are migrated, their former held-out items becoming validation. See [`docs/engine-learning.md`](docs/engine-learning.md).
 
 ## 1.1.1
 

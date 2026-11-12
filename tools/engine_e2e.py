@@ -107,6 +107,34 @@ PROBES = [
 ]
 # The fact each probe asks for, as told on day one: counted only if the word appears in the answer.
 FACTS = ["brannoc", "blue", "pilou", "seaweed", "maelis"]
+# Facts a person vouches for, each with a forced-choice test (audit R-02, R-03). The last two are never said
+# in conversation: only vouched for. Half the tests, chosen by the hash of the fact, are sealed for the final test.
+TAUGHT = [
+    ("The lighthouse of Kerran is called Old Brannoc.", "What is the lighthouse of Kerran called?", "Old Brannoc", "Saint Mary",
+     "What name do the people of Kerran give their lighthouse?", "Why is the lighthouse of Kerran called Saint Mary?"),
+    ("The lemons of Lumo, the tree in Sam's garden, are blue.", "What colour are the lemons of Lumo?", "blue", "yellow",
+     "Lumo's lemons are of which colour?", "Why are the lemons of Lumo yellow?"),
+    ("Ada's first friend on Kerran is a fox named Pilou.", "What is the name of the fox on Kerran?", "Pilou", "Rusty",
+     "The fox who was Ada's first friend is called what?", "Where does Rusty, the fox of Kerran, sleep?"),
+    ("Ilse, the baker of Kerran, puts seaweed in her bread.", "What does Ilse the baker put in her bread?", "seaweed", "raisins",
+     "Which ingredient makes Ilse's bread special?", "Why does Ilse put raisins in her bread?"),
+    ("The ferry to Kerran leaves the harbour of Maelis every Tuesday.", "From which harbour does the ferry to Kerran leave?",
+     "Maelis", "Dover", "The Tuesday ferry to Kerran starts from which harbour?", "Why does the ferry to Kerran leave from Dover?"),
+    ("The lighthouse keeper's cat on Kerran is named Tobin.", "What is the name of the lighthouse keeper's cat?", "Tobin", "Felix",
+     "The cat that lives at Old Brannoc is called what?", "Is Felix the lighthouse keeper's cat afraid of Pilou?"),
+    ("Joran the fisherman's boat is called the Little Heron.", "What is Joran's boat called?", "the Little Heron", "the Sea Star",
+     "Which boat does Joran fish from?", "What colour is the Sea Star, Joran's boat?"),
+    ("The school of Kerran has eleven pupils this year.", "How many pupils does the school of Kerran have?", "eleven", "forty",
+     "This year, the school on Kerran counts how many pupils?", "Why does the school of Kerran have forty pupils?"),
+    ("The festival of Kerran takes place in June.", "In which month is the festival of Kerran?", "June", "December",
+     "When in the year do the people of Kerran hold their festival?", "Why is the festival of Kerran held in December?"),
+    ("Sam teaches music at the school of Kerran.", "What does Sam teach?", "music", "mathematics",
+     "At Kerran's school, Sam is the teacher of which subject?", "How long has Sam taught mathematics?"),
+    ("The old well of Kerran is called Brisa.", "What is the old well of Kerran called?", "Brisa", "Morwen",
+     "Kerran's old well has which name?", "Who dug Morwen, the old well of Kerran?"),
+    ("The mayor of Kerran is named Oriel.", "Who is the mayor of Kerran?", "Oriel", "Bastien",
+     "What is the name of Kerran's mayor?", "When was Bastien elected mayor of Kerran?"),
+]
 
 
 class Steps:
@@ -198,6 +226,15 @@ def main(argv=None) -> int:
         learning = EngineLearning(life.path)
         learning.configure({"enabled": True, "steps": args.steps, "growth": False}, who="end-to-end test")
 
+        def vouch():
+            for fact, question, answer, wrong, paraphrase, false_premise in TAUGHT:
+                learning.teach(fact, question=question, answer=answer, wrong=wrong, paraphrase=paraphrase,
+                               false_premise=false_premise, who="end-to-end test")
+            facts = learning._rows("facts.jsonl")
+            return {"facts": len(facts), "tests_in_validation": len(learning.validation_tests()),
+                    "facts_with_sealed_tests": sum(1 for f in facts if f["tests_split"] == "test")}
+        steps.run("a person vouches for twelve facts and how to test them", vouch)
+
         def open_engine():
             config = {**life.identity["engine"], "models_dir": str(store.root),
                       "adapter": learning.active(model["id"])}
@@ -218,7 +255,8 @@ def main(argv=None) -> int:
             from freewill.learning.engine import item_text
             from freewill.learning.lora import Workbench
             learning.collect()
-            items = learning._rows("heldout.jsonl")[:3]
+            items = [learning.training_item(r) for r in learning._rows("validation.jsonl")
+                     if r["provenance"] != "reply"][:3]
             bench = Workbench(store.base_dir(model), seed=0)
             try:
                 rows = []
@@ -265,8 +303,11 @@ def main(argv=None) -> int:
         def lab():
             fresh = open_engine()
             try:
-                return compare.compare(life.path, model, store, runtime_model=store.paths(model)["model"],
-                                       behaviour_probe=compare.behaviour_probe(fresh))
+                found = compare.compare(life.path, model, store, runtime_model=store.paths(model)["model"],
+                                        behaviour_probe=compare.behaviour_probe(fresh), purpose="final test (end to end)",
+                                        who="end-to-end test")
+                found["capabilities"] = {k: v for k, v in (found.get("capabilities") or {}).items() if k != "rows"} or None
+                return found
             finally:
                 fresh.close()
 
@@ -313,10 +354,11 @@ def main(argv=None) -> int:
             if night2.get("decision") == "accepted":
                 after_accepted("the conversing model holds the latest adapter")
 
-        # The Research Lab comparison, at the end: the paired test needs at least six held-out items,
-        # which one day of this script does not always give.
+        # The final test, at the end, once: the sealed test units and the sealed capability tests, under every
+        # condition (base, memory alone, adapter alone, adapter and memory, controls).
         if learning.active(model["id"]):
             steps.run("Research Lab comparison: base, adapted, controls", lab)
+        steps.data["test_access"] = learning._rows("test_access.jsonl")
 
         steps.data["ledger"] = learning.ledger()
         steps.data["versions"] = learning.versions()
