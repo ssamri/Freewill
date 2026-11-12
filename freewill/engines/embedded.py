@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import os
 import secrets
-import shutil
 import socket
 import subprocess
 import sys
@@ -28,35 +27,34 @@ START_TIMEOUT = 240  # seconds: a large model on a slow disk takes a while to lo
 
 
 def find_runtime() -> Path | None:
-    """The llama.cpp server program: bundled with the application, named by the
-    FREEWILL_LLAMA_SERVER environment variable, or found on the PATH."""
-    name = "llama-server.exe" if sys.platform == "win32" else "llama-server"
-    named = os.environ.get("FREEWILL_LLAMA_SERVER")
-    candidates = [Path(named)] if named else []
-    if getattr(sys, "frozen", False):
-        candidates += [Path(getattr(sys, "_MEIPASS", "")) / "runtime" / name,
-                       Path(sys.executable).parent / "runtime" / name]
-    candidates.append(Path(__file__).resolve().parents[2] / "runtime" / name)
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    found = shutil.which("llama-server")
-    return Path(found) if found else None
+    """The llama.cpp server program: bundled with the application, fetched by it earlier, named by
+    FREEWILL_LLAMA_SERVER or FREEWILL_LLAMA_DIR, or found on the PATH. See freewill/runtime.py."""
+    from freewill import runtime
+    return runtime.find("llama-server")
 
 
 class EmbeddedEngine(CompatibleEngine):
-    can_learn = False  # rewriting its own parameters during sleep is the next step of the project
+    """`adapter`, when given, is a LoRA adapter in GGUF format, learned by this life and accepted after an
+    evaluation (freewill/learning/engine.py). It is loaded by llama-server with --lora, so every answer the
+    being gives is computed with it. Its SHA-256 is part of the engine's name, which every trace records."""
 
     def __init__(self, model: dict, model_path: Path, mmproj_path: Path | None = None,
-                 runtime: Path | None = None, context: int = 8192) -> None:
+                 runtime: Path | None = None, context: int = 8192, adapter: dict | None = None) -> None:
         runtime = runtime or find_runtime()
         if runtime is None:
-            raise EngineError("the embedded runtime (llama-server) is not part of this installation")
+            raise EngineError("the embedded runtime (llama-server) is not on this computer yet: "
+                              "the application fetches it when a model is downloaded")
         if not Path(model_path).is_file():
             raise EngineError(f"the model {model['name']} is not on this computer yet: download it first")
         self.kind = "embedded"
         self.model = model["id"]
-        self.name = f"embedded:{model['name']}"
+        self.adapter = None
+        if adapter and Path(adapter["gguf"]).is_file():
+            self.adapter = {"version": adapter["version"], "gguf": str(adapter["gguf"]),
+                            "sha256": adapter["sha256"], "scale": float(adapter.get("scale", 1.0))}
+        self.name = f"embedded:{model['name']}" + (
+            f"+adapter:{self.adapter['version']}:{self.adapter['sha256'][:12]}" if self.adapter else "")
+        self.can_learn = bool(model.get("trainable"))  # an adapter can be trained for it, beside a frozen base
         self.can_see = mmproj_path is not None
         self.key_env = None
         self.base_url = ""
@@ -67,6 +65,7 @@ class EmbeddedEngine(CompatibleEngine):
         self._key = secrets.token_hex(16)
         self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never through a proxy
         self._plain_json = False
+        self._reasoning_off = model.get("architecture") == "qwen3"  # Qwen3 would otherwise think aloud first
 
     # -- the child process -------------------------------------------------------
 
@@ -79,6 +78,10 @@ class EmbeddedEngine(CompatibleEngine):
                    "-t", str(max(1, (os.cpu_count() or 2) - 1)), "--api-key", self._key]
         if self._mmproj_path:
             command += ["--mmproj", str(self._mmproj_path)]
+        if self.adapter:
+            command += ["--lora-scaled", self.adapter["gguf"], str(self.adapter["scale"])]
+        if self._reasoning_off:
+            command += ["--reasoning-budget", "0"]
         self._log = tempfile.NamedTemporaryFile(prefix="freewill-engine-", suffix=".log", delete=False)
         flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         try:
@@ -142,6 +145,16 @@ class EmbeddedEngine(CompatibleEngine):
             return {"type": "json_object"}
         return {"type": "json_schema", "json_schema": {"name": "answer", "strict": True, "schema": schema}}
 
+    lora_override: float | None = None  # set by the lab to compare base and adapted answers in one process
+
+    def _extra_body(self) -> dict:
+        extra = {}
+        if self._reasoning_off:
+            extra["chat_template_kwargs"] = {"enable_thinking": False}
+        if self.adapter and self.lora_override is not None:
+            extra["lora"] = [{"id": 0, "scale": float(self.lora_override)}]
+        return extra
+
     def _ask(self, system: str, prompt: str, schema: dict, images: list[dict] | None) -> dict:
         if self._process is None or self._process.poll() is not None:
             self._start()
@@ -152,3 +165,28 @@ class EmbeddedEngine(CompatibleEngine):
                 self._plain_json = True  # an older runtime: fall back to plain JSON mode
                 return super()._ask(system, prompt, schema, images)
             raise
+
+    # -- what is really loaded -------------------------------------------------------
+
+    def loaded_adapters(self) -> list[dict]:
+        """Ask the running server which adapters it holds and at what scale: the proof, not the intention."""
+        if self._process is None or self._process.poll() is not None:
+            self._start()
+        import json
+        request = urllib.request.Request(self.base_url.rsplit("/v1", 1)[0] + "/lora-adapters", headers=self._headers())
+        with self._opener.open(request, timeout=10) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def complete(self, prompt: str, *, n_predict: int = 64, seed: int = 0, lora_scale: float | None = None) -> str:
+        """Plain greedy completion, for probes and comparisons. `lora_scale` sets the adapter's scale
+        for this one request (0 = the base model alone), without restarting anything."""
+        if self._process is None or self._process.poll() is not None:
+            self._start()
+        import json
+        body = {"prompt": prompt, "n_predict": n_predict, "temperature": 0, "seed": seed, "cache_prompt": False}
+        if lora_scale is not None and self.adapter:
+            body["lora"] = [{"id": 0, "scale": float(lora_scale)}]
+        request = urllib.request.Request(self.base_url.rsplit("/v1", 1)[0] + "/completion",
+                                         data=json.dumps(body).encode("utf-8"), headers=self._headers(), method="POST")
+        with self._opener.open(request, timeout=600) as response:
+            return json.loads(response.read().decode("utf-8")).get("content", "")

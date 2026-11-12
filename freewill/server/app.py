@@ -21,14 +21,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from freewill import __version__, keys, models
+from freewill import __version__, keys, models, runtime
 from freewill.core.library import LibraryError
 from freewill.core.affect import AffectError
 from freewill.core.life import Life
 from freewill.core.research import ResearchError
 from freewill.core.perception import extract_text
 from freewill.engines.base import EngineError, make_engine
-from freewill.engines.embedded import find_runtime
 from freewill.paths import data_dir
 from freewill.server.runner import Runner
 from freewill.server.lab_api import LAB_ERRORS, LabApi
@@ -84,6 +83,7 @@ class App:
         self._lock = threading.Lock()
         self._consent_path = self.lives_dir.parent / "consent.json"
         self.models = models.ModelStore(self.lives_dir.parent / "models")
+        self.runtime = runtime.Installer()  # kept in the data folder, shared by every life
         self._lab: LabApi | None = None
 
     @property
@@ -124,6 +124,31 @@ class App:
         except EngineError as error:
             raise ApiError(400, str(error)) from error
         return engine
+
+    def runtime_status(self) -> dict:
+        return {**runtime.describe(), "progress": self.runtime.progress}
+
+    def engine_learning(self, action: str, body: dict) -> dict:
+        """The person's controls over the learning of the engine: settings, a night now, restoring a checkpoint."""
+        from freewill.learning.engine import EngineLearningError
+        self.require_consent()
+        runner = self.require_runner()
+        try:
+            if action == "configure":
+                return runner.engine_learning_configure(body.get("changes") or {}, str(body.get("who") or ""))
+            if action == "run":
+                return runner.engine_learning_run(force=body.get("approved") is True)
+            if action == "restore":
+                version = body.get("version")
+                return runner.engine_learning_restore(str(version) if version else None, str(body.get("who") or ""))
+            if action == "cancel":
+                runner.engine_learning.cancel()
+                return runner.engine_learning_state()
+        except (EngineLearningError, TimeoutError, OSError) as error:
+            raise ApiError(400, str(error)) from error
+        except EngineError as error:
+            raise ApiError(400, str(error)) from error
+        raise ApiError(404, "not found")
 
     def model(self, model_id) -> dict:
         model = models.find(str(model_id))
@@ -439,7 +464,9 @@ def make_handler(app: App):
             if path == "/api/consent":
                 return self._json({**app.consent(), "licence": app.licence_text()})
             if path == "/api/models":
-                return self._json({"models": app.models.listing(), "runtime": find_runtime() is not None})
+                return self._json({"models": app.models.listing(), "runtime": app.runtime_status()})
+            if path == "/api/engine-learning":
+                return self._json(app.require_runner().engine_learning_state())
             if path == "/api/credits":
                 return self._json(app.credits())
             if path == "/api/dreams":
@@ -481,11 +508,19 @@ def make_handler(app: App):
             if path == "/api/consent":
                 return self._json(app.accept(body))
             if path == "/api/models/download":
+                part = "training" if body.get("part") == "training" else "inference"
                 try:
-                    app.models.start_download(app.model(body.get("id")))
+                    app.models.start_download(app.model(body.get("id")), part)
                 except models.DownloadError as error:
                     raise ApiError(400, str(error)) from error
-                return self._json({"models": app.models.listing()})
+                if part == "inference":
+                    app.runtime.start()  # the program that runs it comes with it: nothing to install by hand
+                return self._json({"models": app.models.listing(), "runtime": app.runtime_status()})
+            if path == "/api/runtime/install":
+                app.runtime.start()
+                return self._json({"runtime": app.runtime_status()})
+            if path.startswith("/api/engine-learning/"):
+                return self._json(app.engine_learning(path.rsplit("/", 1)[1], body))
             if path == "/api/models/cancel":
                 app.models.cancel(app.model(body.get("id"))["id"])
                 return self._json({"ok": True})

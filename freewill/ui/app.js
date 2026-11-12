@@ -158,12 +158,13 @@
         : busy
           ? [h("span", { class: "small muted" }, p.state === "verifying" ? t("models.verifying") : pct(p.done / Math.max(1, p.total))),
              h("button", { class: "btn small", onclick: () => act("/api/models/cancel", m.id) }, t("models.cancel"))]
-          : h("button", { class: "btn small", disabled: !data.runtime && null, onclick: () => act("/api/models/download", m.id) },
+          : h("button", { class: "btn small", onclick: () => act("/api/models/download", m.id) },
               (p.state === "error" || p.state === "cancelled") && p.done ? t("models.resume") : t("models.download"));
       return h("div", { class: "model" + (on ? " on" : "") },
         h("div", { class: "model-main" },
           h("div", { class: "model-head" }, h("b", {}, m.name), h("span", { class: "tag neutral" }, t("models.tiers." + m.tier)),
             m.sees ? h("span", { class: "tag" }, t("models.sees")) : null,
+            m.learns ? h("span", { class: "tag" }, t("models.learns")) : null,
             m.installed ? h("span", { class: "tag good" }, t("models.installed")) : null),
           h("div", { class: "small muted" }, t("models.needs", { size: gb(m.download_size), ram: m.ram_gb })),
           h("div", { class: "model-src" }, h("span", {}, m.author), link(m.licence_url, m.licence), link(m.source_url, t("models.source"))),
@@ -174,13 +175,20 @@
     function draw() {
       clearTimeout(timer);
       if (!data) return box.replaceChildren(h("p", { class: "hint" }, "…"));
+      const rt = data.runtime || {}, rp = rt.progress || {};
+      const rtBusy = ["downloading", "verifying", "unpacking"].includes(rp.state);
       box.replaceChildren(
-        data.runtime ? null : h("p", { class: "error", role: "alert" }, t("models.no_runtime")),
+        rt.present ? null
+          : rtBusy ? h("div", { class: "hint" }, t("models.runtime_fetching", { tag: rt.tag }), bar(rp.done / Math.max(1, rp.total)))
+          : rp.state === "error" ? h("div", { class: "error", role: "alert" }, t("models.runtime_error", { message: rp.error }), " ",
+              h("button", { class: "btn small", onclick: async () => { await api("/api/runtime/install", {}).catch(() => {}); load(); } }, t("models.retry")))
+          : rt.can_fetch ? h("p", { class: "hint" }, t("models.runtime_later", { tag: rt.tag }))
+          : h("p", { class: "error", role: "alert" }, t("models.no_runtime", { platform: rt.platform || "?" })),
         data.error ? h("p", { class: "error", role: "alert" }, data.error) : null,
         ...data.models.map(row),
         h("p", { class: "hint" }, t("models.hint")));
       data.error = "";
-      if (data.models.some(DOWNLOADING) && box.isConnected) timer = setTimeout(load, 900);
+      if ((data.models.some(DOWNLOADING) || rtBusy) && box.isConnected) timer = setTimeout(load, 900);
     }
     load();
     return box;

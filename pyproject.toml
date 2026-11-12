@@ -26,7 +26,7 @@ freewill-app = "freewill.desktop:main"
 include = ["freewill*"]
 
 [tool.setuptools.package-data]
-freewill = ["ui/*", "models.json", "credits.json"]
+freewill = ["ui/*", "models.json", "credits.json", "runtime.json", "learning/reference.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

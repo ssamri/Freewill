@@ -58,7 +58,9 @@ def make_engine(config: dict) -> Engine:
             raise EngineError(f"unknown embedded model: {config.get('model')!r}")
         store = models.ModelStore(Path(config.get("models_dir") or data_dir() / "models"))
         paths = store.paths(model)
-        return EmbeddedEngine(model, paths["model"], paths["mmproj"])
+        # The adapter this life learned and accepted, if any: given by whoever opens the life
+        # (freewill.learning.engine.EngineLearning.active), never stored in the engine description.
+        return EmbeddedEngine(model, paths["model"], paths["mmproj"], adapter=config.get("adapter"))
     if kind in ("openai", "xai", "local", "compatible"):
         from freewill.engines.compatible import CompatibleEngine
         return CompatibleEngine.from_config(config)

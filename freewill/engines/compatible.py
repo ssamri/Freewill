@@ -77,6 +77,9 @@ class CompatibleEngine:
     def _response_format(self, schema: dict) -> dict:
         return {"type": "json_object"}
 
+    def _extra_body(self) -> dict:
+        return {}
+
     def _ask(self, system: str, prompt: str, schema: dict, images: list[dict] | None) -> dict:
         fields = ", ".join(f'"{name}"' for name in schema["properties"])
         text = f"{prompt}\n\nAnswer with one JSON object with exactly these keys: {fields}."
@@ -95,6 +98,7 @@ class CompatibleEngine:
             ],
             "response_format": self._response_format(schema),
         }
+        body.update(self._extra_body())
         headers = self._headers()
 
         request = urllib.request.Request(

@@ -18,6 +18,7 @@ from freewill.core.kernel.constitution import founding_questions
 from freewill.core.life import Life
 from freewill.core.loop import Being
 from freewill.engines.base import EngineError, make_engine
+from freewill.learning.engine import EngineLearning, EngineLearningError
 
 HISTORY = 1500  # events kept in memory for an interface that connects late
 
@@ -26,8 +27,12 @@ class Runner:
     def __init__(self, life_path: Path, *, tempo: float | None = None, thoughts_per_hour: int | None = None,
                  engine_options: dict | None = None) -> None:
         self.life = Life(life_path)
+        self._engine_options = dict(engine_options or {})
+        # H4: the adapter this life learned and accepted, if any, is loaded with the engine it converses with.
+        self.engine_learning = EngineLearning(self.life.path)
+        self._night_thread: threading.Thread | None = None
         # may raise EngineError
-        self.engine = make_engine({**self.life.identity.get("engine", {}), **(engine_options or {})})
+        self.engine = make_engine(self._engine_config())
 
         self._events: deque[dict] = deque(maxlen=HISTORY)
         self._seq = 0
@@ -50,6 +55,88 @@ class Runner:
         self.tempo = research.tempo if tempo is None else tempo
         self.thoughts_per_hour = research.thoughts_per_hour if thoughts_per_hour is None else thoughts_per_hour
         self._refresh_snapshot()
+
+    # -- H4: the engine this life converses with, and what it learned ------------------
+
+    def _engine_config(self) -> dict:
+        config = {**self.life.identity.get("engine", {}), **self._engine_options}
+        if config.get("kind") == "embedded":
+            config["adapter"] = self.engine_learning.active(config.get("model"))
+        return config
+
+    def _store_and_model(self):
+        from freewill import models
+        from freewill.paths import data_dir
+        config = self.life.identity.get("engine", {})
+        model = models.find(str(config.get("model"))) if config.get("kind") == "embedded" else None
+        store = models.ModelStore(Path(self._engine_options.get("models_dir") or data_dir() / "models"))
+        return store, model
+
+    def reload_engine(self, why: str) -> None:
+        """Start the engine again with the adapter now in use (or none), between two moments."""
+        if not self._living.acquire(timeout=120):
+            raise TimeoutError("the being is in the middle of a moment")
+        try:
+            old = self.engine
+            fresh = make_engine(self._engine_config())
+            self.engine = self.being.engine = self.being.conscious.engine = fresh
+            close = getattr(old, "close", None)
+            if close:
+                close()
+            adapter = getattr(fresh, "adapter", None)
+            self.being.events.emit("engine_changed", engine=fresh.name, why=why,
+                                   adapter=adapter["version"] if adapter else None,
+                                   adapter_sha256=adapter["sha256"] if adapter else None)
+            self._refresh_snapshot()
+        finally:
+            self._living.release()
+
+    def engine_learning_state(self) -> dict:
+        store, model = self._store_and_model()
+        public = self.engine_learning.public()
+        adapter = getattr(self.engine, "adapter", None)
+        public.update(model=model["id"] if model else None, model_name=model["name"] if model else None,
+                      model_learns=bool(model and model.get("trainable")),
+                      base_installed=bool(model and model.get("trainable") and store.training_installed(model)),
+                      running=bool(self._night_thread and self._night_thread.is_alive()),
+                      loaded={"engine": self.engine.name, "adapter": adapter["version"] if adapter else None,
+                              "sha256": adapter["sha256"] if adapter else None})
+        return public
+
+    def engine_learning_configure(self, changes: dict, who: str = "") -> dict:
+        self.engine_learning.configure(changes, who)
+        return self.engine_learning_state()
+
+    def engine_learning_restore(self, version: str | None, who: str = "") -> dict:
+        self.engine_learning.restore(version, who)
+        if self.life.identity.get("engine", {}).get("kind") == "embedded":
+            self.reload_engine("restore")
+        return self.engine_learning_state()
+
+    def engine_learning_run(self, force: bool = False) -> dict:
+        """Start a night of engine learning in the background, now."""
+        store, model = self._store_and_model()
+        if model is None or not model.get("trainable"):
+            raise EngineLearningError("this life does not converse with a model that can learn")
+        if self._night_thread and self._night_thread.is_alive():
+            raise EngineLearningError("a night of engine learning is already running")
+        model_path = store.paths(model)["model"]
+
+        def work():
+            from freewill.learning.compare import runtime_check
+            try:
+                row = self.engine_learning.night(model, store, runtime_check=runtime_check(model_path), force=force)
+            except Exception as error:  # recorded in the ledger by night(); the life goes on
+                self._push({"type": "engine_learning", "time": "", "data": {"decision": "failed", "error": str(error)}})
+                return
+            self._push({"type": "engine_learning", "time": row["time"],
+                        "data": {"decision": row.get("decision"), "version": row.get("version")}})
+            if row.get("decision") == "accepted":
+                self.reload_engine("accepted:" + row["version"])
+
+        self._night_thread = threading.Thread(target=work, name="freewill-engine-night", daemon=True)
+        self._night_thread.start()
+        return self.engine_learning_state()
 
     # -- events ----------------------------------------------------------------
 
@@ -84,7 +171,25 @@ class Runner:
             elif event.type == "rest":
                 # Sleep ended; the tick still has to finish its persistence.
                 self._set_activity("thinking")
+                self._after_sleep()
             self._push({"type": event.type, "time": event.time, "data": event.data})
+
+    def _after_sleep(self) -> None:
+        settings = self.engine_learning.settings
+        if not (settings.enabled and settings.nightly):
+            return
+        store, model = self._store_and_model()
+        if model is None or not model.get("trainable") or not store.training_installed(model):
+            return
+        if self._night_thread and self._night_thread.is_alive():
+            return
+        threading.Thread(target=lambda: self._try_run(), daemon=True).start()
+
+    def _try_run(self) -> None:
+        try:
+            self.engine_learning_run()
+        except Exception:
+            pass
 
     def _set_activity(self, activity: str) -> None:
         with self._changed:
@@ -117,6 +222,7 @@ class Runner:
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=30)
+        self.engine_learning.cancel()
         close = getattr(self.engine, "close", None)
         if close:
             close()
@@ -288,6 +394,7 @@ class Runner:
             "interlocutor": life.identity.get("interlocutor"),
             "engine": {**life.identity.get("engine", {}), "name": self.engine.name,
                        "can_learn": self.engine.can_learn,
+                       "adapter": (getattr(self.engine, "adapter", None) or {}).get("version"),
                        "can_see": getattr(self.engine, "can_see", False)},
             "genome": {k: v for k, v in life.genome.to_dict().items() if k != "seed"},
             "needs": being.needs.to_dict(),
