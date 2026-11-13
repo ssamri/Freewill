@@ -75,7 +75,7 @@
       h("div", {}, h("b", {}, k("st.proven")), h("p", { class: "hint" }, k("st.proven_hint")),
         p.summary ? table([k("st.col_skill"), k("st.col_validation"), k("st.col_test")], ["read", "see", "watch"].map(skill))
           : h("p", { class: "small" }, k("st.no_run")),
-        h("div", { class: "kv", style: "margin-top:6px" }, h("b", {}, k("st.nights")), h("span", {}, tag(k("st.not_shown"), "neutral")))));
+        h("div", { class: "kv", style: "margin-top:6px" }, h("b", {}, k("st.nights")), h("span", {}, p.learns_in_nights ? tag(k("st.mechanism_shown"), "good") : tag(k("st.not_shown"), "neutral")))));
   }
 
   function ownCapacityCard(own, choose, saveCeiling) {

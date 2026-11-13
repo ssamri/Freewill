@@ -20,8 +20,9 @@ differs is what is trained and where it is kept:
               loads instead of the shared one
 
 Nothing here decides whether the being "learned" anything in a wider sense.
-OwnModelEngine.can_learn stays False until an end-to-end run with the real
-bases has kept a night (docs/own-model.md, section 6).
+An end-to-end run with the real bases kept a night (run 43285000884), so
+OwnModelEngine.can_learn is True; what that shows, and what it does not, is in
+docs/own-model.md, section 6.
 """
 
 from __future__ import annotations

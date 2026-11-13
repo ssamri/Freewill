@@ -9,9 +9,11 @@ float32 when the processor has no bfloat16 of its own and the memory holds it: a
 
 A life's nights can train it (freewill/vlm/nights.py), when the person turns
 engine learning on for that life; the engine then loads that life's latest
-kept night instead of the shared checkpoint. can_learn stays False until an
-end-to-end run with the real bases has kept a night: until then the interface
-does not present it as a model that learns.
+kept night instead of the shared checkpoint. can_learn is True since the
+end-to-end run of 12 November 2026 (run 43285000884) kept a night with the real
+bases, by its rules and against its control. What that run shows is the
+mechanism; it does not show that a fact said once is remembered
+(docs/own-model.md, section 6).
 """
 
 from __future__ import annotations
@@ -25,7 +27,7 @@ from freewill.engines.base import EngineError
 
 class OwnModelEngine:
     kind = "own"
-    can_learn = False
+    can_learn = True   # a night kept with the real bases, run 43285000884; see the module docstring
     can_see = True
     reading_chars = 7_500  # on a processor every token counts; Qwen3's context could hold far more
 

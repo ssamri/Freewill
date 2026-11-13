@@ -156,7 +156,7 @@ def test_engine_answers_in_json_or_says_why():
                       [{"media_type": "image/png", "data": base64.b64encode(buffer.getvalue()).decode()}])
     except EngineError as error:  # a toy model with random weights does not write JSON
         assert "JSON" in str(error)
-    assert engine.can_see and not engine.can_learn
+    assert engine.can_see and engine.can_learn
 
 
 @needs_torch
@@ -281,7 +281,7 @@ def test_status_keeps_configured_available_and_proven_apart(tmp_path):
     st = capacity.status(root)
     assert st["configured"]["is_default"] and st["configured"]["max_parameters"] == capacity.DEFAULT_MAX
     assert st["available"]["bases"] is False and st["available"]["ready"] is False
-    assert st["proven"] == {"checkpoint": None, "summary": False, "skills": {}, "learns_in_nights": False, "sealed_test": None}
+    assert st["proven"] == {"checkpoint": None, "summary": False, "skills": {}, "learns_in_nights": capacity.NIGHTS_EVIDENCE, "sealed_test": None}
     # a run whose see stage was kept, and whose sealed test agrees, beyond chance and beyond the control
     acc = lambda a, n=50: {"accuracy": a, "n": n, "chance": 0.25}
     summary = {"stages": [{"stage": "read", "decision": "refused"}, {"stage": "see", "decision": "kept"}],
@@ -330,6 +330,6 @@ def test_a_night_of_a_life_trains_the_own_model_and_is_kept_by_its_rule(tmp_path
     assert nights.current(life).name == row["checkpoint"]
     again = nights.night(m, life, log=lambda *a: None)
     assert again["kind"] == "skipped"                  # nothing new was lived
-    assert OwnModelEngine.can_learn is False           # not claimed before an end-to-end run with the real bases
+    assert OwnModelEngine.can_learn is True            # since a night was kept with the real bases (run 43285000884)
     rows = [json.loads(l) for l in (nights.folder(life) / "ledger.jsonl").read_text(encoding="utf-8").splitlines()]
     assert rows[-1]["stage"] == "night" and rows[-1]["decision"] == "kept"

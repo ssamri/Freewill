@@ -116,6 +116,7 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
 
     log("[sealed test] at birth")
     summary["test_at_birth"] = test_measure()
+    log(f"[sealed test] at birth: {json.dumps(summary['test_at_birth'])}")
 
     try:
         if plan.grow_to:
@@ -176,6 +177,7 @@ def run(model, root: Path, books: list[dict], plan: Plan, log=print, stages=("re
 
     log("[sealed test] at the end")
     summary["test_at_end"] = test_measure()
+    log(f"[sealed test] at the end: {json.dumps(summary['test_at_end'])}")
     trainer.ledger({"utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "stage": "sealed test",
                     "decision": "reported only", "sealed_sha256": sealed["sha256"],
                     "at_birth": summary["test_at_birth"], "at_end": summary["test_at_end"]})
