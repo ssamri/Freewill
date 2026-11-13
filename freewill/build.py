@@ -31,7 +31,7 @@ _cached: dict | None = None
 EVIDENCE = {
     "engine_lora": "ci_cpu_e2e",          # .github/workflows/engine-e2e.yml: Qwen3 1.7B, LoRA trained on CPU, loaded by llama.cpp
     "own_model": "ci_small_and_real_e2e",  # .github/workflows/own-model-e2e.yml: stages on a miniature, then on the real bases
-    "own_model_nights": "none",            # connected (freewill/vlm/nights.py), but no real run has kept a night yet
+    "own_model_nights": "ci_real_night",   # own-model-e2e.yml, run 43285000884: a night kept with the real bases (mechanism, not facts)
     "auxiliary_learner": "unit_tests",     # the small trainable module of H4, EXP-06
     "gpu": "none",                         # no run on a GPU has been published
     "macos": "none",                       # no build or run on macOS has been published
@@ -90,26 +90,26 @@ def capabilities(runner=None, models_store=None) -> list[dict]:
 
     # The engine a life converses with, adapted by LoRA (Qwen3 1.7B embedded).
     state, reason = "unavailable", "needs_lora_packages"
-    if engine is not None and getattr(engine, "can_learn", False):
+    if engine is not None and getattr(engine, "can_learn", False) and identity.get("kind") in (None, "embedded"):
         adapter = (getattr(engine, "adapter", None) or {}).get("version")
         if lora_packages:
             state, reason = ("active", "adapter_loaded") if adapter else ("available", "no_adapter_yet")
         else:
             state, reason = "unavailable", "needs_lora_packages"
-    elif identity.get("kind") not in (None, "embedded"):
+    elif identity.get("kind") not in (None, "embedded"):   # including Freewill 1.8B-V, whose nights are the row below
         state, reason = "unavailable", "engine_cannot_learn"
     elif lora_packages:
         state, reason = "available", "choose_trainable_model"
     rows.append({"id": "engine_lora", "state": state, "reason": reason, "evidence": EVIDENCE["engine_lora"]})
 
-    # Freewill 1.8B-V: it converses and is trained by stages; a life's nights can train its adapters, unproven so far.
+    # Freewill 1.8B-V: it converses and is trained by stages; a life's nights train its adapters (mechanism shown end to end).
     own_running = identity.get("kind") == "own"
     rows.append({"id": "own_model", "state": ("active" if own_running else "available") if own_packages else "unavailable",
                  "reason": "running" if own_running else ("installed" if own_packages else "needs_own_model_packages"),
                  "evidence": EVIDENCE["own_model"]})
     rows.append({"id": "own_model_nights",
                  "state": ("active" if own_running else "available") if own_packages else "unavailable",
-                 "reason": "connected_unproven" if own_packages else "needs_own_model_packages",
+                 "reason": "night_kept_in_e2e" if own_packages else "needs_own_model_packages",
                  "evidence": EVIDENCE["own_model_nights"]})
 
     # The small trainable module of H4 (research setting "learner").

@@ -4,6 +4,11 @@
 
 ## Non publié
 
+**Modifié**
+
+- Freewill 1.8B-V apprend pendant les nuits d'une vie (`can_learn = True`) : l'essai de bout en bout du 12 novembre 2026 (exécution 43285000884) a gardé une nuit avec les vraies bases, selon ses règles et face à son contrôle. Cela montre le mécanisme ; cela ne montre pas qu'un fait dit une seule fois est retenu, et les Réglages comme « À propos de cette version » le disent. Les résultats de cet essai, avec le test scellé, sont dans [`docs/own-model.fr.md`](docs/own-model.fr.md).
+- Le script de bout en bout du modèle propre ne garde plus le modèle dans son rapport : la reconstruction depuis le point de reprise tient en mémoire ; le test scellé est inscrit dans le journal à la naissance et à la fin.
+
 **Corrigé**
 
 - Les pensées d'un être n'apparaissent plus dans la conversation. Mesuré sous Windows avant le correctif (workflow `embedded engine end to end`, exécution 43245589906) : sans que personne ne lui parle, Qwen3 1.7B a écrit dans la conversation à 6 moments sur 6, en anglais comme en français, chaque fois un résumé de sa propre pensée adressé à personne (« Je voudrais apprendre à exprimer mes émotions… ») ; SmolVLM2 2.2B l'a fait une fois sur 6. Un modèle qui raisonne peut aussi écrire son raisonnement (entre balises `<think>`) dans sa réponse. Pour tous les moteurs, `freewill/core/speech.py` sépare désormais les deux : le raisonnement est mis à part de ce qui est dit ; quand personne n'a parlé, seuls les mots adressés à la personne (qui la tutoient, la vouvoient ou l'appellent par son nom) atteignent la conversation, et les mots qui répètent la pensée, le contenu venu du subconscient ou ce que l'être a déjà dit depuis que la personne a parlé restent à l'intérieur. Rien n'est perdu : ils rejoignent la pensée et apparaissent dans la vue Subconscient, avec la mention « pensé, pas dit ». Une parole spontanée adressée à la personne atteint toujours la conversation. Le moteur est aussi informé clairement que ses pensées ne sont pas entendues, et la pensée du moment n'est plus affichée en haut de l'écran Conversation. Après le correctif (exécution 43251885109) : 0 moment sur 6 pour Qwen3 1.7B en anglais et en français, et pour SmolVLM2 2.2B en français ; Qwen3 répond toujours à la personne.

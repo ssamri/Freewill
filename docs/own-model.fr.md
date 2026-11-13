@@ -103,7 +103,8 @@ python -m freewill own-model train --gutenberg --books mon-livre.pdf
 - **Moteur.** Comme moteur de pensée d'un être, choisissez le type `own` (`freewill/engines/own_model.py`). Il tourne dans le processus avec PyTorch, demande environ 8 Go de mémoire en float32 (4 Go en bfloat16) et peut recevoir des images.
 - **Vitesse.** Sur processeur seul, un pas d'entraînement sur quatre images prend environ 10 secondes. Ce chiffre a été mesuré ici sur 4 cœurs, avec l'architecture à taille réelle et des poids aléatoires. Une carte graphique accélère beaucoup.
 - **Les nuits d'une vie.** Quand un être pense avec ce modèle et que la personne active l'apprentissage du moteur pour cette vie (son nom vaut accord), chaque nuit entraîne les adaptateurs du modèle sur ce que l'être a entendu et répondu ([`nights.py`](../freewill/vlm/nights.py)). Elle reprend le corpus et les règles des nuits du modèle local ([engine-learning.fr.md](engine-learning.fr.md)) : les unités sont classées par provenance et réparties par épisode entre entraînement, validation et un test scellé qu'aucune nuit ne lit ; les réponses de l'être ne sont pas apprises sauf si la personne l'autorise ; d'anciennes unités et des passages ordinaires sont rejoués. Une nuit n'est gardée que si les unités de validation de cette vie sont mieux prédites d'au moins 0,01 nat par jeton, et de 0,01 de plus qu'un contrôle entraîné sur les mêmes mots dans le désordre, tandis que les textes de référence (par rapport au modèle d'avant cette nuit) et les nuits précédentes se dégradent d'au plus 0,05. Une nuit gardée est enregistrée dans le dossier de la vie (`engine/own/checkpoints/`), et le moteur de cette vie la charge la fois suivante. L'être attend entre deux moments pendant que la nuit s'entraîne. `python -m freewill own-model night --life <dossier>` lance une nuit à la main.
-- **Ce qu'il n'affirme pas encore.** Le moteur indique toujours `can_learn = False` : l'interface ne le présente donc pas comme un modèle qui apprend. Elle ne le fera qu'une fois qu'une exécution de bout en bout avec les vraies bases aura gardé une nuit (dernière étape du workflow). llama.cpp ne le fait pas tourner, il n'a donc pas de fichier GGUF.
+- **Un modèle qui apprend la nuit, dans les limites de ce qui a été montré.** Le 12 novembre 2026, l'exécution de bout en bout avec les vraies bases a gardé une nuit (exécution 43285000884, section 6). Depuis, le moteur indique `can_learn = True`, et l'interface propose pour lui l'apprentissage du moteur. Les Réglages et « À propos de cette version » disent ce qui a été montré : le mécanisme fonctionne, et ses règles laissent passer une nuit utile. Ils disent aussi ce qui ne l'a pas été : qu'un fait dit une seule fois soit retenu.
+- **Ce qu'il ne fait pas.** llama.cpp ne le fait pas tourner, il n'a donc pas de fichier GGUF.
 
 ## 5. L'entraîner de zéro : ce qu'il faudrait
 
@@ -116,6 +117,40 @@ La même architecture peut être construite avec des poids aléatoires (`build(i
 C'est pourquoi la voie choisie part de bases ouvertes déjà pré-entraînées.
 
 ## 6. Résultats
+
+**Essai avec le test scellé, 12 novembre 2026** ([exécution 43285000884](https://github.com/ssamri/Freewill/actions/runs/43285000884), commit 1f710e7, machine GitHub à 4 cœurs, sans carte graphique, float32, 4 h 06 min). Chaque nombre ci-dessous est recopié de son journal. Le test scellé (empreinte `9a3cad0e…` : 40 passages, 50 images avec deux questions chacune, 30 vidéos) a été mesuré à la naissance et à la fin, et aucune règle ne l'a lu.
+
+| Test scellé | À la naissance | À la fin | Hasard | p par hasard, à la fin |
+|---|---|---|---|---|
+| Livres, nats par jeton sur 40 passages | 3,4771 | 2,9486 | | |
+| Images, couleur et forme (100 questions) | 26 % | **100 %** | 20,8 % | 7,5·10⁻⁶⁹ |
+| contrôle : les mêmes questions sur l'image d'un autre exemple | 23 % | 22 % | 20,8 % | 0,43 |
+| Vidéos, sens du mouvement (30) | 33,3 % | 23,3 % | 25 % | 0,65 |
+| contrôles : images inversées / une seule image | 36,7 % / 36,7 % | 23,3 % / 20 % | 25 % | 0,65 / 0,80 |
+
+Les étapes ont été décidées sur les exemples de validation :
+- **lire** : gardée, 3,5715 → 3,0377 nats par jeton, 40 pas, 571 s ;
+- **voir** : gardée, 19 % → 100 %, contrôle 20 %, 270 pas sur 300 dans le budget de 60 minutes ;
+- **regarder** : refusée, 26,7 % → 16,7 %, poids restaurés. Avant la restauration, les images étaient tombées à 88 % et la lecture à 3,2958.
+
+**Taille.** 1 823 955 200 paramètres à la naissance ; 1 891 723 776 à la fin (une couche ajoutée, 50 336 000 ; adaptateurs de rang 16, 17 432 576). Aucune croissance n'a été refusée par la garde.
+
+**Reconstruction.** Le modèle a été reconstruit à partir des bases et de son point de reprise, après libération du premier (`first_model_freed: true`), et il donne les mêmes scores.
+
+**Réponses libres sur des exemples du test scellé** (affichées, jamais notées) :
+- couleur et forme : 6 justes sur 6 ;
+- sens du mouvement : 1 sur 2 ;
+- « Décris cette image en une phrase », pour un cercle bleu : « This picture shows a happy dog playing with a ball in the park. » En dehors des questions courtes sur lesquelles il a été entraîné, le modèle invente.
+
+**Une nuit d'une vie.** Une vie inventée de 80 échanges, où une personne parle de ses voisins, a été apprise avec les réglages qu'une personne obtient par défaut (40 pas, taux 0,0001) : 48 unités apprises, 24 passages ordinaires mêlés, 8 unités de validation. La nuit a été **gardée** :
+- unités de validation : 6,4488 → 0,9938 nats par jeton ;
+- 1,2608 de mieux que le contrôle aux mots mélangés ;
+- textes de référence : 2,4011 → 2,0868, donc aucun oubli.
+
+Les phrases de cette vie suivent toutes le même modèle (« Amina keeps 3 goats behind the old mill »). L'essentiel du gain vient de l'apprentissage de ce modèle. Cela montre que le mécanisme des nuits fonctionne avec le vrai modèle et que ses règles laissent passer une nuit utile. Cela ne montre pas qu'un fait dit une seule fois est retenu.
+
+**Ce que ces résultats montrent.** Sur des exemples jamais vus à l'entraînement et lus par aucune décision, l'œil et le pont transmettent la couleur et la forme au modèle de langue : 100 % contre 22 % pour l'image d'un autre exemple, bien au-delà du hasard. La lecture des livres réduit le coût des passages jamais vus. Le mouvement n'est pas appris : l'étape regarder est refusée dans les trois essais réels.
+
 
 **Premier essai réel, 12 novembre 2026** ([exécution 43204057091](https://github.com/ssamri/Freewill/actions/runs/43204057091), commit 85f5624, machine GitHub à 4 cœurs sans carte graphique, float32). Chaque nombre ci-dessous est recopié de son journal.
 

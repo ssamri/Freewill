@@ -43,7 +43,7 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     report = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "tiny": args.tiny, "steps": []}
 
-    def step(name, fn, shown=lambda r: r):
+    def step(name, fn, shown=lambda r: r):   # what is kept in the report must never be the model itself
         t = time.monotonic()
         print(f"== {name}", flush=True)
         try:
@@ -61,7 +61,7 @@ def main() -> int:
     log = lambda *a: print(*a, flush=True)  # noqa: E731
     try:
         if args.tiny:
-            model = step("assemble the toy model", lambda: tiny())
+            model = step("assemble the toy model", lambda: tiny(), lambda m: m.count())
             text = "\n\n".join(f"Chapter {i}. The keeper of the lighthouse counted {i} ships, and the fox slept "
                                f"under the lemon tree while the bell rang {i % 7} times." for i in range(300))
             books = [{"id": "toy", "title": "toy", "language": "English", "sha256": "", "text": text}]
@@ -78,7 +78,7 @@ def main() -> int:
             fetched = step("fetch the books", lambda: _books(data / "books"),
                            lambda r: {"read": r["read"], "left_out": r["left_out"]})
             books = fetched["books"]
-            model = step("assemble Freewill 1.8B-V", lambda: build(bases / "bases", dtype=args.dtype))
+            model = step("assemble Freewill 1.8B-V", lambda: build(bases / "bases", dtype=args.dtype), lambda m: m.count())
             plan = pipeline.Plan(grow=args.grow, read_steps=args.read_steps, see_steps=args.see_steps,
                                  watch_steps=args.watch_steps, images=args.images, videos=args.videos,
                                  budget_minutes=args.budget_minutes)
@@ -99,9 +99,12 @@ def main() -> int:
             nonlocal model
             items = synthetic.image_choices([3, 7])
             a = Trainer(model, root, log).choose(items)
-            model = None
             import gc
+            import weakref
+            first = weakref.ref(model)
+            model = None
             gc.collect()
+            held["first_model_freed"] = first() is None
             again = tiny() if args.tiny else build(bases / "bases", dtype=args.dtype)
             manifest = restore(again, root / "checkpoints" / summary["checkpoint"])
             b = Trainer(again, root, log).choose(items)
@@ -109,7 +112,8 @@ def main() -> int:
             same = abs(a["truth_nats"] - b["truth_nats"]) < 1e-4
             if not same:
                 raise AssertionError(f"rebuilt model scores {b['truth_nats']}, trained one {a['truth_nats']}")
-            return {"version": manifest["version"], "parameters": again.count(), "same_scores": same}
+            return {"version": manifest["version"], "parameters": again.count(), "same_scores": same,
+                    "first_model_freed": held["first_model_freed"]}
         step("rebuild from the checkpoint", rebuilt)
         step("a night of a life", lambda: _night(held["model"], out / "life", args.tiny))
     except Exception:

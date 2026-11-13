@@ -103,7 +103,8 @@ python -m freewill own-model train --gutenberg --books my-book.pdf
 - **Engine.** As the engine a being thinks with, use kind `own` (`freewill/engines/own_model.py`). It runs inside the process with PyTorch, needs about 8 GB of memory in float32 (4 GB in bfloat16), and can be shown images.
 - **Speed.** On a processor alone, one training step on four images takes about 10 seconds. That figure was measured here on 4 cores, with the full-size architecture and random weights. A graphics card makes it much faster.
 - **A life's nights.** When a being thinks with this model and the person turns engine learning on for that life (their name is the approval), each night trains the model's adapters on what the being heard and answered ([`nights.py`](../freewill/vlm/nights.py)). It uses the same corpus and rules as the nights of the local model ([engine-learning.md](engine-learning.md)): units are kept by provenance and split by episode into train, validation and a sealed test that no night reads; the being's own replies are not trained on unless the person allows it; earlier units and ordinary passages are replayed. A night is kept only if the validation units of this life are predicted better by 0.01 nats/token, and by 0.01 more than a control trained on the same words in a random order, while the reference texts (against the model before that night) and earlier nights get worse by at most 0.05. A kept night is saved in the life's own folder (`engine/own/checkpoints/`), and that life's engine loads it next time. The being waits between two moments while the night trains. `python -m freewill own-model night --life <folder>` runs one night by hand.
-- **What it does not claim yet.** The engine still says `can_learn = False`, so the interface does not present it as a model that learns. It will say so only once the end-to-end run with the real bases has kept a night (the last step of the workflow). llama.cpp does not run it, so it has no GGUF file.
+- **A model that learns at night, within what was shown.** On 12 November 2026, the end-to-end run with the real bases kept a night (run 43285000884, section 6). Since then the engine says `can_learn = True`, and the interface offers engine learning for it. Settings and About this build state what was shown: the mechanism works, and its rules let a useful night through. They also state what was not shown: that a fact said once is remembered.
+- **What it does not do.** llama.cpp does not run it, so it has no GGUF file.
 
 ## 5. Training from zero: what it would take
 
@@ -116,6 +117,40 @@ The same architecture can be built with random weights (`build(init="random")`).
 That is why the chosen route starts from open pretrained bases.
 
 ## 6. Results
+
+**Run with the sealed test, 12 November 2026** ([run 43285000884](https://github.com/ssamri/Freewill/actions/runs/43285000884), commit 1f710e7, GitHub runner with 4 cores, no graphics card, float32, 4 h 06 min). Every number below is copied from its log. The sealed test (hash `9a3cad0e…`: 40 passages, 50 images asked two questions each, 30 videos) was measured at birth and at the end, and no rule read it.
+
+| Sealed test | At birth | At the end | Chance | p by chance, at the end |
+|---|---|---|---|---|
+| Books, nats/token on 40 passages | 3.4771 | 2.9486 | | |
+| Images, colour and shape (100 questions) | 26 % | **100 %** | 20.8 % | 7.5·10⁻⁶⁹ |
+| control: the same questions about another item's image | 23 % | 22 % | 20.8 % | 0.43 |
+| Videos, direction of motion (30) | 33.3 % | 23.3 % | 25 % | 0.65 |
+| controls: reversed frames / one frame | 36.7 % / 36.7 % | 23.3 % / 20 % | 25 % | 0.65 / 0.80 |
+
+The stages were decided on validation items:
+- **read**: kept, 3.5715 → 3.0377 nats/token, 40 steps, 571 s;
+- **see**: kept, 19 % → 100 %, control 20 %, 270 of 300 steps within the 60-minute budget;
+- **watch**: refused, 26.7 % → 16.7 %, weights restored. Before the restore, images had fallen to 88 % and reading to 3.2958.
+
+**Size.** 1,823,955,200 at birth; 1,891,723,776 at the end (one grown layer, 50,336,000; adapters of rank 16, 17,432,576). No growth was refused by the guard.
+
+**Rebuild.** The model was rebuilt from the bases and its checkpoint, with the first one freed beforehand (`first_model_freed: true`), and it gives the same scores.
+
+**Free answers on sealed-test items** (shown, never scored):
+- colour and shape: 6 right out of 6;
+- direction of motion: 1 out of 2;
+- "Describe this picture in one sentence", about a blue circle: "This picture shows a happy dog playing with a ball in the park." Outside the short questions it was trained on, the model invents.
+
+**A night of a life.** An invented life of 80 exchanges, in which a person speaks of their neighbours, was learned with the settings a person gets by default (40 steps, rate 0.0001): 48 units trained, 24 ordinary passages mixed in, 8 validation units. The night was **kept**:
+- validation units: 6.4488 → 0.9938 nats/token;
+- 1.2608 more than the shuffled-words control;
+- reference texts: 2.4011 → 2.0868, so no forgetting.
+
+The sentences of that life all follow one pattern ("Amina keeps 3 goats behind the old mill"). Most of the gain is learning that pattern. This shows that the night mechanism works with the real model and that its rules let a useful night through. It does not show that facts said once are remembered.
+
+**What these results show.** On items it never trained on and that no decision read, the eye and the bridge carry colour and shape to the language model: 100 % against 22 % for another item's image, far beyond chance. Reading the books lowers the cost of unseen passages. Motion is not learned: the watch stage is refused in all three real runs.
+
 
 **First real run, 12 November 2026** ([run 43204057091](https://github.com/ssamri/Freewill/actions/runs/43204057091), commit 85f5624, GitHub runner with 4 cores and no graphics card, float32). Every number below is copied from its log.
 

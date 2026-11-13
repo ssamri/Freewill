@@ -97,9 +97,14 @@ class Runner:
         store, model = self._store_and_model()
         public = self.engine_learning.public()
         adapter = getattr(self.engine, "adapter", None)
-        public.update(model=model["id"] if model else None, model_name=model["name"] if model else None,
-                      model_learns=bool(model and model.get("trainable")),
-                      base_installed=bool(model and model.get("trainable") and store.training_installed(model)),
+        own = self._own_engine()
+        if own:
+            from freewill.vlm import store as own_store
+        public.update(model="own:freewill-1.8b-v" if own else (model["id"] if model else None),
+                      model_name="Freewill 1.8B-V" if own else (model["name"] if model else None),
+                      model_learns=bool(self.engine.can_learn) if own else bool(model and model.get("trainable")),
+                      base_installed=own_store.bases_ready(own_store.home()) if own
+                      else bool(model and model.get("trainable") and store.training_installed(model)),
                       running=bool(self._night_thread and self._night_thread.is_alive()),
                       loaded={"engine": self.engine.name, "adapter": adapter["version"] if adapter else None,
                               "sha256": adapter["sha256"] if adapter else None})
