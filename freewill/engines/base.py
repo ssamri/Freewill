@@ -64,7 +64,7 @@ def make_engine(config: dict) -> Engine:
         return EmbeddedEngine(model, paths["model"], paths["mmproj"], adapter=config.get("adapter"))
     if kind == "own":
         from freewill.engines.own_model import OwnModelEngine
-        return OwnModelEngine(Path(config["dir"]) if config.get("dir") else None, config.get("dtype", "bfloat16"),
+        return OwnModelEngine(Path(config["dir"]) if config.get("dir") else None, config.get("dtype", "auto"),
                               life=Path(config["life"]) if config.get("life") else None)
     if kind in ("openai", "xai", "local", "compatible"):
         from freewill.engines.compatible import CompatibleEngine

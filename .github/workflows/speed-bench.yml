@@ -1,0 +1,76 @@
+name: speed of the local engines
+
+# Real Freewill requests, recorded from the life loop, replayed on the real models: Qwen3 1.7B through
+# llama.cpp on Linux and on Windows (threads, n-gram drafting), Freewill 1.8B-V in PyTorch on Linux
+# (bfloat16 or float32, instructions read once or every time). Every number is in the uploaded speed.json.
+
+on:
+  pull_request:
+    paths:
+      - "freewill/engines/speed.py"
+      - "freewill/engines/embedded.py"
+      - "tools/speed_bench.py"
+      - ".github/workflows/speed-bench.yml"
+  workflow_dispatch:
+    inputs:
+      rounds: {description: "Rounds of every llama.cpp configuration", default: "2"}
+      tokens: {description: "Tokens per answer of the own model", default: "96"}
+
+permissions:
+  contents: read
+
+jobs:
+  embedded:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: python -m pip install -e ".[dev]"
+      - uses: actions/cache@v4
+        with:
+          path: speed-data/models
+          key: speed-models-${{ matrix.os }}-${{ hashFiles('freewill/models.json') }}
+      - name: Qwen3 1.7B through llama.cpp, every configuration in turn
+        run: python tools/speed_bench.py speed-out --part embedded --data speed-data --rounds ${{ inputs.rounds || '2' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: speed-embedded-${{ matrix.os }}
+          path: |
+            speed-out/speed.json
+            speed-out/requests.json
+          if-no-files-found: warn
+
+  own:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -e ".[own-model,dev]"
+      - name: Machine
+        run: nproc; free -g; lscpu | grep -E "Model name|Thread|Core|Flags" | cut -c1-300
+      - uses: actions/cache@v4
+        with:
+          path: speed-data
+          key: own-model-bases-speed-${{ hashFiles('freewill/vlm/spec.json') }}
+      - name: The toy model gives the same answer with the instructions kept
+        run: pytest -q tests/test_own_model.py -k "instructions_read_once"
+      - name: Freewill 1.8B-V, bfloat16 and float32, instructions read once or every time
+        run: python tools/speed_bench.py speed-out --part own --data speed-data --tokens ${{ inputs.tokens || '96' }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: speed-own
+          path: speed-out/speed.json
+          if-no-files-found: warn

@@ -136,6 +136,7 @@ class FreewillVLM(nn.Module):
         self.growth_log: list[dict] = []  # every growth, in order: {"kind": "layers"|"neurons", "count": n}
         self.widened = 0                # neurons added to each feed-forward block
         self.guard = None               # callable(total_now, adding): raises if this computer cannot hold it (capacity.py)
+        self._head = None               # (key, cache, tokens): the instructions already read, see answer()
         for p in list(self.vision.parameters()) + list(self.language.parameters()):
             p.requires_grad_(False)
         self.bridge.to(next(language.parameters()).dtype)
@@ -410,6 +411,8 @@ class FreewillVLM(nn.Module):
             elif part[0] == "image":
                 pieces += ["<image>", ("img", len(images)), "</image>"]
                 images.append(part[1])
+            elif part[0] == "cut":       # a boundary: the text before it is tokenized on its own (see answer)
+                pieces.append(("cut",))
             elif part[0] == "video":
                 pieces.append("<video>")
                 for seconds, frame in part[1]:
@@ -437,6 +440,8 @@ class FreewillVLM(nn.Module):
                 continue
             add_text(text_run, False)
             text_run = ""
+            if piece[0] == "cut":
+                continue
             tokens = seen[piece[1]]
             embeds.append(tokens)
             labels.extend([-100] * tokens.shape[0])
@@ -478,13 +483,42 @@ class FreewillVLM(nn.Module):
         counted = (labels != -100).sum(1).clamp(min=1)
         return per_token.sum(1) / counted
 
+    def train(self, mode: bool = True):
+        self._head = None   # weights about to change: what was read with the old ones is no longer valid
+        return super().train(mode)
+
+    def _read_head(self, head: str, embeds: torch.Tensor):
+        """The attention cache of the chat frame and `head` (a being's instructions, the same from one
+        thought to the next), computed once and reused while the weights stay the same. An idea taken
+        from colibri (github.com/JustVugg/colibri), which keeps in memory what every token uses; llama.cpp
+        does the same with its prompt cache. Returns a copy to extend, or None when `embeds` does not
+        begin with exactly these tokens."""
+        key = (head, len(self.layers()), self.widened, self.lora_rank, embeds.dtype, self.training)
+        if self._head is None or self._head[0] != key:
+            prefix, _ = self._chat_frame()
+            ids = self.tokenizer.encode(prefix) + self.tokenizer.encode(head)
+            if not ids or len(ids) >= embeds.shape[0]:
+                return None
+            out = self.language(inputs_embeds=self.text_embed(ids).unsqueeze(0), use_cache=True)
+            self._head = (key, out.past_key_values, self.text_embed(ids))
+        if not torch.equal(embeds[: self._head[2].shape[0]], self._head[2]):
+            return None
+        return copy.deepcopy(self._head[1])
+
     @torch.no_grad()
-    def answer(self, parts: list, max_new_tokens: int = 256) -> str:
+    def answer(self, parts: list, max_new_tokens: int = 256, reuse: bool = True) -> str:
+        """Greedy answer. When parts begin with a text followed by ("cut",), that text is read once and
+        its cache reused by later answers (reuse=False reads it every time: same tokens, more time)."""
         embeds, _ = self.sequence(parts)
+        extra = {}
+        if reuse and len(parts) > 1 and isinstance(parts[0], str) and parts[1] == ("cut",):
+            cache = self._read_head(parts[0], embeds)
+            if cache is not None:
+                extra["past_key_values"] = cache
         ids = self.language.generate(inputs_embeds=embeds.unsqueeze(0),
                                      attention_mask=torch.ones(1, embeds.shape[0], dtype=torch.long),
                                      max_new_tokens=max_new_tokens, do_sample=False,
-                                     eos_token_id=self.tokenizer.eos_id, pad_token_id=self.tokenizer.pad_id)
+                                     eos_token_id=self.tokenizer.eos_id, pad_token_id=self.tokenizer.pad_id, **extra)
         return self.tokenizer.decode(ids[0].tolist()).strip()
 
 

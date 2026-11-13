@@ -6,6 +6,7 @@
 
 **Changed**
 
+- Freewill 1.8B-V answers about 2.9 times faster on a processor without bfloat16 of its own (most PCs): it runs in float32 when the memory holds it (12 GB or more), and reads the being's instructions once and keeps them while its weights do not change. Measured on a GitHub runner (workflow `speed of the local engines`, run 43287951339): 89.3 s to 31.3 s per answer of 96 tokens, the same answers in 6 of 6. Ideas from reading [colibri](https://github.com/JustVugg/colibri) (Apache 2.0); no code taken. Its other ideas were measured on Qwen3 1.7B through llama.cpp and not kept: one thread per physical core was 5 % faster on Linux and 4 % slower on Windows, and n-gram drafts saved no time or changed the answers. See [`docs/speed.md`](docs/speed.md).
 - Freewill 1.8B-V learns during a life's nights (`can_learn = True`): the end-to-end run of 12 November 2026 (run 43285000884) kept a night with the real bases, by its rules and against its control. It shows the mechanism; it does not show that a fact said once is remembered, and Settings and About this build say so. The results of that run, with the sealed test, are in [`docs/own-model.md`](docs/own-model.md).
 - The own-model end-to-end script no longer keeps the model in its report, so the rebuild from the checkpoint fits in memory; the sealed test is logged at birth and at the end.
 

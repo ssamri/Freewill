@@ -122,6 +122,9 @@ class CompatibleEngine:
         except (urllib.error.URLError, TimeoutError) as error:
             raise EngineError(f"could not reach {self.base_url}: {error}", retryable=True) from error
 
+        # llama.cpp's server says how the time went (prompt tokens read, tokens reused from its cache,
+        # tokens drafted and accepted); other servers say nothing. Kept for tools/speed_bench.py.
+        self.last_timings = payload.get("timings") if isinstance(payload, dict) else None
         try:
             text = payload["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as error:
