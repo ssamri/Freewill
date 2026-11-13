@@ -2,6 +2,13 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## Unreleased
+
+**Changed**
+
+- Freewill 1.8B-V learns during a life's nights (`can_learn = True`): the end-to-end run of 12 November 2026 (run 43285000884) kept a night with the real bases, by its rules and against its control. It shows the mechanism; it does not show that a fact said once is remembered, and Settings and About this build say so. The results of that run, with the sealed test, are in [`docs/own-model.md`](docs/own-model.md).
+- The own-model end-to-end script no longer keeps the model in its report, so the rebuild from the checkpoint fits in memory; the sealed test is logged at birth and at the end.
+
 ## 1.2.0
 
 This version follows the technical and scientific audit of 12 November 2026 (recommendations R-06 to R-10; R-01 to R-05 are handled separately). Nothing in it claims that a system is conscious or feels anything.

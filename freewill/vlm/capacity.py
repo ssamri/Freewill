@@ -180,7 +180,10 @@ def public(root: Path, target: int | None = None) -> dict:
 
 # -- configured, available, proven: three different things, never shown as one ------------
 
-PROOF_P = 0.01   # a sealed-test result counts as shown only if chance alone would give it less than once in a hundred
+PROOF_P = 0.01
+# A night of a life kept with the real bases, by its rules and against its shuffled-words control. It shows the
+# mechanism with sentences of one pattern; it does not show that a fact said once is remembered.
+NIGHTS_EVIDENCE = {"run": 43285000884, "date": "2026-11-12", "shows": "mechanism", "facts_shown": False}   # a sealed-test result counts as shown only if chance alone would give it less than once in a hundred
 
 
 def _installed(name: str) -> bool:
@@ -218,14 +221,14 @@ def proven(root: Path) -> dict:
     """For each skill: whether a stage was kept on validation, and whether the sealed test confirms it at the end
     (books: fewer nats per token than at birth by the reading margin; images and videos: better than at birth,
     better than every control, and unlikely by chance, p < PROOF_P). Learning during a life's nights is listed
-    and stays false until an end-to-end run shows it."""
+    with the end-to-end run that showed its mechanism (NIGHTS_EVIDENCE)."""
     root = Path(root)
     try:
         summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         summary = None
     out = {"checkpoint": present(root)["checkpoint"], "summary": summary is not None, "skills": {},
-           "learns_in_nights": False, "sealed_test": None}
+           "learns_in_nights": NIGHTS_EVIDENCE, "sealed_test": None}
     if not summary:
         return out
     from freewill.vlm.train import MIN_ACCURACY_GAIN, MIN_READING_GAIN

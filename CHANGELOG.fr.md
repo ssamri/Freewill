@@ -2,6 +2,13 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## Non publié
+
+**Modifié**
+
+- Freewill 1.8B-V apprend pendant les nuits d'une vie (`can_learn = True`) : l'essai de bout en bout du 12 novembre 2026 (exécution 43285000884) a gardé une nuit avec les vraies bases, selon ses règles et face à son contrôle. Cela montre le mécanisme ; cela ne montre pas qu'un fait dit une seule fois est retenu, et les Réglages comme « À propos de cette version » le disent. Les résultats de cet essai, avec le test scellé, sont dans [`docs/own-model.fr.md`](docs/own-model.fr.md).
+- Le script de bout en bout du modèle propre ne garde plus le modèle dans son rapport : la reconstruction depuis le point de reprise tient en mémoire ; le test scellé est inscrit dans le journal à la naissance et à la fin.
+
 ## 1.2.0
 
 Cette version fait suite à l'audit technique et scientifique du 12 novembre 2026 (recommandations R-06 à R-10 ; R-01 à R-05 sont traitées à part). Rien dans cette version n'affirme qu'un système est conscient ou ressent quoi que ce soit.
