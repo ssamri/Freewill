@@ -117,6 +117,40 @@ That is why the chosen route starts from open pretrained bases.
 
 ## 6. Results
 
+**Run with the sealed test, 12 November 2026** ([run 43285000884](https://github.com/ssamri/Freewill/actions/runs/43285000884), commit 1f710e7, GitHub runner with 4 cores, no graphics card, float32, 4 h 06 min). Every number below is copied from its log. The sealed test (hash `9a3cad0e…`: 40 passages, 50 images asked two questions each, 30 videos) was measured at birth and at the end, and no rule read it.
+
+| Sealed test | At birth | At the end | Chance | p by chance, at the end |
+|---|---|---|---|---|
+| Books, nats/token on 40 passages | 3.4771 | 2.9486 | | |
+| Images, colour and shape (100 questions) | 26 % | **100 %** | 20.8 % | 7.5·10⁻⁶⁹ |
+| control: the same questions about another item's image | 23 % | 22 % | 20.8 % | 0.43 |
+| Videos, direction of motion (30) | 33.3 % | 23.3 % | 25 % | 0.65 |
+| controls: reversed frames / one frame | 36.7 % / 36.7 % | 23.3 % / 20 % | 25 % | 0.65 / 0.80 |
+
+The stages were decided on validation items:
+- **read**: kept, 3.5715 → 3.0377 nats/token, 40 steps, 571 s;
+- **see**: kept, 19 % → 100 %, control 20 %, 270 of 300 steps within the 60-minute budget;
+- **watch**: refused, 26.7 % → 16.7 %, weights restored. Before the restore, images had fallen to 88 % and reading to 3.2958.
+
+**Size.** 1,823,955,200 at birth; 1,891,723,776 at the end (one grown layer, 50,336,000; adapters of rank 16, 17,432,576). No growth was refused by the guard.
+
+**Rebuild.** The model was rebuilt from the bases and its checkpoint, with the first one freed beforehand (`first_model_freed: true`), and it gives the same scores.
+
+**Free answers on sealed-test items** (shown, never scored):
+- colour and shape: 6 right out of 6;
+- direction of motion: 1 out of 2;
+- "Describe this picture in one sentence", about a blue circle: "This picture shows a happy dog playing with a ball in the park." Outside the short questions it was trained on, the model invents.
+
+**A night of a life.** An invented life of 80 exchanges, in which a person speaks of their neighbours, was learned with the settings a person gets by default (40 steps, rate 0.0001): 48 units trained, 24 ordinary passages mixed in, 8 validation units. The night was **kept**:
+- validation units: 6.4488 → 0.9938 nats/token;
+- 1.2608 more than the shuffled-words control;
+- reference texts: 2.4011 → 2.0868, so no forgetting.
+
+The sentences of that life all follow one pattern ("Amina keeps 3 goats behind the old mill"). Most of the gain is learning that pattern. This shows that the night mechanism works with the real model and that its rules let a useful night through. It does not show that facts said once are remembered.
+
+**What these results show.** On items it never trained on and that no decision read, the eye and the bridge carry colour and shape to the language model: 100 % against 22 % for another item's image, far beyond chance. Reading the books lowers the cost of unseen passages. Motion is not learned: the watch stage is refused in all three real runs.
+
+
 **First real run, 12 November 2026** ([run 43204057091](https://github.com/ssamri/Freewill/actions/runs/43204057091), commit 85f5624, GitHub runner with 4 cores and no graphics card, float32). Every number below is copied from its log.
 
 This run predates the sealed test. Its figures are **validation figures**: they were measured on the same items that decided whether to keep each stage, so they are optimistic. Results to rely on will come from a run with the sealed test.
