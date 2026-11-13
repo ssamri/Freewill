@@ -4,8 +4,8 @@ It runs in this process, with PyTorch, on this computer: nothing leaves the
 machine. It can be shown images; the frames of a video arrive as images in
 order. It is slow on a processor (several seconds per answer, more with
 images) and needs about 8 GB of memory in float32 or 4 GB in bfloat16. By default it runs in
-float32 when the processor has no bfloat16 of its own and the memory holds it, which measured
-3.5 to 7 times faster on such a processor (freewill/engines/speed.py, docs/speed.md).
+float32 when the processor has no bfloat16 of its own and the memory holds it: answers measured
+2.3 to 3.5 times faster on such a processor (freewill/engines/speed.py, docs/speed.md).
 
 A life's nights can train it (freewill/vlm/nights.py), when the person turns
 engine learning on for that life; the engine then loads that life's latest
@@ -53,6 +53,16 @@ class OwnModelEngine:
         self.refresh_name()
         return self._model
 
+    def _reuse(self) -> bool:
+        """Keep the instructions' cache between thoughts: measured with the same answers in float32 (6 of 6)
+        but not in bfloat16 (1 of 6, rounding), so on by default in float32 only. FREEWILL_OWN_REUSE=1 or 0
+        decides otherwise (docs/speed.md)."""
+        import os
+        wanted = os.environ.get("FREEWILL_OWN_REUSE", "").strip()
+        if wanted in ("0", "1"):
+            return wanted == "1"
+        return self._dtype == "float32"
+
     def model(self):
         """The model in memory (loaded on first use), for a night of learning."""
         return self._ready()
@@ -80,5 +90,5 @@ class OwnModelEngine:
                 parts.append(("image", Image.open(io.BytesIO(base64.b64decode(image["data"])))))
             except Exception as error:
                 raise EngineError(f"an image could not be read: {error}") from error
-        text = model.answer(parts, max_new_tokens=512)
+        text = model.answer(parts, max_new_tokens=512, reuse=self._reuse())
         return parse_json_object(text)

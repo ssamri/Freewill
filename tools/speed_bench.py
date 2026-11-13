@@ -129,11 +129,12 @@ def embedded(out: Path, data: Path, requests: list[dict], rounds: int) -> dict:
         def _extra_body(self):
             return {**super()._extra_body(), "temperature": 0, "seed": 1}
 
+    physical = speed.physical_cores() or speed.logical_cores()
     configurations = [
-        ("before: logical cores - 1, no draft", {"threads": speed.threads_before(), "draft": "off"}),
-        ("physical cores, no draft", {"threads": speed.threads(), "draft": "off"}),
-        ("physical cores, ngram-simple draft", {"threads": speed.threads(), "draft": "ngram"}),
-        ("physical cores, ngram-mod draft", {"threads": speed.threads(), "draft": "ngram-mod"}),
+        ("before: logical cores - 1, no draft", {"threads": max(1, speed.logical_cores() - 1), "draft": "off"}),
+        ("physical cores, no draft", {"threads": physical, "draft": "off"}),
+        ("physical cores, ngram-simple draft", {"threads": physical, "draft": "ngram"}),
+        ("physical cores, ngram-mod draft", {"threads": physical, "draft": "ngram-mod"}),
     ]
     results: dict = {"model": model["id"], "file": paths["model"].name, "runtime": runtime.pin()["tag"], "server": str(server),
                      "configurations": {name: {"settings": settings, "rounds": []} for name, settings in configurations}}

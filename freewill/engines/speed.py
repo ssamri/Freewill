@@ -5,18 +5,17 @@ Vincenzo Fornaro). No code was taken from it: llama.cpp already implements both,
 only decides how to ask for them.
 
 - Threads. On a processor with simultaneous multithreading, two logical cores share one physical
-  core's arithmetic units. A model's matrix products are bound by those units and by memory, so
-  more threads than physical cores usually adds contention, not speed. The default is the number
-  of physical cores (one fewer when the machine has many, to leave the interface responsive).
+  core's arithmetic units, so one thread per physical core can be faster. Measured (docs/speed.md):
+  not on Windows, so the default stays every logical core but one; FREEWILL_THREADS=physical asks.
 - Drafting by looking back ("prompt lookup", an n-gram draft). The engine guesses the next few
   tokens by finding the text it has just written earlier in the prompt or the answer, then checks
   all the guesses in one pass of the model. With greedy decoding the text is the same token for
   token; only the time changes, and only when guesses are accepted. Freewill's answers repeat the
-  prompt often (names, quoted words, JSON keys), which is where this pays. Whether it pays on a
-  given model and machine is a measurement (tools/speed_bench.py), not an assumption.
+  prompt often (names, quoted words, JSON keys), which is where this could pay. Measured
+  (docs/speed.md): it did not, on Qwen3 1.7B on a processor, so it is off by default.
 
-Overrides, for measurements and for a person who wants to try: FREEWILL_THREADS (a number, or
-"logical" for every logical core) and FREEWILL_DRAFT ("off", "ngram" or "ngram-mod").
+Overrides, for measurements and for a person who wants to try: FREEWILL_THREADS (a number,
+"logical" or "physical") and FREEWILL_DRAFT ("off", "ngram" or "ngram-mod").
 """
 
 from __future__ import annotations
@@ -101,20 +100,18 @@ def _windows_physical() -> int | None:
 
 
 def threads() -> int:
-    """How many threads a local engine computes with."""
+    """How many threads llama-server computes with. Default: every logical core but one, as before. The
+    physical cores were measured too (docs/speed.md): about 5 % faster on Linux, about 4 % slower on Windows,
+    where generating text lost more than reading the prompt gained. FREEWILL_THREADS=physical asks for them."""
     wanted = os.environ.get("FREEWILL_THREADS", "").strip().lower()
     if wanted.isdigit() and int(wanted) > 0:
         return int(wanted)
     logical = logical_cores()
     if wanted == "logical":
         return logical
-    physical = physical_cores() or logical
-    return max(1, physical - 1 if physical >= 8 else physical)
-
-
-def threads_before() -> int:
-    """What Freewill used before (every logical core but one): kept for the comparison in tools/speed_bench.py."""
-    return max(1, logical_cores() - 1)
+    if wanted == "physical":
+        return physical_cores() or logical
+    return max(1, logical - 1)
 
 
 DRAFTS = ("off", "ngram", "ngram-mod")
@@ -143,9 +140,9 @@ FLOAT32_RAM_GB = 12  # 1.82 B parameters at 4 bytes is 7.3 GB, plus the cache an
 
 def native_bfloat16() -> bool | None:
     """Whether this processor computes in bfloat16 itself (AVX512-BF16 or AMX). Without it, PyTorch converts
-    every bfloat16 weight on the fly: on an AMD EPYC 7763 (4 threads), reading the instructions took about 7
-    times longer than in float32 and a 96-token answer about 3.5 times longer (docs/speed.md). None when
-    PyTorch cannot say."""
+    every bfloat16 weight on the fly. Measured on two GitHub runners (AMD EPYC, 4 threads, docs/speed.md):
+    a 96-token answer took 2.3 to 3.5 times longer than in float32, reading the instructions 4.5 to 7 times.
+    None when PyTorch cannot say."""
     try:
         import torch
         cpu = torch._C._cpu

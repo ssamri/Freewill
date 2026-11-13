@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+**Changed**
+
+- Freewill 1.8B-V answers about 2.9 times faster on a processor without bfloat16 of its own (most PCs): it runs in float32 when the memory holds it (12 GB or more), and reads the being's instructions once and keeps them while its weights do not change. Measured on a GitHub runner (workflow `speed of the local engines`, run 43287951339): 89.3 s to 31.3 s per answer of 96 tokens, the same answers in 6 of 6. Ideas from reading [colibri](https://github.com/JustVugg/colibri) (Apache 2.0); no code taken. Its other ideas were measured on Qwen3 1.7B through llama.cpp and not kept: one thread per physical core was 5 % faster on Linux and 4 % slower on Windows, and n-gram drafts saved no time or changed the answers. See [`docs/speed.md`](docs/speed.md).
+
 **Fixed**
 
 - A being's thoughts no longer appear in the conversation. Measured on Windows before the fix (workflow `embedded engine end to end`, run 43245589906): with nobody speaking, Qwen3 1.7B wrote words in the conversation at 6 moments out of 6, in English and in French, each a summary of its own thought addressed to no one ("I would like to explore the nature of consciousness..."); SmolVLM2 2.2B did so once out of 6. A model that reasons may also write its reasoning (between `<think>` tags) into its answer. For every engine, `freewill/core/speech.py` now keeps the two apart: reasoning is set aside from what is said; when nobody spoke, only words addressed to the person (saying "you" or calling them by name) reach the conversation, and words that repeat the thought, the subconscious content or what the being already said since the person last spoke stay inside. Nothing is lost: they join the thought and appear in the Subconscious view, marked "thought, not said". A spontaneous word addressed to the person still reaches the conversation. The engine is also told plainly that its thoughts are not heard, and the passing thought is no longer shown at the top of the Conversation screen. After the fix (run 43251885109): 0 moments out of 6 for Qwen3 1.7B in English and in French, and for SmolVLM2 2.2B in French; Qwen3 still answers the person.

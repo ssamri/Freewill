@@ -25,7 +25,7 @@ from freewill.engines.base import EngineError
 from freewill.engines.compatible import CompatibleEngine
 
 START_TIMEOUT = 240  # seconds: a large model on a slow disk takes a while to load
-DRAFT_DEFAULT = "off"  # see freewill/engines/speed.py; set from the measurements of tools/speed_bench.py
+DRAFT_DEFAULT = "off"  # measured slower or changing answers on Qwen3 1.7B (docs/speed.md)
 
 
 def find_runtime() -> Path | None:
