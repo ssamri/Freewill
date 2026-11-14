@@ -2,7 +2,9 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 1.3.0
+
+Cette version rassemble ce qui a été fusionné après la 1.2.0 : un Freewill 1.8B-V plus rapide sur la plupart des processeurs, des nuits d'apprentissage pour Freewill 1.8B-V, et les pensées d'un être gardées hors de la conversation. Rien dans cette version n'affirme qu'un système est conscient ou ressent quoi que ce soit.
 
 **Modifié**
 
