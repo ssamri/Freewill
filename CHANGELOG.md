@@ -2,7 +2,9 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
-## Unreleased
+## 1.3.0
+
+This version gathers what was merged after 1.2.0: a faster Freewill 1.8B-V on most processors, nights of learning for Freewill 1.8B-V, and a being's thoughts kept out of the conversation. Nothing in it claims that a system is conscious or feels anything.
 
 **Changed**
 
